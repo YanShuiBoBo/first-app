@@ -159,25 +159,33 @@ export default function Home() {
     return '🌟'.repeat(d);
   };
 
-  // Cloudflare Images 访问地址：
-  // 根据你的 cURL：图片 ID 在 cover_image_id 中，例如 eaac49f0-...
-  // 页面展示使用 https://imagedelivery.net/<account_hash>/<image_id>/public
+  // Cloudflare Images 访问地址（作为 poster 之后的兜底方案）
+  // 尽量优先使用 poster（通常是 videodelivery.net 的缩略图），
+  // 避免部分网络环境下对 imagedelivery.net 的限制导致封面加载失败。
   const CF_IMAGES_ACCOUNT_HASH =
     process.env.NEXT_PUBLIC_CF_IMAGES_ACCOUNT_ID || '';
 
   const getCoverSrc = (video: VideoCard, fallback: string) => {
-    if (video.cover_image_id && CF_IMAGES_ACCOUNT_HASH) {
-      // 如果直接存的是完整 URL，就直接用
+    // 1）优先使用 poster（例如 Cloudflare Stream 的缩略图）
+    if (video.poster) {
+      return video.poster;
+    }
+
+    // 2）其次尝试 cover_image_id
+    if (video.cover_image_id) {
+      // 如果 cover_image_id 已经是完整 URL，直接返回
       if (video.cover_image_id.startsWith('http')) {
         return video.cover_image_id;
       }
 
-      // 否则按 imagedelivery.net 规则拼接
-      return `https://imagedelivery.net/${CF_IMAGES_ACCOUNT_HASH}/${video.cover_image_id}/public`;
+      // 否则在配置了 Cloudflare Images 的情况下按规则拼接
+      if (CF_IMAGES_ACCOUNT_HASH) {
+        return `https://imagedelivery.net/${CF_IMAGES_ACCOUNT_HASH}/${video.cover_image_id}/public`;
+      }
     }
 
-    // 退回到 poster 或本地占位图
-    return video.poster || fallback;
+    // 3）最后退回到本地占位图
+    return fallback;
   };
 
   const heroVideo = filteredVideos[0] || videos[0] || null;
