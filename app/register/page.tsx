@@ -15,6 +15,8 @@ export default function RegisterPage() {
     : '';
 
   const [email, setEmail] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [inviteCode, setInviteCode] = useState(initialInviteCode);
@@ -53,9 +55,25 @@ export default function RegisterPage() {
       return;
     }
 
+    // 简单手机号校验（仅判断非空和长度）
+    if (!nickname.trim()) {
+      setError('请输入昵称');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!phone.trim()) {
+      setError('请输入手机号');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // 调用注册函数
-      const result = await register(email, password, inviteCode);
+      const result = await register(email, password, inviteCode, {
+        nickname,
+        phone
+      });
 
       if (!result.success) {
         setError(result.error || '注册失败');
@@ -123,6 +141,38 @@ export default function RegisterPage() {
                 placeholder="邮箱地址"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="nickname" className="sr-only">
+                昵称
+              </label>
+              <input
+                id="nickname"
+                name="nickname"
+                type="text"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="昵称（展示在首页头像旁）"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="phone" className="sr-only">
+                手机号
+              </label>
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="手机号（用于后续通知）"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
               />
             </div>
 

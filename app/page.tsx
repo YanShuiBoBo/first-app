@@ -23,6 +23,7 @@ interface VideoCard {
   difficulty?: number | null;
   tags?: string[] | null;
   cover_image_id?: string | null;
+   view_count?: number | null;
 }
 
 export default function Home() {
@@ -55,7 +56,7 @@ export default function Home() {
       const { data, error } = await supabase
         .from('videos')
         .select(
-          'id, cf_video_id, title, poster, duration, status, author, description, difficulty, tags, cover_image_id'
+          'id, cf_video_id, title, poster, duration, status, author, description, difficulty, tags, cover_image_id, view_count'
         )
         .eq('status', 'published')
         .order('created_at', { ascending: false });
@@ -189,7 +190,15 @@ export default function Home() {
     return fallback;
   };
 
-  const heroVideo = filteredVideos[0] || videos[0] || null;
+  // 首页推荐视频：使用点击量最高的视频作为推荐来源（如果有数据）
+  const heroVideo =
+    videos.length > 0
+      ? videos.reduce((best, v) => {
+          const bestViews = (best.view_count ?? 0);
+          const currentViews = (v.view_count ?? 0);
+          return currentViews > bestViews ? v : best;
+        }, videos[0])
+      : null;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#09090b] text-slate-50">
@@ -271,9 +280,18 @@ export default function Home() {
                         <span className="text-base leading-none">▶</span>
                         <span>开始精读</span>
                       </Link>
-                      <span className="text-xs text-zinc-400">
-                        ⏱ {formatDuration(heroVideo.duration)}
-                      </span>
+                      <div className="flex items-center gap-2 text-xs text-zinc-300">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5">
+                          <span>⏱</span>
+                          <span>{formatDuration(heroVideo.duration)}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5">
+                          <span>🔥</span>
+                          <span>
+                            已学习 {heroVideo.view_count ?? 0} 次
+                          </span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -416,6 +434,11 @@ export default function Home() {
                                 </span>
                               ))}
                           </div>
+                        </div>
+                        {/* 右侧：点击量 */}
+                        <div className="ml-2 mt-1 flex items-center gap-1 text-[11px] text-zinc-400">
+                          <span>🔥</span>
+                          <span>{video.view_count ?? 0}</span>
                         </div>
                       </div>
                     </Link>

@@ -9,14 +9,21 @@ export const config = {
 };
 
 export function middleware(request: NextRequest): NextResponse {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
 
   // 公共路由（不需要登录）
   const publicPaths = ['/login', '/register', '/join'];
-  const isPublicPath = publicPaths.some(path => pathname === path || pathname.startsWith(`${path}/`));
+  const isPublicPath = publicPaths.some(
+    path => pathname === path || pathname.startsWith(`${path}/`)
+  );
+
+  // 试看路由：/watch/[videoId]?trial=1 允许未登录访问
+  const isTrialWatch =
+    pathname.startsWith('/watch') &&
+    searchParams.get('trial') === '1';
 
   // 当前路径是否需要保护
-  const isProtected = !isPublicPath;
+  const isProtected = !isPublicPath && !isTrialWatch;
 
   if (!isProtected) {
     return NextResponse.next();
@@ -44,4 +51,3 @@ export function middleware(request: NextRequest): NextResponse {
   // 其他情况允许继续
   return NextResponse.next();
 }
-

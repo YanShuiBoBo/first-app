@@ -86,8 +86,18 @@ export const login = async (email: string, password: string) => {
 };
 
 // 激活码校验 + 注册函数（使用 app_users 表持久化用户）
-export const register = async (email: string, password: string, inviteCode: string) => {
+export const register = async (
+  email: string,
+  password: string,
+  inviteCode: string,
+  options?: {
+    nickname?: string;
+    phone?: string;
+  }
+) => {
   const code = inviteCode.trim();
+  const nickname = options?.nickname?.trim() || "";
+  const phone = options?.phone?.trim() || "";
 
   if (!code) {
     return {
@@ -173,14 +183,15 @@ export const register = async (email: string, password: string, inviteCode: stri
 
     // 激活码通过校验后，先创建用户，再占用激活码
 
-    // 创建用户
+    // 创建用户（带昵称 / 手机号）
     const { data: createdUser, error: createUserError } = await supabase
       .from("app_users")
       .insert({
         email,
         password, // 当前阶段明文存储，仅用于开发环境
-        name: email.split("@")[0],
-        role: "user"
+        name: nickname || email.split("@")[0],
+        role: "user",
+        phone: phone || null
       })
       .select("email, name, role")
       .single();

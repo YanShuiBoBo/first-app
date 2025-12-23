@@ -11,6 +11,11 @@ interface DisplayUser {
 }
 
 function getDisplayName(user: DisplayUser) {
+  // 管理员账号固定显示“管理员”
+  if (user.email === '772861967@qq.com') {
+    return '管理员';
+  }
+
   // 预留给 Supabase user_metadata.full_name，当前项目只有 name/email
   const rawName = user.full_name || user.name || '';
 

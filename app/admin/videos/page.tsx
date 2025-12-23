@@ -16,7 +16,7 @@ interface VideoRow {
   difficulty?: number | null;
   tags?: string[] | null;
   description?: string | null;
-  cover_image_id?: string | null;
+  poster?: string | null;
 }
 
 function formatDuration(seconds: number): string {
@@ -39,17 +39,9 @@ function formatDateTime(iso: string): string {
   return `${y}/${m}/${day} ${h}:${min}`;
 }
 
-const CF_IMAGES_ACCOUNT_HASH =
-  process.env.NEXT_PUBLIC_CF_IMAGES_ACCOUNT_ID || "";
-
 function getCoverUrl(video: VideoRow): string | null {
-  if (video.cover_image_id && CF_IMAGES_ACCOUNT_HASH) {
-    if (video.cover_image_id.startsWith("http")) {
-      return video.cover_image_id;
-    }
-    return `https://imagedelivery.net/${CF_IMAGES_ACCOUNT_HASH}/${video.cover_image_id}/public`;
-  }
-  return null;
+  // 素材管理中首图改为直接使用 poster 字段（完整 URL）
+  return video.poster || null;
 }
 
 export default function AdminVideosPage() {
@@ -76,8 +68,7 @@ export default function AdminVideosPage() {
     difficulty: "",
     tags: "",
     poster: "",
-    duration: "",
-    cover_image_id: ""
+    duration: ""
   });
 
   // 字幕 / 卡片 JSON 文本
@@ -85,24 +76,23 @@ export default function AdminVideosPage() {
   const [cardsText, setCardsText] = useState("");
 
   const [isCreating, setIsCreating] = useState(false);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
   const router = useRouter();
-  const { user, isLoggedIn } = useAuthStore();
-
-  // 仅管理员账号可访问
-  if (!isLoggedIn || user?.email !== "772861967@qq.com") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-600">
-        仅管理员账号可访问此页面
-      </div>
-    );
-  }
+  const { user, isLoggedIn, initialize } = useAuthStore();
+  const [authReady, setAuthReady] = useState(false);
 
   // 首次在浏览器端挂载时初始化 Supabase 客户端
   useEffect(() => {
     const client = createBrowserClient();
     setSupabase(client);
   }, []);
+
+  // 初始化登录状态（从 cookie 中恢复管理员身份），避免刷新后丢失状态
+  useEffect(() => {
+    initialize();
+    setAuthReady(true);
+  }, [initialize]);
 
   useEffect(() => {
     const fetchVideos = async () => {
@@ -114,7 +104,7 @@ export default function AdminVideosPage() {
         const { data, error } = await supabase
           .from("videos")
           .select(
-            "id, cf_video_id, title, status, duration, created_at, author, difficulty, tags, description, cover_image_id"
+            "id, cf_video_id, title, status, duration, created_at, author, difficulty, tags, description, poster"
           )
           .order("created_at", { ascending: false });
 
@@ -133,6 +123,23 @@ export default function AdminVideosPage() {
 
     fetchVideos();
   }, [supabase]);
+
+  // 鉴权视图
+  if (!authReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-600">
+        正在验证管理员身份...
+      </div>
+    );
+  }
+
+  if (!isLoggedIn || user?.email !== "772861967@qq.com") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-600">
+        仅管理员账号可访问此页面
+      </div>
+    );
+  }
 
   // 仅管理员账号可访问
   if (!isLoggedIn || user?.email !== "772861967@qq.com") {
@@ -153,9 +160,8 @@ export default function AdminVideosPage() {
       description: video.description || "",
       difficulty: video.difficulty ? String(video.difficulty) : "",
       tags: video.tags ? video.tags.join(", ") : "",
-      poster: "",
-      duration: String(video.duration || ""),
-      cover_image_id: video.cover_image_id || ""
+      poster: video.poster || "",
+      duration: String(video.duration || "")
     });
     setModalError(null);
     setIsMetaModalOpen(true);
@@ -172,8 +178,7 @@ export default function AdminVideosPage() {
       difficulty: "3",
       tags: "",
       poster: "",
-      duration: "",
-      cover_image_id: ""
+      duration: ""
     });
     setModalError(null);
     setIsMetaModalOpen(true);
@@ -275,8 +280,7 @@ export default function AdminVideosPage() {
             author: metaForm.author || null,
             description: metaForm.description || null,
             difficulty: difficultyNumber ?? 3,
-            tags,
-            cover_image_id: metaForm.cover_image_id || null
+            tags
           })
           .select()
           .single();
@@ -297,7 +301,7 @@ export default function AdminVideosPage() {
             description: metaForm.description || null,
             difficulty: difficultyNumber,
             tags,
-            cover_image_id: metaForm.cover_image_id || null
+            poster: metaForm.poster || null
           })
           .eq("id", selectedVideo.id);
 
@@ -326,6 +330,27 @@ export default function AdminVideosPage() {
       setModalError("保存基础信息失败");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // 生成试看链接并复制到剪贴板
+  const handleCopyPreviewLink = async (video: VideoRow) => {
+    try {
+      // 在浏览器环境中使用 location.origin 作为基础域名
+      const origin =
+        typeof window !== "undefined"
+          ? window.location.origin
+          : "https://www.weiweilad.online";
+
+      const url = `${origin}/watch/${video.cf_video_id}?trial=1`;
+
+      await navigator.clipboard.writeText(url);
+      setCopyMessage("试看链接已复制到剪贴板");
+      setTimeout(() => setCopyMessage(null), 2000);
+    } catch (err) {
+      console.error("复制试看链接失败:", err);
+      setCopyMessage("复制失败，请手动复制链接");
+      setTimeout(() => setCopyMessage(null), 2000);
     }
   };
 
@@ -489,7 +514,6 @@ export default function AdminVideosPage() {
                   <th className="px-4 py-2 text-left">难度</th>
                   <th className="px-4 py-2 text-left">标签</th>
                   <th className="px-4 py-2 text-left">首图预览</th>
-                  <th className="px-4 py-2 text-left">首图ID</th>
                   <th className="px-4 py-2 text-left">状态</th>
                   <th className="px-4 py-2 text-left">时长</th>
                   <th className="px-4 py-2 text-left">创建时间</th>
@@ -530,7 +554,7 @@ export default function AdminVideosPage() {
                         ? video.tags.slice(0, 3).join(" / ")
                         : "-"}
                     </td>
-                    {/* 首图预览 */}
+                    {/* 首图预览（使用 poster URL） */}
                     <td className="px-4 py-2 align-middle text-[11px] text-slate-500">
                       {(() => {
                         const url = getCoverUrl(video);
@@ -545,10 +569,6 @@ export default function AdminVideosPage() {
                           <div className="h-12 w-20 rounded bg-slate-100" />
                         );
                       })()}
-                    </td>
-                    {/* 首图 ID */}
-                    <td className="px-4 py-2 align-middle text-[11px] text-slate-500">
-                      {video.cover_image_id || "-"}
                     </td>
                     {/* 状态 */}
                     <td className="px-4 py-2 align-middle">
@@ -603,6 +623,13 @@ export default function AdminVideosPage() {
                         >
                           编辑
                         </button>
+                        <button
+                          type="button"
+                          className="rounded bg-amber-100 px-2 py-1 text-[11px] text-amber-700"
+                          onClick={() => handleCopyPreviewLink(video)}
+                        >
+                          分享试看
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -612,6 +639,13 @@ export default function AdminVideosPage() {
           )}
         </div>
       </main>
+
+      {/* 右下角复制提示 */}
+      {copyMessage && (
+        <div className="fixed bottom-4 right-4 z-40 rounded-full bg-slate-900/90 px-4 py-2 text-xs text-slate-100 shadow-lg shadow-black/70">
+          {copyMessage}
+        </div>
+      )}
 
       {/* 基础信息弹窗 */}
       {isMetaModalOpen && (
@@ -691,49 +725,33 @@ export default function AdminVideosPage() {
                   }
                 />
               </div>
-              {isCreating && (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-slate-600">
-                      封面 URL（poster）
-                    </label>
-                    <input
-                      className="rounded border px-2 py-1 text-xs"
-                      value={metaForm.poster}
-                      onChange={(e) =>
-                        setMetaForm((f) => ({ ...f, poster: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-slate-600">
-                      时长（秒）
-                    </label>
-                    <input
-                      className="rounded border px-2 py-1 text-xs"
-                      value={metaForm.duration}
-                      onChange={(e) =>
-                        setMetaForm((f) => ({ ...f, duration: e.target.value }))
-                      }
-                    />
-                  </div>
-                </>
-              )}
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-slate-600">
-                  首图 Cloudflare ID（cover_image_id）
+                  首图 URL（poster）
                 </label>
                 <input
                   className="rounded border px-2 py-1 text-xs"
-                  value={metaForm.cover_image_id}
+                  value={metaForm.poster}
                   onChange={(e) =>
-                    setMetaForm((f) => ({
-                      ...f,
-                      cover_image_id: e.target.value
-                    }))
+                    setMetaForm((f) => ({ ...f, poster: e.target.value }))
                   }
+                  placeholder="例如 Cloudflare Stream 的缩略图 / 任意可访问图片地址"
                 />
               </div>
+              {isCreating && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-slate-600">
+                    时长（秒）
+                  </label>
+                  <input
+                    className="rounded border px-2 py-1 text-xs"
+                    value={metaForm.duration}
+                    onChange={(e) =>
+                      setMetaForm((f) => ({ ...f, duration: e.target.value }))
+                    }
+                  />
+                </div>
+              )}
             </div>
 
             {modalError && (

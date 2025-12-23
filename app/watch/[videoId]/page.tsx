@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Stream, type StreamPlayerApi } from '@cloudflare/stream-react';
 import { usePlayerStore } from '@/lib/store/player-store';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { createBrowserClient } from '@/lib/supabase/client';
 
 // 定义视频数据类型
@@ -20,6 +20,7 @@ interface VideoData {
    description?: string | null;
    difficulty?: number | null;
    tags?: string[] | null;
+  view_count?: number | null;
   subtitles: SubtitleItem[];
   cards: KnowledgeCard[];
 }
@@ -70,6 +71,12 @@ export default function WatchPage() {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [subtitleMode, setSubtitleMode] = useState<'both' | 'en' | 'cn'>('both');
+  const [trialEnded, setTrialEnded] = useState(false);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const isTrial = searchParams?.get('trial') === '1';
+  const TRIAL_LIMIT_SECONDS = 6 * 60;
 
   // 初始化登录状态（Phase 1 先不做强门禁，只同步一下本地登录信息）
   useEffect(() => {
@@ -119,6 +126,7 @@ export default function WatchPage() {
             difficulty?: number | null;
             tags?: string[] | null;
           };
+          view_count?: number | null;
           subtitles: SubtitleItem[] | null;
           knowledge_cards: KnowledgeCard[] | null;
         };
@@ -140,6 +148,7 @@ export default function WatchPage() {
           description: video.description,
           difficulty: video.difficulty,
           tags: video.tags,
+          view_count: (video as any).view_count ?? 0,
           subtitles: subtitles || [],
           cards: knowledge_cards || []
         };
@@ -218,6 +227,26 @@ export default function WatchPage() {
     void recordStudyDay();
   }, [supabase, user?.email, videoData]);
 
+  // 记录视频点击量（不依赖登录，只要进入精读页就算一次点击）
+  useEffect(() => {
+    if (!supabase || !videoId) return;
+
+    const client = supabase;
+    const cfId = videoId;
+
+    const incrementView = async () => {
+      try {
+        await client.rpc('increment_video_view', {
+          p_cf_video_id: cfId
+        });
+      } catch (err) {
+        console.error('记录视频点击量失败:', err);
+      }
+    };
+
+    void incrementView();
+  }, [supabase, videoId]);
+
   // 播放器状态 - Hooks必须在条件返回之前调用
   const {
     currentSubtitleIndex,
@@ -243,6 +272,24 @@ export default function WatchPage() {
     // 先读取当前句索引和循环开关，再根据“旧索引”判断是否需要回到句首
     const { sentenceLoop: loopOn, currentSubtitleIndex: idx } =
       usePlayerStore.getState();
+
+    // 试看模式：超过限制时间后强制暂停，并标记试看结束
+    if (isTrial && !trialEnded && time >= TRIAL_LIMIT_SECONDS) {
+      streamRef.current.pause();
+      setTrialEnded(true);
+      time = TRIAL_LIMIT_SECONDS;
+    }
+
+    // 试看结束后不再做单句循环等逻辑，直接锁定在限制时间
+    if (isTrial && trialEnded) {
+      if (time > TRIAL_LIMIT_SECONDS) {
+        streamRef.current.currentTime = TRIAL_LIMIT_SECONDS;
+        time = TRIAL_LIMIT_SECONDS;
+      }
+      setCurrentTime(time);
+      setCurrentSubtitle(subtitles, time);
+      return;
+    }
 
     if (loopOn) {
       const current = subtitles[idx];
@@ -281,6 +328,9 @@ export default function WatchPage() {
 
   const handleTogglePlay = () => {
     if (!streamRef.current) return;
+
+    // 试看已结束：不允许继续播放
+    if (isTrial && trialEnded) return;
     if (isPlaying) {
       streamRef.current.pause();
     } else {
@@ -307,7 +357,16 @@ export default function WatchPage() {
   // 字幕点击事件
   const handleSubtitleClick = (index: number) => {
     if (!videoData?.subtitles || !streamRef.current) return;
+
+    // 试看已结束：不允许再通过点击句子跳转
+    if (isTrial && trialEnded) return;
+
     const subtitle = videoData.subtitles[index];
+
+    // 试看模式：不允许跳转到试看范围之外
+    if (isTrial && subtitle.start >= TRIAL_LIMIT_SECONDS) {
+      return;
+    }
     // 跳转到当前句子的开始时间
     streamRef.current.currentTime = subtitle.start;
     jumpToSubtitle(index);
@@ -331,6 +390,11 @@ export default function WatchPage() {
     showCard(card);
 
     if (!videoData?.subtitles || !streamRef.current) return;
+
+    // 试看已结束：不再控制视频时间，只展示卡片内容
+    if (isTrial && trialEnded) {
+      return;
+    }
 
     const lower = card.trigger_word.toLowerCase();
     const index = videoData.subtitles.findIndex(sub =>
@@ -438,6 +502,9 @@ export default function WatchPage() {
           <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-400 md:mt-0 md:justify-end">
             <span className="inline-flex items-center rounded-full bg-slate-900/80 px-3 py-1">
               ⏱ {formatDuration(videoData.duration)}
+            </span>
+            <span className="inline-flex items-center rounded-full bg-slate-900/80 px-3 py-1">
+              🔥 已学习 {videoData.view_count ?? 0} 次
             </span>
             <span className="inline-flex items-center rounded-full border border-slate-700/80 px-3 py-1">
               双语字幕 · 知识卡片 · 单词点击解释
@@ -695,22 +762,22 @@ export default function WatchPage() {
         <div className="fixed inset-x-0 bottom-0 z-30 rounded-t-2xl border-t border-slate-800/80 bg-slate-950/95 px-4 py-3 text-xs text-slate-200 shadow-[0_-10px_40px_rgba(15,23,42,0.9)] lg:hidden">
           <div className="mb-2 flex items-center justify-between">
             <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] text-slate-300">
-                  精读控制
-                </span>
-                <span className="text-[11px] text-slate-500">
-                  句子 {currentSubtitleIndex + 1}/{videoData.subtitles.length}
-                </span>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] text-slate-300">
+                精读控制
+              </span>
               <span className="text-[11px] text-slate-500">
-                当前模式：{sentenceLoop ? '单句循环' : '连续播放'}
+                句子 {currentSubtitleIndex + 1}/{videoData.subtitles.length}
               </span>
             </div>
-            <span className="hidden text-[11px] text-slate-500 sm:block">
-              点句子跳转 · 单句循环专注跟读
+            <span className="text-[11px] text-slate-500">
+              当前模式：{sentenceLoop ? '单句循环' : '连续播放'}
             </span>
           </div>
+          <span className="hidden text-[11px] text-slate-500 sm:block">
+            点句子跳转 · 单句循环专注跟读
+          </span>
+        </div>
 
           <div className="flex items-center justify-between gap-3">
             {/* 左侧：句子播放模式 */}
@@ -722,6 +789,7 @@ export default function WatchPage() {
                   : 'bg-slate-900 text-slate-200'
               }`}
               onClick={toggleSentenceLoop}
+              disabled={isTrial && trialEnded}
             >
               <span className="text-base leading-none">⟲</span>
               <span>
@@ -734,6 +802,7 @@ export default function WatchPage() {
               type="button"
               className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/40"
               onClick={handleTogglePlay}
+              disabled={isTrial && trialEnded}
             >
               <span className="text-lg leading-none">
                 {isPlaying ? '⏸' : '▶︎'}
@@ -745,6 +814,7 @@ export default function WatchPage() {
               type="button"
               className="inline-flex flex-1 items-center justify-center gap-1 rounded-full bg-slate-900 px-3 py-2 text-[11px] text-slate-200"
               onClick={handleChangeSpeed}
+              disabled={isTrial && trialEnded}
             >
               <span className="text-base leading-none">1x</span>
               <span>{playbackRate.toFixed(2).replace(/\.00$/, '')}x</span>
@@ -821,6 +891,36 @@ export default function WatchPage() {
                 {activeCard.data.sentence}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 试看结束提示遮罩 */}
+      {isTrial && trialEnded && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 text-center text-sm text-slate-100">
+          <div className="max-w-xs rounded-2xl bg-slate-900/95 p-4 shadow-xl shadow-black/70">
+            <h2 className="mb-2 text-base font-semibold text-slate-50">
+              6 分钟试看已结束
+            </h2>
+            <p className="mb-4 text-xs text-slate-300">
+              想解锁完整精读、无限次回看和全部知识卡片，请使用激活码注册后登录。
+            </p>
+            <div className="flex flex-col gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => router.push('/login')}
+                className="w-full rounded-full bg-sky-500 px-3 py-2 font-medium text-slate-950 shadow-sm shadow-sky-500/40 hover:bg-sky-400"
+              >
+                去登录 / 注册
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/')}
+                className="w-full rounded-full border border-slate-600 px-3 py-2 text-slate-200 hover:border-slate-400 hover:text-white"
+              >
+                回到首页
+              </button>
+            </div>
           </div>
         </div>
       )}
