@@ -32,6 +32,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [learnedCount, setLearnedCount] = useState(0);
   const [studyDates, setStudyDates] = useState<string[]>([]);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Supabase 客户端只在浏览器端初始化，避免构建 / 预渲染阶段触发环境变量错误
   const [supabase, setSupabase] =
@@ -435,8 +436,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 右侧：学习统计 & 官方通知玻璃侧栏 */}
-          <div className="lg:col-span-3">
+          {/* 右侧：学习统计 & 官方通知玻璃侧栏（仅桌面端常驻展示） */}
+          <div className="hidden lg:col-span-3 lg:block">
             <div className="flex flex-col gap-4 lg:sticky lg:top-24">
               <StatsCard
                 totalVideos={videos.length}
@@ -457,6 +458,68 @@ export default function Home() {
         </section>
 
       </main>
+
+      {/* 移动端：右侧浮动按钮 + 抽屉式学习面板 */}
+      <div className="lg:hidden">
+        {/* 漂浮触发按钮（右侧） */}
+        <button
+          type="button"
+          onClick={() => setIsMobileSidebarOpen(true)}
+          className="fixed bottom-6 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-sky-500/40 ring-1 ring-white/30 backdrop-blur-md"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[15px] text-sky-500 shadow-sm shadow-emerald-400/40">
+            📊
+          </span>
+          <span className="pr-1">
+            学习面板
+          </span>
+        </button>
+
+        {/* 抽屉与遮罩层 */}
+        {isMobileSidebarOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+              onClick={() => setIsMobileSidebarOpen(false)}
+            />
+            <div className="fixed inset-y-0 right-0 z-50 w-5/6 max-w-xs translate-x-0 bg-slate-950/95 p-4 shadow-xl shadow-black/80">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-sky-400">
+                    Study Panel
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    看进度、打卡日历、查看官方消息
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800/80 text-slate-200 shadow-sm shadow-black/60"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-4 overflow-y-auto pb-6">
+                <StatsCard
+                  totalVideos={videos.length}
+                  learnedVideos={learnedCount}
+                  notLearnedVideos={Math.max(
+                    videos.length - learnedCount,
+                    0
+                  )}
+                />
+                <StudyCalendar
+                  year={new Date().getFullYear()}
+                  month={new Date().getMonth() + 1}
+                  studyDates={studyDates}
+                />
+                <NotificationCard />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
