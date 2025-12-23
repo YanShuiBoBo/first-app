@@ -50,8 +50,8 @@ export default function WatchPage() {
   const videoId = params?.videoId as string;
 
   const videoRef = useRef<HTMLDivElement>(null);
-  // Cloudflare 播放器实例引用，初始为 null
-  const streamRef = useRef<StreamPlayerApi | null>(null);
+  // Cloudflare 播放器实例引用，初始为 undefined；类型与 Stream 组件的 streamRef 要求保持一致
+  const streamRef = useRef<StreamPlayerApi | undefined>(undefined);
 
   // 字幕容器与每行字幕的引用，用于自动滚动
   const subtitlesContainerRef = useRef<HTMLDivElement | null>(null);
