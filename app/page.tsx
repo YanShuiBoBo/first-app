@@ -234,11 +234,7 @@ export default function Home() {
                     <h1 className="max-w-xl text-2xl font-semibold leading-tight text-zinc-50 md:text-3xl">
                       {heroVideo.title}
                     </h1>
-                    {heroVideo.description && (
-                      <p className="mt-2 max-w-md text-sm text-zinc-300 line-clamp-2">
-                        {heroVideo.description}
-                      </p>
-                    )}
+                    {/* 首页 Hero 不再展示简介，避免在小屏幕被割裂显示 */}
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-zinc-300">
                       {heroVideo.author && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">

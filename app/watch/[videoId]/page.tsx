@@ -7,7 +7,6 @@ import { usePlayerStore } from '@/lib/store/player-store';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useParams } from 'next/navigation';
 import { createBrowserClient } from '@/lib/supabase/client';
-import Header from '@/components/layout/Header';
 
 // 定义视频数据类型
 interface VideoData {
@@ -415,9 +414,7 @@ export default function WatchPage() {
         <div className="absolute right-[-18%] bottom-[-24%] h-80 w-80 rounded-full bg-violet-500/25 blur-3xl" />
       </div>
 
-      <Header />
-
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 pb-6 pt-20 lg:gap-6 lg:pb-10 lg:pt-24">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 pb-6 pt-6 lg:gap-6 lg:pb-10 lg:pt-10">
         {/* 顶部：模式标签 + 返回首页 + 时长信息（轻量显示） */}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="flex items-center justify-between gap-3 md:justify-start">
@@ -444,7 +441,8 @@ export default function WatchPage() {
         {/* 布局：视频 + 弹幕为主角，知识卡片用浮层/抽屉呈现，不再占一整列 */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
           {/* 左栏 - 视频播放器 (60%) */}
-          <div className="lg:col-span-7">
+          {/* 移动端：使用 sticky 固定在顶部，滚动脚本时视频始终可见 */}
+          <div className="sticky top-0 lg:static lg:col-span-7">
             <div
               ref={videoRef}
               className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-black/80 shadow-xl shadow-slate-950/70"
