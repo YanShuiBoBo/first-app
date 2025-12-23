@@ -236,21 +236,28 @@ export default function WatchPage() {
   // 视频时间更新回调：同步到全局播放器状态，并根据时间计算当前字幕行
   const handleTimeUpdate = () => {
     if (!streamRef.current || !videoData?.subtitles) return;
-    const time = streamRef.current.currentTime;
+
     const subtitles = videoData.subtitles;
+    let time = streamRef.current.currentTime;
+
+    // 先读取当前句索引和循环开关，再根据“旧索引”判断是否需要回到句首
+    const { sentenceLoop: loopOn, currentSubtitleIndex: idx } =
+      usePlayerStore.getState();
+
+    if (loopOn) {
+      const current = subtitles[idx];
+      if (current) {
+        // 预留一个稍大的阈值，避免移动端 onTimeUpdate 触发不够频繁导致错过判定点
+        const nearEnd = time >= current.end - 0.15;
+        if (nearEnd) {
+          streamRef.current.currentTime = current.start;
+          time = current.start;
+        }
+      }
+    }
 
     setCurrentTime(time);
     setCurrentSubtitle(subtitles, time);
-
-    // 单句循环模式：当前句播放到结尾时回到句首
-    const { sentenceLoop: loopOn, currentSubtitleIndex: idx } =
-      usePlayerStore.getState();
-    if (loopOn) {
-      const current = subtitles[idx];
-      if (current && time >= current.end - 0.05) {
-        streamRef.current.currentTime = current.start;
-      }
-    }
   };
 
   // 首次加载视频和字幕后，默认选中第一句，避免播放前完全无高亮
