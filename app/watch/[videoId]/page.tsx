@@ -350,7 +350,7 @@ export default function WatchPage() {
   };
 
   // 当前字幕自动跟随滚动到视图中间
-  // 移动端会预留底部“精读控制 / 卡片弹层”的遮挡区域，让高亮句子落在真正可见的中间位置
+  // 移动端：基于视口高度计算真正“可见区域”，扣掉底部精读控制条和知识卡片 bottom sheet 的遮挡
   useEffect(() => {
     if (!subtitlesContainerRef.current) return;
     const container = subtitlesContainerRef.current;
@@ -361,13 +361,18 @@ export default function WatchPage() {
     const elRect = activeEl.getBoundingClientRect();
     const offset = elRect.top - containerRect.top;
 
-    let bottomOffset = 0;
+    let visibleHeight = containerRect.height;
+
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      // 底部精读控制条 + 可能出现的知识卡片 bottom sheet，预留一块看不见的高度
-      bottomOffset = activeCard ? 160 : 96;
+      // 视口高度 - 字幕容器到顶部的距离 - 底部悬浮区域高度 = 实际可见高度
+      const viewportHeight = window.innerHeight;
+      const overlaysHeight = activeCard ? 200 : 120; // 精读控制条 + 可能出现的知识卡片 bottom sheet
+      visibleHeight = Math.max(
+        viewportHeight - containerRect.top - overlaysHeight,
+        1
+      );
     }
 
-    const visibleHeight = Math.max(containerRect.height - bottomOffset, 1);
     const target =
       container.scrollTop +
       offset -
@@ -404,7 +409,7 @@ export default function WatchPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-50">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-slate-950 text-slate-50">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute left-[-18%] top-[-20%] h-72 w-72 rounded-full bg-sky-500/25 blur-3xl" />
         <div className="absolute right-[-18%] bottom-[-24%] h-80 w-80 rounded-full bg-violet-500/25 blur-3xl" />
@@ -412,7 +417,7 @@ export default function WatchPage() {
 
       <Header />
 
-      <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 pb-28 pt-24 lg:pb-10">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 pb-6 pt-20 lg:gap-6 lg:pb-10 lg:pt-24">
         {/* 顶部：模式标签 + 返回首页 + 时长信息（轻量显示） */}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="flex items-center justify-between gap-3 md:justify-start">
@@ -684,16 +689,21 @@ export default function WatchPage() {
         {/* 底部控制条 - 仅在移动端显示，贴近 APP 模式体验 */}
         <div className="fixed inset-x-0 bottom-0 z-30 rounded-t-2xl border-t border-slate-800/80 bg-slate-950/95 px-4 py-3 text-xs text-slate-200 shadow-[0_-10px_40px_rgba(15,23,42,0.9)] lg:hidden">
           <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] text-slate-300">
-                精读控制
-              </span>
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] text-slate-300">
+                  精读控制
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  句子 {currentSubtitleIndex + 1}/{videoData.subtitles.length}
+                </span>
+              </div>
               <span className="text-[11px] text-slate-500">
-                句子 {currentSubtitleIndex + 1}/{videoData.subtitles.length}
+                当前模式：{sentenceLoop ? '单句循环' : '连续播放'}
               </span>
             </div>
             <span className="hidden text-[11px] text-slate-500 sm:block">
-              点句子跳转 · 开启单句循环专注跟读
+              点句子跳转 · 单句循环专注跟读
             </span>
           </div>
 
@@ -709,7 +719,9 @@ export default function WatchPage() {
               onClick={toggleSentenceLoop}
             >
               <span className="text-base leading-none">⟲</span>
-              <span>{sentenceLoop ? '单句循环中' : '连续播放'}</span>
+              <span>
+                {sentenceLoop ? '切换连续播放' : '开启单句循环'}
+              </span>
             </button>
 
             {/* 中间：播放按钮 */}
