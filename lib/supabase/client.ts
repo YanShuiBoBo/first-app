@@ -8,13 +8,31 @@ export type Database = any;
 let browserClient: SupabaseClient<Database> | null = null;
 
 export function createBrowserClient(): SupabaseClient<Database> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-  if (!browserClient) {
-    browserClient = createClient<Database>(supabaseUrl, supabaseAnonKey);
+  if (browserClient) {
+    return browserClient;
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // 在构建好的前端环境里，这两个变量应该已经被内联。
+    // 如果仍然为空，说明 Vercel 上的环境变量没有配置好。
+    const msg =
+      'Supabase 环境变量缺失：请在部署平台中配置 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_ANON_KEY。';
+    if (typeof window !== 'undefined') {
+      // 浏览器侧：用 console.error 帮助定位问题，同时抛出更友好的错误。
+      // 这里仍然抛错，因为没有后端地址时，应用无法正常工作。
+      // eslint-disable-next-line no-console
+      console.error(msg);
+      throw new Error(msg);
+    } else {
+      // 服务器侧：同样抛出明确的错误，方便在构建日志中排查。
+      throw new Error(msg);
+    }
+  }
+
+  browserClient = createClient<Database>(supabaseUrl, supabaseAnonKey);
   return browserClient;
 }
 
