@@ -33,14 +33,22 @@ export default function Home() {
   const [learnedCount, setLearnedCount] = useState(0);
   const [studyDates, setStudyDates] = useState<string[]>([]);
 
+  // Supabase 客户端只在浏览器端初始化，避免构建 / 预渲染阶段触发环境变量错误
+  const [supabase, setSupabase] =
+    useState<ReturnType<typeof createBrowserClient> | null>(null);
+
   // 登录状态
   const { initialize, user } = useAuthStore();
 
-  // 初始化Supabase客户端
-  const supabase = createBrowserClient();
+  // 首次在浏览器端挂载时初始化 Supabase 客户端
+  useEffect(() => {
+    const client = createBrowserClient();
+    setSupabase(client);
+  }, []);
 
   // 获取视频数据
   const fetchVideos = useCallback(async () => {
+    if (!supabase) return;
     try {
       setIsLoading(true);
       const { data, error } = await supabase
@@ -66,6 +74,8 @@ export default function Home() {
   // 获取当前用户的学习统计（已学习数量 + 当月学习日历）
   const fetchStudyStats = useCallback(
     async (userEmail: string, videoTotal: number) => {
+      if (!supabase) return;
+
       try {
         // 已学习视频数量：在 user_video_progress 中存在记录即可视为已学
         const { count: learned } = await supabase

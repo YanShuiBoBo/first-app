@@ -53,6 +53,10 @@ function getCoverUrl(video: VideoRow): string | null {
 }
 
 export default function AdminVideosPage() {
+  // Supabase 客户端只在浏览器端初始化，避免构建 / 预渲染阶段触发环境变量错误
+  const [supabase, setSupabase] =
+    useState<ReturnType<typeof createBrowserClient> | null>(null);
+
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,12 +86,27 @@ export default function AdminVideosPage() {
 
   const [isCreating, setIsCreating] = useState(false);
 
-  const supabase = createBrowserClient();
   const router = useRouter();
   const { user, isLoggedIn } = useAuthStore();
 
+  // 仅管理员账号可访问
+  if (!isLoggedIn || user?.email !== "772861967@qq.com") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-600">
+        仅管理员账号可访问此页面
+      </div>
+    );
+  }
+
+  // 首次在浏览器端挂载时初始化 Supabase 客户端
+  useEffect(() => {
+    const client = createBrowserClient();
+    setSupabase(client);
+  }, []);
+
   useEffect(() => {
     const fetchVideos = async () => {
+      if (!supabase) return;
       try {
         setIsLoading(true);
         setError(null);
@@ -161,6 +180,11 @@ export default function AdminVideosPage() {
   };
 
   const openSubtitlesModal = async (video: VideoRow) => {
+    if (!supabase) {
+      setModalError("Supabase 尚未初始化，请刷新页面后重试");
+      return;
+    }
+
     setSelectedVideo(video);
     setModalError(null);
     setSubtitlesText("");
@@ -187,6 +211,11 @@ export default function AdminVideosPage() {
   };
 
   const openCardsModal = async (video: VideoRow) => {
+    if (!supabase) {
+      setModalError("Supabase 尚未初始化，请刷新页面后重试");
+      return;
+    }
+
     setSelectedVideo(video);
     setModalError(null);
     setCardsText("");
@@ -210,6 +239,11 @@ export default function AdminVideosPage() {
   };
 
   const handleSaveMeta = async () => {
+    if (!supabase) {
+      setModalError("Supabase 尚未初始化，请刷新页面后重试");
+      return;
+    }
+
     setIsSaving(true);
     setModalError(null);
 
@@ -297,6 +331,11 @@ export default function AdminVideosPage() {
 
   const handleSaveSubtitles = async () => {
     if (!selectedVideo) return;
+    if (!supabase) {
+      setModalError("Supabase 尚未初始化，请刷新页面后重试");
+      return;
+    }
+
     setIsSaving(true);
     setModalError(null);
 
@@ -331,6 +370,11 @@ export default function AdminVideosPage() {
 
   const handleSaveCards = async () => {
     if (!selectedVideo) return;
+    if (!supabase) {
+      setModalError("Supabase 尚未初始化，请刷新页面后重试");
+      return;
+    }
+
     setIsSaving(true);
     setModalError(null);
 

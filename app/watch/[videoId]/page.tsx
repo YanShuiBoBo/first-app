@@ -60,8 +60,9 @@ export default function WatchPage() {
   // 认证（Phase 1 仅做本地同步，不强制登录）
   const { initialize, user } = useAuthStore();
 
-  // 初始化Supabase客户端
-  const supabase = createBrowserClient();
+  // Supabase 客户端只在浏览器端初始化，避免构建 / 预渲染阶段触发环境变量错误
+  const [supabase, setSupabase] =
+    useState<ReturnType<typeof createBrowserClient> | null>(null);
 
   // 视频数据状态
   const [videoData, setVideoData] = useState<VideoData | null>(null);
@@ -76,10 +77,16 @@ export default function WatchPage() {
     initialize();
   }, [initialize]);
 
+  // 首次在浏览器端挂载时初始化 Supabase 客户端
+  useEffect(() => {
+    const client = createBrowserClient();
+    setSupabase(client);
+  }, []);
+
   // 获取视频数据
   useEffect(() => {
     const fetchVideoData = async () => {
-      if (!videoId) return;
+      if (!videoId || !supabase) return;
 
       try {
         setIsLoading(true);
@@ -162,11 +169,14 @@ export default function WatchPage() {
   // 记录学习进度与学习日历
   useEffect(() => {
     const userEmail = user?.email;
-    if (!videoData || !userEmail) return;
+    if (!videoData || !userEmail || !supabase) return;
+
+    // 在 Effect 内部固定一个非空引用，避免 TypeScript 将 supabase 视为可能为 null
+    const client = supabase;
 
     const recordProgress = async () => {
       try {
-        await supabase
+        await client
           .from('user_video_progress')
           .upsert(
             {
@@ -189,7 +199,7 @@ export default function WatchPage() {
         // 使用本地日期，避免中国时区等地区出现“学在 23 号却记到 22 号”的问题
         const dateStr = getLocalDateString();
 
-        await supabase
+        await client
           .from('user_study_days')
           .upsert(
             {
