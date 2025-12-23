@@ -48,7 +48,8 @@ function generateRandomCode(): string {
 }
 
 export default function AdminAccessCodesPage() {
-  const supabase = createBrowserClient();
+  // Supabase 客户端只在浏览器端初始化，避免在构建 / 预渲染阶段触发环境变量错误
+  const [supabase, setSupabase] = useState<ReturnType<typeof createBrowserClient> | null>(null);
   const { user, isLoggedIn } = useAuthStore();
 
   const [codes, setCodes] = useState<AccessCodeRow[]>([]);
@@ -71,7 +72,16 @@ export default function AdminAccessCodesPage() {
     );
   }
 
+  // 首次在浏览器端挂载时初始化 Supabase 客户端
   useEffect(() => {
+    // 这段代码只会在客户端执行，SSR / 预渲染阶段不会运行 useEffect
+    const client = createBrowserClient();
+    setSupabase(client);
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) return;
+
     const fetchCodes = async () => {
       try {
         setIsLoading(true);
@@ -140,6 +150,11 @@ export default function AdminAccessCodesPage() {
       return;
     }
 
+    if (!supabase) {
+      setGenerateError("Supabase 尚未初始化，请稍后重试");
+      return;
+    }
+
     setIsGenerating(true);
     try {
       const now = Date.now();
@@ -177,6 +192,11 @@ export default function AdminAccessCodesPage() {
   };
 
   const handleRefresh = async () => {
+    if (!supabase) {
+      setError("Supabase 尚未初始化，请稍后重试");
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -443,4 +463,3 @@ export default function AdminAccessCodesPage() {
     </div>
   );
 }
-
