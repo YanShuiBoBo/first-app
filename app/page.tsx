@@ -482,8 +482,9 @@ export default function Home() {
               className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
               onClick={() => setIsMobileSidebarOpen(false)}
             />
-            <div className="fixed inset-y-0 right-0 z-50 w-5/6 max-w-xs translate-x-0 bg-slate-950/95 p-4 shadow-xl shadow-black/80">
-              <div className="mb-3 flex items-center justify-between">
+            {/* 抽屉本身使用 flex 布局撑满高度，内部内容区域单独滚动 */}
+            <div className="fixed inset-y-0 right-0 z-50 flex w-5/6 max-w-xs translate-x-0 flex-col bg-slate-950/95 p-4 shadow-xl shadow-black/80">
+              <div className="mb-3 flex flex-shrink-0 items-center justify-between">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-sky-400">
                     Study Panel
@@ -500,7 +501,7 @@ export default function Home() {
                   ✕
                 </button>
               </div>
-              <div className="space-y-4 overflow-y-auto pb-6">
+              <div className="flex-1 space-y-4 overflow-y-auto pb-10">
                 <StatsCard
                   totalVideos={videos.length}
                   learnedVideos={learnedCount}
