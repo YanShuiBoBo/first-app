@@ -2,7 +2,9 @@ import os
 from dotenv import load_dotenv
 
 # 加载环境变量
+# 优先加载根目录下的 .env（如果存在），再尝试加载 .env.local，方便复用 Next.js 的配置
 load_dotenv()
+load_dotenv(".env.local", override=False)
 
 class Config:
     """配置管理类"""

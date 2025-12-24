@@ -45,7 +45,9 @@ export async function POST(request: NextRequest) {
         title: meta.title,
         poster: meta.poster,
         duration: meta.duration,
-        status: 'published', // Phase 1 直接发布
+        // 新导入的视频默认设为未发布（processing），
+        // 需要在素材管理中手动点击“发布”后才会出现在首页并对用户开放
+        status: 'processing',
         author: meta.author,
         description: meta.description,
         difficulty: meta.difficulty ?? 3,

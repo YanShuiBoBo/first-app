@@ -264,7 +264,7 @@ export default function AdminVideosPage() {
           .filter(Boolean) || [];
 
       if (isCreating) {
-        // 新建视频
+        // 新建视频：默认设为未发布（processing），等待人工审核后再点击「发布」
         const durationNumber = metaForm.duration
           ? parseFloat(metaForm.duration)
           : 0;
@@ -276,7 +276,7 @@ export default function AdminVideosPage() {
             title: metaForm.title,
             poster: metaForm.poster || null,
             duration: durationNumber,
-            status: "published",
+            status: "processing",
             author: metaForm.author || null,
             description: metaForm.description || null,
             difficulty: difficultyNumber ?? 3,
@@ -328,6 +328,40 @@ export default function AdminVideosPage() {
       setIsMetaModalOpen(false);
     } catch (err) {
       setModalError("保存基础信息失败");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUpdateStatus = async (
+    video: VideoRow,
+    nextStatus: "published" | "processing"
+  ) => {
+    if (!supabase) {
+      alert("Supabase 尚未初始化，请刷新页面后重试");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const { error } = await supabase
+        .from("videos")
+        .update({ status: nextStatus })
+        .eq("id", video.id);
+
+      if (error) {
+        alert(`更新状态失败：${error.message}`);
+        return;
+      }
+
+      // 本地状态同步
+      setVideos((prev) =>
+        prev.map((v) =>
+          v.id === video.id ? { ...v, status: nextStatus } : v
+        )
+      );
+    } catch (err) {
+      alert("更新状态失败，请稍后重试");
     } finally {
       setIsSaving(false);
     }
@@ -579,7 +613,7 @@ export default function AdminVideosPage() {
                             : "bg-slate-100 text-slate-500"
                         }`}
                       >
-                        {video.status === "published" ? "已发布" : video.status}
+                        {video.status === "published" ? "已发布" : "未发布"}
                       </span>
                     </td>
                     {/* 时长 */}
@@ -615,6 +649,25 @@ export default function AdminVideosPage() {
                           onClick={() => openCardsModal(video)}
                         >
                           卡片
+                        </button>
+                        <button
+                          type="button"
+                          className={`rounded px-2 py-1 text-[11px] ${
+                            video.status === "published"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}
+                          disabled={isSaving}
+                          onClick={() =>
+                            handleUpdateStatus(
+                              video,
+                              video.status === "published"
+                                ? "processing"
+                                : "published"
+                            )
+                          }
+                        >
+                          {video.status === "published" ? "下架" : "发布"}
                         </button>
                         <button
                           type="button"
