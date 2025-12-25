@@ -380,11 +380,10 @@ export default function WatchPage() {
   // 影子跟读（Shadowing）相关状态
   // mode:
   // - idle：当前无跟读任务
-  // - ready：已跳到某句，等待用户按空格开始录音
   // - recording：正在录音
   // - reviewing：录音完成，可回放
   const [shadowMode, setShadowMode] = useState<
-    'idle' | 'ready' | 'recording' | 'reviewing'
+    'idle' | 'recording' | 'reviewing'
   >('idle');
   const [shadowSubtitleIndex, setShadowSubtitleIndex] = useState<number | null>(
     null
@@ -444,15 +443,6 @@ export default function WatchPage() {
           const url = URL.createObjectURL(blob);
           setShadowAudioUrl(url);
           setShadowMode('reviewing');
-
-          // 桌面端：录音结束后自动回放一次自己的声音
-          // 移动端（手机 / iPad）：不自动播放，等待用户点击「重听」按钮手动回放
-          const isMobileLike =
-            typeof window !== 'undefined' && window.innerWidth < 1024;
-          if (!isMobileLike) {
-            const audio = new Audio(url);
-            void audio.play();
-          }
         } catch (err) {
           console.error('生成本地录音失败:', err);
           setShadowMode('idle');
@@ -500,53 +490,6 @@ export default function WatchPage() {
       }
     };
   }, [shadowAudioUrl]);
-
-  // 桌面端：按住空格开始录音，松开空格结束录音
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code !== 'Space') return;
-
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
-      ) {
-        return;
-      }
-
-      if (shadowMode !== 'ready') return;
-
-      event.preventDefault();
-      void startShadowRecording();
-    };
-
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.code !== 'Space') return;
-
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
-      ) {
-        return;
-      }
-
-      if (shadowMode !== 'recording') return;
-
-      event.preventDefault();
-      stopShadowRecording();
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [shadowMode, startShadowRecording, stopShadowRecording]);
 
   // 首次在浏览器端挂载时初始化 Supabase 客户端
   useEffect(() => {
@@ -1006,21 +949,8 @@ export default function WatchPage() {
     handleSubtitleClick(nextIndex);
   };
 
-  // 行内工具栏：重听当前句
+  // 行内工具栏：重听当前句（播放原声）
   const handleRowReplay = (index: number) => {
-    // 移动端 & 有影子跟读录音时：优先回放用户自己的录音
-    if (
-      typeof window !== 'undefined' &&
-      window.innerWidth < 1024 &&
-      shadowMode === 'reviewing' &&
-      shadowAudioUrl &&
-      shadowSubtitleIndex === index
-    ) {
-      const audio = new Audio(shadowAudioUrl);
-      void audio.play();
-      return;
-    }
-
     if (!streamRef.current) return;
     handleSubtitleClick(index);
     // 试看结束后不再自动播放
@@ -1061,8 +991,11 @@ export default function WatchPage() {
   };
 
   // 行内工具栏：跟读（影子跟读入口）
-  // 桌面端：点击麦克风 -> 跳到该句并暂停，进入 ready 状态；按住空格开始录音，松开空格结束。
-  // 移动端：点击后直接开始录音，再次点击结束录音（简化版）。
+  // 交互：
+  // 1. 第一次点击麦克风：跳到该句开头并暂停，同时开始录音（按钮高亮，表示正在录制）
+  // 2. 第二次点击同一句的麦克风：停止录音，按钮图标切换为“播放”形态
+  // 3. 第三次点击同一句（此时为播放图标）：播放刚才录制的声音；播放结束后恢复为普通麦克风
+  // 4. 点击其它句子、或通过上一句/下一句切换句子时，自动恢复为普通麦克风状态
   const handleRowMic = (index: number) => {
     if (!videoData?.subtitles || !streamRef.current) return;
 
@@ -1076,6 +1009,26 @@ export default function WatchPage() {
       return;
     }
 
+    // 若当前就在同一句，并且正在录音：本次点击视为“结束录音”
+    if (shadowSubtitleIndex === index && shadowMode === 'recording') {
+      stopShadowRecording();
+      return;
+    }
+
+    // 若当前就在同一句，并且已有录音（reviewing）：本次点击视为“播放录音”
+    if (shadowSubtitleIndex === index && shadowMode === 'reviewing') {
+      if (!shadowAudioUrl) return;
+      const audio = new Audio(shadowAudioUrl);
+      audio.onended = () => {
+        // 播放结束后恢复为普通麦克风状态
+        setShadowMode('idle');
+        setShadowSubtitleIndex(null);
+      };
+      void audio.play();
+      return;
+    }
+
+    // 其它情况：开始对当前句子进行新的录音
     // 精准跳回该句开头，并更新全局当前句 / 时间，再暂停，作为跟读起点
     streamRef.current.currentTime = subtitle.start;
     jumpToSubtitle(index);
@@ -1083,19 +1036,7 @@ export default function WatchPage() {
     streamRef.current.pause();
 
     setShadowSubtitleIndex(index);
-
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      // 移动端：直接点击即开始录音，再次点击结束
-      if (shadowMode === 'recording') {
-        stopShadowRecording();
-      } else {
-        setShadowMode('ready');
-        void startShadowRecording();
-      }
-    } else {
-      // 桌面端：进入 ready 状态，等待用户按空格开始录音
-      setShadowMode('ready');
-    }
+    void startShadowRecording();
   };
 
   // 行内工具栏：收藏 / 取消收藏（本地状态，后续可接入后端）
@@ -1573,11 +1514,21 @@ export default function WatchPage() {
                       </button>
                       <button
                         type="button"
-                        className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 shadow-sm hover:bg-gray-50"
+                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 shadow-sm ${
+                          shadowSubtitleIndex === currentSubtitleIndex &&
+                          shadowMode === 'recording'
+                            ? 'bg-[#FF2442]/10 text-[#FF2442]'
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
                         onClick={() => handleRowMic(currentSubtitleIndex)}
                         disabled={isTrial && trialEnded}
                       >
-                        <IconMic className="h-4 w-4" />
+                        {shadowSubtitleIndex === currentSubtitleIndex &&
+                        shadowMode === 'reviewing' ? (
+                          <IconReplay className="h-4 w-4" />
+                        ) : (
+                          <IconMic className="h-4 w-4" />
+                        )}
                         <span>跟读</span>
                       </button>
                       <button
@@ -1796,7 +1747,12 @@ export default function WatchPage() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex h-5 w-5 items-center justify-center text-[13px] text-gray-400 hover:text-gray-600"
+                          className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
+                            shadowSubtitleIndex === index &&
+                            shadowMode === 'recording'
+                              ? 'text-[#FF2442]'
+                              : 'text-gray-400 hover:text-gray-600'
+                          }`}
                           title="跟读"
                           onClick={e => {
                             e.stopPropagation();
@@ -1804,7 +1760,12 @@ export default function WatchPage() {
                           }}
                           disabled={isTrial && trialEnded}
                         >
-                          <IconMic className="h-4 w-4" />
+                          {shadowSubtitleIndex === index &&
+                          shadowMode === 'reviewing' ? (
+                            <IconReplay className="h-4 w-4" />
+                          ) : (
+                            <IconMic className="h-4 w-4" />
+                          )}
                         </button>
                         <button
                           type="button"
@@ -1855,7 +1816,12 @@ export default function WatchPage() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex h-5 w-5 items-center justify-center text-[13px] text-gray-400 hover:text-gray-600"
+                          className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
+                            shadowSubtitleIndex === index &&
+                            shadowMode === 'recording'
+                              ? 'text-[#FF2442]'
+                              : 'text-gray-400 hover:text-gray-600'
+                          }`}
                           title="跟读"
                           onClick={e => {
                             e.stopPropagation();
@@ -1863,7 +1829,12 @@ export default function WatchPage() {
                           }}
                           disabled={isTrial && trialEnded}
                         >
-                          <IconMic className="h-4 w-4" />
+                          {shadowSubtitleIndex === index &&
+                          shadowMode === 'reviewing' ? (
+                            <IconReplay className="h-4 w-4" />
+                          ) : (
+                            <IconMic className="h-4 w-4" />
+                          )}
                         </button>
                         <button
                           type="button"
@@ -2036,7 +2007,19 @@ export default function WatchPage() {
               onClick={() => handleRowMic(currentSubtitleIndex)}
               disabled={isTrial && trialEnded}
             >
-              <IconMic className="h-4 w-4 text-gray-500" />
+              {shadowSubtitleIndex === currentSubtitleIndex &&
+              shadowMode === 'reviewing' ? (
+                <IconReplay className="h-4 w-4 text-gray-500" />
+              ) : (
+                <IconMic
+                  className={`h-4 w-4 ${
+                    shadowSubtitleIndex === currentSubtitleIndex &&
+                    shadowMode === 'recording'
+                      ? 'text-[#FF2442]'
+                      : 'text-gray-500'
+                  }`}
+                />
+              )}
               <span className="mt-0.5 text-[10px] text-gray-500">跟读</span>
             </button>
             <button
