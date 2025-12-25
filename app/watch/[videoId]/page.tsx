@@ -479,9 +479,31 @@ export default function WatchPage() {
   // 行内工具栏：单句循环并跳转到该句
   const handleRowLoop = (index: number) => {
     if (!videoData?.subtitles || !streamRef.current) return;
-    handleSubtitleClick(index);
-    const { sentenceLoop: loopOn } = usePlayerStore.getState();
-    if (!loopOn) {
+
+    // 试看结束后不允许再操作
+    if (isTrial && trialEnded) return;
+
+    const subtitle = videoData.subtitles[index];
+
+    // 试看模式：不允许跳转到试看范围之外
+    if (isTrial && subtitle.start >= TRIAL_LIMIT_SECONDS) {
+      return;
+    }
+
+    const { sentenceLoop: loopOn, currentSubtitleIndex: currentIndex } =
+      usePlayerStore.getState();
+
+    // 跳转到当前句子的开始时间
+    streamRef.current.currentTime = subtitle.start;
+    jumpToSubtitle(index);
+
+    // 逻辑：
+    // - 若当前已经在单句循环且再次点击的是同一行，则关闭单句循环；
+    // - 若当前不是单句循环，则打开单句循环；
+    // - 若当前是单句循环但点击的是另一行，则保持单句循环，只是切换句子。
+    if (loopOn && currentIndex === index) {
+      toggleSentenceLoop();
+    } else if (!loopOn) {
       toggleSentenceLoop();
     }
   };
@@ -1110,37 +1132,6 @@ export default function WatchPage() {
                 })}
               </div>
 
-              {/* 底部知识卡片入口（桌面端） */}
-              <div className="hidden border-t border-gray-100 px-4 py-3 text-[11px] text-gray-500 lg:block">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="font-medium text-gray-800">知识卡片</span>
-                  {activeCard && (
-                    <span className="text-[#FF2442]">
-                      当前：{activeCard.trigger_word}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {videoData.cards.length > 0 ? (
-                    videoData.cards.slice(0, 16).map(card => (
-                      <button
-                        key={card.trigger_word}
-                        type="button"
-                        className={`rounded-full border px-2 py-0.5 text-[11px] ${
-                          activeCard?.trigger_word === card.trigger_word
-                            ? 'border-[#FF2442] bg-[#FF2442]/5 text-[#FF2442]'
-                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800'
-                        }`}
-                        onClick={() => showCard(card)}
-                      >
-                        {card.trigger_word}
-                      </button>
-                    ))
-                  ) : (
-                    <span className="text-gray-400">暂无知识卡片</span>
-                  )}
-                </div>
-              </div>
             </div>
           </aside>
         </div>
