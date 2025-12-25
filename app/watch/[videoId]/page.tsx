@@ -836,9 +836,21 @@ export default function WatchPage() {
   // 行内工具栏：跟读（跳到句首并暂停，留给用户自己朗读）
   const handleRowMic = (index: number) => {
     if (!videoData?.subtitles || !streamRef.current) return;
-    handleSubtitleClick(index);
-    // 试看结束后不再变更播放状态
+
+    const subtitle = videoData.subtitles[index];
+
+    // 试看结束后不再允许操作
     if (isTrial && trialEnded) return;
+
+    // 试看模式：不允许跳转到试看范围之外
+    if (isTrial && subtitle.start >= TRIAL_LIMIT_SECONDS) {
+      return;
+    }
+
+    // 精准跳回该句开头，并更新全局当前句 / 时间，再暂停，方便用户跟读
+    streamRef.current.currentTime = subtitle.start;
+    jumpToSubtitle(index);
+    setCurrentTime(subtitle.start);
     streamRef.current.pause();
   };
 
