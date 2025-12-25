@@ -1411,7 +1411,7 @@ export default function WatchPage() {
                   ⏱ {formatDuration(videoData.duration)}
                 </span>
                 <span className="inline-flex items-center rounded-full bg-white px-2 py-1">
-                  🔥 已学习 {videoData.view_count ?? 0} 次
+                  🔥 学习 {videoData.view_count ?? 0} 次
                 </span>
               </div>
               {videoData.description && (
