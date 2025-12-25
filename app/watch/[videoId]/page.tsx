@@ -314,6 +314,25 @@ const IconPrint: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   </svg>
 );
 
+// 知识卡片音标旁的线型播放图标（小号扬声器风格）
+const IconSound: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
+    <path
+      d="M3.5 6.2H2.8A1.3 1.3 0 001.5 7.5v1A1.3 1.3 0 002.8 9.8h.7L6 12.5V3.5L3.5 6.2z"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M9.5 5.3c.7.5 1.1 1.2 1.1 2s-.4 1.5-1.1 2"
+      strokeLinecap="round"
+    />
+    <path
+      d="M11.1 3.8C12.1 4.7 12.7 6 12.7 7.3s-.6 2.6-1.6 3.5"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
 export default function WatchPage() {
   // 使用useParams获取路由参数
   const params = useParams();
@@ -357,6 +376,7 @@ export default function WatchPage() {
   const router = useRouter();
   const isTrial = searchParams?.get('trial') === '1';
   const TRIAL_LIMIT_SECONDS = 6 * 60;
+  const ttsVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
 
   // 初始化登录状态（Phase 1 先不做强门禁，只同步一下本地登录信息）
   useEffect(() => {
@@ -712,6 +732,38 @@ export default function WatchPage() {
       left,
       placement
     });
+  };
+
+  // 播放知识卡片的单词 / 触发词（浏览器自带 TTS）
+  const playCardAudio = (card: KnowledgeCard) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      return;
+    }
+
+    const text = card.trigger_word || card.data.sentence || '';
+    if (!text) return;
+
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    // 尝试复用之前选择的英文语音
+    if (ttsVoiceRef.current) {
+      utterance.voice = ttsVoiceRef.current;
+    } else {
+      const voices = window.speechSynthesis.getVoices();
+      const enVoice =
+        voices.find(v => v.lang.startsWith('en')) ||
+        voices.find(v => v.lang.toLowerCase().includes('en'));
+      if (enVoice) {
+        ttsVoiceRef.current = enVoice;
+        utterance.voice = enVoice;
+      }
+    }
+
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
   };
 
   const formatDuration = (seconds: number): string => {
@@ -1656,8 +1708,19 @@ export default function WatchPage() {
               )}
             </div>
             {cardPopover.card.data.ipa && (
-              <div className="mb-1 text-[11px] text-gray-500">
-                {cardPopover.card.data.ipa}
+              <div className="mb-1 flex items-center justify-between text-[11px] text-gray-500">
+                <span>{cardPopover.card.data.ipa}</span>
+                <button
+                  type="button"
+                  className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
+                  onClick={e => {
+                    e.stopPropagation();
+                    playCardAudio(cardPopover.card);
+                  }}
+                  aria-label="播放单词读音"
+                >
+                  <IconSound className="h-3.5 w-3.5" />
+                </button>
               </div>
             )}
             <div className="text-[11px] leading-relaxed text-gray-800">
@@ -1688,8 +1751,16 @@ export default function WatchPage() {
               </button>
             </div>
             {activeCard.data.ipa && (
-              <div className="mb-1 text-xs text-gray-500">
-                {activeCard.data.ipa}
+              <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
+                <span>{activeCard.data.ipa}</span>
+                <button
+                  type="button"
+                  className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
+                  onClick={() => playCardAudio(activeCard)}
+                  aria-label="播放单词读音"
+                >
+                  <IconSound className="h-4 w-4" />
+                </button>
               </div>
             )}
             <div className="text-sm text-gray-800">
