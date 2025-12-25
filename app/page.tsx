@@ -441,238 +441,226 @@ export default function Home() {
         </section>
 
         {/* 移动端数据胶囊 */}
-        <section className="mt-4 flex gap-3 overflow-x-auto pb-1 text-xs text-neutral-600 md:hidden">
-          <button
-            type="button"
-            className="inline-flex min-w-[180px] items-center justify-between rounded-2xl bg-gradient-to-r from-rose-50 to-rose-100 px-4 py-3 shadow-sm"
-            onClick={() => setIsStatsSheetOpen(true)}
-          >
-            <div className="flex items-center gap-2">
-              <IconFlame />
-              <div className="text-left">
-                <div className="text-[11px] text-neutral-500">
-                  连击天数
-                </div>
-                <div className="text-xs font-medium text-neutral-700">
-                  本月已打卡
-                </div>
-              </div>
-            </div>
-            <div className="whitespace-nowrap text-sm font-semibold text-neutral-900">
-              {studyDates.length} 天
-            </div>
-          </button>
-          <button
-            type="button"
-            className="inline-flex min-w-[180px] items-center justify-between rounded-2xl bg-gradient-to-r from-sky-50 to-sky-100 px-4 py-3 shadow-sm"
-            onClick={() => setIsStatsSheetOpen(true)}
-          >
-            <div className="flex items-center gap-2">
-              <IconClock />
-              <div className="text-left">
-                <div className="text-[11px] text-neutral-500">
-                  累计时长
-                </div>
-                <div className="text-xs font-medium text-neutral-700">
-                  统计全库精读时长
-                </div>
-              </div>
-            </div>
-            <div className="whitespace-nowrap text-sm font-semibold text-neutral-900">
-              {totalDurationHours.toFixed(1)} h
-            </div>
-          </button>
-          <div className="inline-flex min-w-[180px] items-center justify-between rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100 px-4 py-3 shadow-sm">
-            <div className="flex items-center gap-2">
-              <IconStack />
-              <div className="text-left">
-                <div className="text-[11px] text-neutral-500">
-                  素材总数
-                </div>
-                <div className="text-xs font-medium text-neutral-700">
-                  当前可精读的视频
-                </div>
-              </div>
-            </div>
-            <div className="whitespace-nowrap text-sm font-semibold text-neutral-900">
-              {videos.length} 部
-            </div>
-          </div>
-        </section>
+        {/*<section className="mt-4 flex gap-3 overflow-x-auto pb-1 text-xs text-neutral-600 md:hidden">*/}
+        {/*  <button*/}
+        {/*    type="button"*/}
+        {/*    className="inline-flex min-w-[180px] items-center justify-between rounded-2xl bg-gradient-to-r from-rose-50 to-rose-100 px-4 py-3 shadow-sm"*/}
+        {/*    onClick={() => setIsStatsSheetOpen(true)}*/}
+        {/*  >*/}
+        {/*    <div className="flex items-center gap-2">*/}
+        {/*      <IconFlame />*/}
+        {/*      <div className="text-left">*/}
+        {/*        <div className="text-[11px] text-neutral-500">*/}
+        {/*          连击天数*/}
+        {/*        </div>*/}
+        {/*        <div className="text-xs font-medium text-neutral-700">*/}
+        {/*          本月已打卡*/}
+        {/*        </div>*/}
+        {/*      </div>*/}
+        {/*    </div>*/}
+        {/*    <div className="whitespace-nowrap text-sm font-semibold text-neutral-900">*/}
+        {/*      {studyDates.length} 天*/}
+        {/*    </div>*/}
+        {/*  </button>*/}
+        {/*  <button*/}
+        {/*    type="button"*/}
+        {/*    className="inline-flex min-w-[180px] items-center justify-between rounded-2xl bg-gradient-to-r from-sky-50 to-sky-100 px-4 py-3 shadow-sm"*/}
+        {/*    onClick={() => setIsStatsSheetOpen(true)}*/}
+        {/*  >*/}
+        {/*    <div className="flex items-center gap-2">*/}
+        {/*      <IconClock />*/}
+        {/*      <div className="text-left">*/}
+        {/*        <div className="text-[11px] text-neutral-500">*/}
+        {/*          累计时长*/}
+        {/*        </div>*/}
+        {/*        <div className="text-xs font-medium text-neutral-700">*/}
+        {/*          统计全库精读时长*/}
+        {/*        </div>*/}
+        {/*      </div>*/}
+        {/*    </div>*/}
+        {/*    <div className="whitespace-nowrap text-sm font-semibold text-neutral-900">*/}
+        {/*      {totalDurationHours.toFixed(1)} h*/}
+        {/*    </div>*/}
+        {/*  </button>*/}
+        {/*  <div className="inline-flex min-w-[180px] items-center justify-between rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100 px-4 py-3 shadow-sm">*/}
+        {/*    <div className="flex items-center gap-2">*/}
+        {/*      <IconStack />*/}
+        {/*      <div className="text-left">*/}
+        {/*        <div className="text-[11px] text-neutral-500">*/}
+        {/*          素材总数*/}
+        {/*        </div>*/}
+        {/*        <div className="text-xs font-medium text-neutral-700">*/}
+        {/*          当前可精读的视频*/}
+        {/*        </div>*/}
+        {/*      </div>*/}
+        {/*    </div>*/}
+        {/*    <div className="whitespace-nowrap text-sm font-semibold text-neutral-900">*/}
+        {/*      {videos.length} 部*/}
+        {/*    </div>*/}
+        {/*  </div>*/}
+        {/*</section>*/}
 
-        {/* Hero + 右侧控制台 */}
-        <section className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]">
-          {/* 左侧：今日精选 Hero Poster */}
-          <div>
-            {heroVideo ? (
-              <Link
-                href={`/watch/${heroVideo.cf_video_id}`}
-                className="block overflow-hidden rounded-2xl bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-              >
-                <div className="flex flex-col md:flex-row">
-                  {/* 左侧封面图 */}
-                  <div className="relative w-full md:w-1/2">
-                    <div className="relative h-56 w-full overflow-hidden md:h-full">
-                      <Image
-                        unoptimized
-                        src={getCoverSrc(
-                          heroVideo,
-                          '/images/hero-placeholder-960x540.png'
-                        )}
-                        alt={heroVideo.title}
-                        fill
-                        className="object-cover transition-transform duration-500 hover:scale-[1.03]"
-                      />
+        {/* Hero + 右侧控制台（统一大 Banner + 右侧玻璃卡片） */}
+        <section className="mt-6">
+          {heroVideo ? (
+            <Link
+              href={`/watch/${heroVideo.cf_video_id}`}
+              className="relative block overflow-hidden rounded-2xl bg-neutral-900 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+            >
+              {/* 背景图 + 深色遮罩 */}
+              <div className="absolute inset-0">
+                <Image
+                  unoptimized
+                  src={getCoverSrc(
+                    heroVideo,
+                    '/images/hero-placeholder-960x540.png'
+                  )}
+                  alt={heroVideo.title}
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30" />
+              </div>
+
+              {/* 前景内容 */}
+              <div className="relative z-10 px-6 py-6 md:px-8 md:py-8">
+                <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+                  {/* 左侧：文案区 */}
+                  <div className="max-w-xl space-y-3 text-white">
+                    <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-0.5 text-[11px] font-medium">
+                      今日精选
+                    </span>
+                    <h2 className="font-serif text-xl font-semibold leading-tight md:text-2xl">
+                      {heroVideo.title}
+                    </h2>
+                    {heroVideo.description && (
+                      <p className="line-clamp-2 text-sm text-white/80">
+                        {heroVideo.description}
+                      </p>
+                    )}
+
+                    {/* 下方：Meta 信息 */}
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-white/80">
+                      {heroVideo.author && (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-[10px] font-medium">
+                            {heroVideo.author.charAt(0).toUpperCase()}
+                          </span>
+                          <span>{heroVideo.author}</span>
+                        </span>
+                      )}
+                      {heroVideo.difficulty && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
+                          <span>难度</span>
+                          <span>{renderDifficultyStars(heroVideo.difficulty)}</span>
+                        </span>
+                      )}
+                      {heroVideo.tags && heroVideo.tags.length > 0 && (
+                        <span className="inline-flex flex-wrap items-center gap-1">
+                          {heroVideo.tags.slice(0, 3).map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full bg-white/10 px-2 py-0.5 text-[10px]"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </span>
+                      )}
                     </div>
-                  </div>
 
-                  {/* 右侧内容区 */}
-                  <div className="flex flex-1 flex-col justify-between gap-3 p-4 md:p-5">
-                    {/* 标题 + 基本信息 */}
-                    <div>
-                      <span className="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-[#FF2442]">
-                        今日精选
-                      </span>
-                      <h2 className="mt-2 line-clamp-2 text-[16px] font-semibold leading-snug text-neutral-900 md:text-lg">
-                        {heroVideo.title}
-                      </h2>
-                      {heroVideo.description && (
-                        <p className="mt-2 line-clamp-2 text-sm text-neutral-600">
+                    {/* 预习概览区：从标签或描述中提炼 */}
+                    <div className="mt-4 border-t border-white/10 pt-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">
+                          Pre-study preview
+                        </span>
+                        <span className="text-[10px] text-white/50">
+                          点击进入可查看完整卡片
+                        </span>
+                      </div>
+                      {heroVideo.tags && heroVideo.tags.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {heroVideo.tags.slice(0, 3).map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] text-white"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {!heroVideo.tags?.length && heroVideo.description && (
+                        <p className="mt-2 line-clamp-2 text-[12px] text-white/80">
                           {heroVideo.description}
                         </p>
                       )}
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-neutral-500">
-                        {heroVideo.author && (
-                          <span className="inline-flex items-center gap-1">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-[10px] text-neutral-700">
-                              {heroVideo.author.charAt(0).toUpperCase()}
-                            </span>
-                            <span>{heroVideo.author}</span>
-                          </span>
-                        )}
-                        {heroVideo.difficulty && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600">
-                            <span>难度</span>
-                            <span>{renderDifficultyStars(heroVideo.difficulty)}</span>
-                          </span>
-                        )}
-                        {heroVideo.tags && heroVideo.tags.length > 0 && (
-                          <span className="inline-flex flex-wrap items-center gap-1">
-                            {heroVideo.tags.slice(0, 3).map((tag) => (
-                              <span
-                                key={tag}
-                                className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </span>
-                        )}
-                      </div>
                     </div>
 
-                    {/* 预习概览区：展示核心词汇 / 金句预览 */}
-                    {/*<div className="mt-3 border-t border-neutral-100 pt-3">*/}
-                    {/*  <div className="flex items-center justify-between">*/}
-                    {/*    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-400">*/}
-                    {/*      Pre-study preview*/}
-                    {/*    </span>*/}
-                    {/*    <span className="text-[10px] text-neutral-400">*/}
-                    {/*      点击进入可查看完整卡片*/}
-                    {/*    </span>*/}
-                    {/*  </div>*/}
-                    {/*  /!*{heroVideo.tags && heroVideo.tags.length > 0 && (*!/*/}
-                    {/*  /!*  <div className="mt-2 flex flex-wrap gap-2">*!/*/}
-                    {/*  /!*    {heroVideo.tags.slice(0, 3).map((tag) => (*!/*/}
-                    {/*  /!*      <span*!/*/}
-                    {/*  /!*        key={tag}*!/*/}
-                    {/*  /!*        className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] text-neutral-700"*!/*/}
-                    {/*  /!*      >*!/*/}
-                    {/*  /!*        {tag}*!/*/}
-                    {/*  /!*      </span>*!/*/}
-                    {/*  /!*    ))}*!/*/}
-                    {/*  /!*  </div>*!/*/}
-                    {/*  /!*)}*!/*/}
-                    {/*  /!*{!heroVideo.tags?.length && heroVideo.description && (*!/*/}
-                    {/*  /!*  <p className="mt-2 line-clamp-2 text-[12px] text-neutral-600">*!/*/}
-                    {/*  /!*    {heroVideo.description}*!/*/}
-                    {/*  /!*  </p>*!/*/}
-                    {/*  /!*)}*!/*/}
-                    {/*</div>*/}
-
-                    {/* 底部：时长 / 热度 + 主播放按钮 */}
-                    <div className="mt-3 flex items-center justify-between text-xs text-neutral-500">
+                    {/* 底部：时长 / 热度 + 播放按钮 */}
+                    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-white/80">
                       <div className="inline-flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
                           <IconClock />
                           <span>{formatDuration(heroVideo.duration)}</span>
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
                           <IconFlame />
                           <span>已学习 {heroVideo.view_count ?? 0} 次</span>
                         </span>
                       </div>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#FF2442] px-3 py-1 text-[11px] font-medium text-white">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-[11px] font-medium text-neutral-900 shadow-sm">
                         <span>▶</span>
                         <span>开始精读</span>
                       </span>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ) : (
-              <div className="h-56 animate-pulse rounded-2xl bg-neutral-200" />
-            )}
-          </div>
 
-          {/* 右侧：个人数据控制台 */}
-          <aside className="space-y-4">
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-neutral-400">
-                    {greetingLabel}, {displayName}
-                  </p>
-                  <p className="mt-1 text-sm text-neutral-700">
-                    Little steps, big dreams.
-                  </p>
-                </div>
-              </div>
+                  {/* 右侧：毛玻璃学习卡片 */}
+                  <div className="w-full max-w-xs rounded-2xl border border-white/15 bg-white/10 p-4 text-xs text-white backdrop-blur-md md:w-auto">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">
+                          Study snapshot
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-white">
+                          {greetingLabel}, {displayName}
+                        </p>
+                      </div>
+                    </div>
 
-              <div className="mt-4">
-                <StudyCalendar
-                  year={new Date().getFullYear()}
-                  month={new Date().getMonth() + 1}
-                  studyDates={studyDates}
-                />
-              </div>
+                    <div className="mt-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/70">本月打卡天数</span>
+                        <span className="text-sm font-semibold">
+                          {studyDates.length} 天
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/70">素材总数</span>
+                        <span className="text-sm font-semibold">
+                          {videos.length} 部
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/70">总学习时长</span>
+                        <span className="text-sm font-semibold">
+                          {totalDurationHours.toFixed(1)} h
+                        </span>
+                      </div>
+                    </div>
 
-              <div className="mt-4 rounded-xl bg-neutral-50 px-3 py-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-neutral-400">
-                    <IconClock />
-                    <span>总学习时长</span>
-                  </div>
-                  <div className="text-sm font-semibold text-neutral-900">
-                    {totalDurationHours.toFixed(1)} h
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-neutral-400">
-                    <IconStack />
-                    <span>库内素材</span>
-                  </div>
-                  <div className="text-sm font-semibold text-neutral-900">
-                    {videos.length} 部
+                    <div className="mt-4 text-[11px] text-white/60">
+                      小目标：本周再打卡 3 天，让英语出现在每一个碎片时间里。
+                    </div>
                   </div>
                 </div>
               </div>
-
-              <div className="mt-4 rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
-                系统将于本周五凌晨进行例行更新，届时可能短暂无法访问。
-              </div>
-            </div>
-          </aside>
+            </Link>
+          ) : (
+            <div className="h-56 animate-pulse rounded-2xl bg-neutral-200" />
+          )}
         </section>
 
         {/* 分隔线 */}
