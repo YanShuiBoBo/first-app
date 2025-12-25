@@ -41,8 +41,39 @@ interface KnowledgeCard {
     def: string;
     sentence?: string;
     type?: 'word' | 'phrase' | 'idiom' | 'slang';
-  };
+    };
 }
+
+// 简单线性图标，使用 currentColor 作为颜色，尽量做到“一眼能懂”
+const IconReplay: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
+    {/* 外圈圆形 */}
+    <circle cx="8" cy="8" r="5.2" />
+    {/* 播放三角形，使用填充保证小尺寸下也清晰可见 */}
+    <path d="M6.2 5.4L10 8 6.2 10.6Z" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const IconMic: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
+    <rect x="5.2" y="2.2" width="5.6" height="6.6" rx="2.8" />
+    <path d="M4.2 7.6V8a3.8 3.8 0 007.6 0v-.4" strokeLinecap="round" />
+    <path d="M8 11.4V13.5" strokeLinecap="round" />
+    <path d="M6.4 13.5h3.2" strokeLinecap="round" />
+  </svg>
+);
+
+const IconLoop: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 1024 1024" fill="currentColor" {...props}>
+    <path d="M935.005091 459.752727a34.909091 34.909091 0 1 1 49.361454 49.361455l-78.382545 78.382545a34.816 34.816 0 0 1-49.338182 0l-78.405818-78.382545a34.909091 34.909091 0 1 1 49.361455-49.361455l14.801454 14.824728C818.525091 311.738182 678.330182 186.181818 508.928 186.181818c-130.466909 0-250.484364 76.706909-305.710545 195.397818a34.932364 34.932364 0 0 1-63.301819-29.463272C206.522182 208.896 351.418182 116.363636 508.904727 116.363636c210.152727 0 383.534545 159.953455 404.992 364.474182l21.085091-21.085091z m-73.960727 189.021091a34.932364 34.932364 0 0 1 16.965818 46.382546C811.310545 838.353455 666.461091 930.909091 508.951273 930.909091c-210.106182 0-383.534545-159.953455-404.968728-364.497455l-21.108363 21.108364a34.909091 34.909091 0 1 1-49.384727-49.361455l78.42909-78.42909a34.909091 34.909091 0 0 1 49.338182 0l78.382546 78.42909a34.909091 34.909091 0 1 1-49.338182 49.338182l-14.824727-14.801454C199.354182 735.534545 339.549091 861.090909 508.951273 861.090909c130.490182 0 250.507636-76.706909 305.710545-195.397818a34.909091 34.909091 0 0 1 46.382546-16.919273z" />
+  </svg>
+);
+
+const IconLike: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 1024 1024" fill="currentColor" {...props}>
+    <path d="M518.4 149.290667c112.597333-80.789333 267.882667-69.397333 368.128 32 53.866667 54.528 84.138667 128.853333 84.138667 206.378666 0 77.525333-30.293333 151.850667-84.096 206.336l-294.421334 299.52a110.976 110.976 0 0 1-80.213333 34.474667 110.72 110.72 0 0 1-79.914667-34.176L137.322667 593.770667C83.562667 539.242667 53.333333 464.981333 53.333333 387.541333s30.229333-151.722667 84.010667-206.272c100.224-101.376 255.530667-112.768 368.128-31.978666l6.442667 4.778666 6.485333-4.778666z m322.602667 76.970666c-84.629333-85.589333-219.157333-88.64-307.328-6.954666l-21.76 20.138666-21.717334-20.138666c-88.192-81.685333-222.72-78.634667-307.306666 6.933333-41.92 42.496-65.557333 100.608-65.557334 161.28 0 60.693333 23.637333 118.805333 65.6 161.344l295.04 300.416c9.045333 9.450667 21.269333 14.72 33.962667 14.72 12.693333 0 24.917333-5.269333 34.261333-15.04L840.96 549.077333c42.005333-42.496 65.685333-100.650667 65.685333-161.408 0-60.736-23.68-118.912-65.664-161.408z" />
+  </svg>
+);
 
 export default function WatchPage() {
   // 使用useParams获取路由参数
@@ -973,7 +1004,7 @@ export default function WatchPage() {
                         onClick={() => handleRowReplay(currentSubtitleIndex)}
                         disabled={isTrial && trialEnded}
                       >
-                        <span>🔊</span>
+                        <IconReplay className="h-4 w-4" />
                         <span>重听</span>
                       </button>
                       <button
@@ -982,7 +1013,7 @@ export default function WatchPage() {
                         onClick={() => handleRowMic(currentSubtitleIndex)}
                         disabled={isTrial && trialEnded}
                       >
-                        <span>🎤</span>
+                        <IconMic className="h-4 w-4" />
                         <span>跟读</span>
                       </button>
                       <button
@@ -995,7 +1026,7 @@ export default function WatchPage() {
                         onClick={() => handleRowLoop(currentSubtitleIndex)}
                         disabled={isTrial && trialEnded}
                       >
-                        <span>🔂</span>
+                        <IconLoop className="h-4 w-4" />
                         <span>循环</span>
                       </button>
                       <button
@@ -1007,7 +1038,7 @@ export default function WatchPage() {
                         }`}
                         onClick={() => handleToggleLike(currentSubtitleIndex)}
                       >
-                        <span>❤️</span>
+                        <IconLike className="h-4 w-4" />
                         <span>收藏</span>
                       </button>
                     </div>
@@ -1091,7 +1122,7 @@ export default function WatchPage() {
                     : 'border-transparent bg-white hover:border-gray-200 hover:bg-gray-50';
 
                   const toolbarDesktopClasses =
-                    'mt-2 hidden flex-nowrap items-center gap-1 text-[11px] text-gray-500 lg:flex';
+                    'mt-2 hidden flex-nowrap items-center gap-2 text-[11px] text-gray-500 lg:flex';
                   const toolbarMobileClasses = `mt-2 items-center gap-2 text-[11px] text-gray-500 lg:hidden ${
                     isActive ? 'flex' : 'hidden'
                   }`;
@@ -1163,7 +1194,7 @@ export default function WatchPage() {
                       <div className={toolbarDesktopClasses}>
                         <button
                           type="button"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gray-50 text-[13px] text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          className="inline-flex h-5 w-5 items-center justify-center text-[13px] text-gray-400 hover:text-gray-600"
                           title="重听"
                           onClick={e => {
                             e.stopPropagation();
@@ -1171,11 +1202,11 @@ export default function WatchPage() {
                           }}
                           disabled={isTrial && trialEnded}
                         >
-                          <span>🔊</span>
+                          <IconReplay className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gray-50 text-[13px] text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          className="inline-flex h-5 w-5 items-center justify-center text-[13px] text-gray-400 hover:text-gray-600"
                           title="跟读"
                           onClick={e => {
                             e.stopPropagation();
@@ -1183,14 +1214,14 @@ export default function WatchPage() {
                           }}
                           disabled={isTrial && trialEnded}
                         >
-                          <span>🎤</span>
+                          <IconMic className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
-                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-[13px] ${
+                          className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
                             sentenceLoop && isActive
-                              ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                              : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                              ? 'text-[#FF2442]'
+                              : 'text-gray-400 hover:text-gray-600'
                           }`}
                           title="单句循环"
                           onClick={e => {
@@ -1199,14 +1230,14 @@ export default function WatchPage() {
                           }}
                           disabled={isTrial && trialEnded}
                         >
-                          <span>🔂</span>
+                          <IconLoop className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
-                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-[13px] ${
+                          className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
                             likedSubtitles.has(index)
-                              ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                              : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                              ? 'text-[#FF2442]'
+                              : 'text-gray-300 hover:text-gray-500'
                           }`}
                           title="收藏"
                           onClick={e => {
@@ -1214,7 +1245,7 @@ export default function WatchPage() {
                             handleToggleLike(index);
                           }}
                         >
-                          <span>❤️</span>
+                          <IconLike className="h-4 w-4" />
                         </button>
                       </div>
 
@@ -1222,7 +1253,7 @@ export default function WatchPage() {
                       <div className={toolbarMobileClasses}>
                         <button
                           type="button"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gray-50 text-[13px] text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          className="inline-flex h-5 w-5 items-center justify-center text-[13px] text-gray-400 hover:text-gray-600"
                           title="重听"
                           onClick={e => {
                             e.stopPropagation();
@@ -1230,11 +1261,11 @@ export default function WatchPage() {
                           }}
                           disabled={isTrial && trialEnded}
                         >
-                          <span>🔊</span>
+                          <IconReplay className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gray-50 text-[13px] text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          className="inline-flex h-5 w-5 items-center justify-center text-[13px] text-gray-400 hover:text-gray-600"
                           title="跟读"
                           onClick={e => {
                             e.stopPropagation();
@@ -1242,14 +1273,14 @@ export default function WatchPage() {
                           }}
                           disabled={isTrial && trialEnded}
                         >
-                          <span>🎤</span>
+                          <IconMic className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
-                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-[13px] ${
+                          className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
                             sentenceLoop && isActive
-                              ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                              : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                              ? 'text-[#FF2442]'
+                              : 'text-gray-400 hover:text-gray-600'
                           }`}
                           title="单句循环"
                           onClick={e => {
@@ -1258,14 +1289,14 @@ export default function WatchPage() {
                           }}
                           disabled={isTrial && trialEnded}
                         >
-                          <span>🔂</span>
+                          <IconLoop className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
-                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-[13px] ${
+                          className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
                             likedSubtitles.has(index)
-                              ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                              : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                              ? 'text-[#FF2442]'
+                              : 'text-gray-300 hover:text-gray-500'
                           }`}
                           title="收藏"
                           onClick={e => {
@@ -1273,7 +1304,7 @@ export default function WatchPage() {
                             handleToggleLike(index);
                           }}
                         >
-                          <span>❤️</span>
+                          <IconLike className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
