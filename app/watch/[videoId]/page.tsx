@@ -262,25 +262,6 @@ const IconLike: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   </svg>
 );
 
-const IconEye: React.FC<React.SVGProps<SVGSVGElement>> = props => (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
-    <path
-      d="M2 8s2.2-3.6 6-3.6S14 8 14 8s-2.2 3.6-6 3.6S2 8 2 8z"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <circle cx="8" cy="8" r="1.8" />
-  </svg>
-);
-
-const IconList: React.FC<React.SVGProps<SVGSVGElement>> = props => (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
-    <path d="M3 4h10" strokeLinecap="round" />
-    <path d="M3 8h10" strokeLinecap="round" />
-    <path d="M3 12h10" strokeLinecap="round" />
-  </svg>
-);
-
 const IconPrev: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
     <path d="M5.5 3.5v9" strokeLinecap="round" />
@@ -311,6 +292,15 @@ const IconPause: React.FC<React.SVGProps<SVGSVGElement>> = props => (
 const IconPrint: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   <svg viewBox="0 0 1024 1024" fill="currentColor" {...props}>
     <path d="M341.333333 640v170.666667h384v-170.666667H341.333333z m-42.666666 42.666667H170.666667V341.333333h128V170.666667h469.333333v170.666666h128v341.333334h-128v170.666666H298.666667v-170.666666z m42.666666-298.666667H213.333333v256h42.666667v-42.666667h554.666667v42.666667h42.666666V384H341.333333z m0-42.666667h384V213.333333H341.333333v128z m-85.333333 85.333334h128v42.666666H256v-42.666666z" />
+  </svg>
+);
+
+// 列表 / 回到当前句按钮图标
+const IconList: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
+    <path d="M3 4h10" strokeLinecap="round" />
+    <path d="M3 8h10" strokeLinecap="round" />
+    <path d="M3 12h10" strokeLinecap="round" />
   </svg>
 );
 
@@ -360,7 +350,7 @@ export default function WatchPage() {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [trialEnded, setTrialEnded] = useState(false);
-  const [maskChinese, setMaskChinese] = useState(false);
+  const [maskChinese] = useState(false);
   const [likedSubtitles, setLikedSubtitles] = useState<Set<number>>(
     () => new Set()
   );
@@ -377,6 +367,7 @@ export default function WatchPage() {
   const isTrial = searchParams?.get('trial') === '1';
   const TRIAL_LIMIT_SECONDS = 6 * 60;
   const ttsVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
 
   // 初始化登录状态（Phase 1 先不做强门禁，只同步一下本地登录信息）
   useEffect(() => {
@@ -652,12 +643,56 @@ export default function WatchPage() {
     setPlaybackRate(value);
   };
 
+  // App 底部控制条：中 / 英 / 中英 切换（循环切换 scriptMode）
+  const cycleScriptMode = () => {
+    setScriptMode(prev => {
+      if (prev === 'cn') return 'en';
+      if (prev === 'en') return 'both';
+      return 'cn'; // both -> cn
+    });
+  };
+
   // 播放速度变化时同步到 Cloudflare 播放器
   useEffect(() => {
     if (streamRef.current) {
       streamRef.current.playbackRate = playbackRate;
     }
   }, [playbackRate]);
+
+  // 将当前高亮句滚动到可视区域中间（手动触发：底部列表按钮）
+  const scrollToCurrentSubtitle = () => {
+    if (!subtitlesContainerRef.current) return;
+    const container = subtitlesContainerRef.current;
+    const activeEl = subtitleItemRefs.current[currentSubtitleIndex];
+    if (!activeEl) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const elRect = activeEl.getBoundingClientRect();
+    const offset = elRect.top - containerRect.top;
+
+    // 计算“有效可视高度”用于视觉居中：桌面直接用容器高度，移动端考虑底部控制条等遮挡
+    let visibleHeight = containerRect.height;
+
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      const viewportHeight = window.innerHeight;
+      const overlaysHeight = 140; // 底部控制条高度
+      visibleHeight = Math.max(
+        viewportHeight - containerRect.top - overlaysHeight,
+        1
+      );
+    }
+
+    const target =
+      container.scrollTop +
+      offset -
+      visibleHeight / 2 +
+      elRect.height / 2;
+
+    container.scrollTo({
+      top: target,
+      behavior: 'smooth'
+    });
+  };
 
   // 字幕点击事件
   const handleSubtitleClick = (index: number) => {
@@ -864,38 +899,6 @@ export default function WatchPage() {
         next.add(index);
       }
       return next;
-    });
-  };
-
-  // 将当前高亮句滚动到可视区域中间
-  const scrollToCurrentSubtitle = () => {
-    if (!subtitlesContainerRef.current) return;
-    const container = subtitlesContainerRef.current;
-    const activeEl = subtitleItemRefs.current[currentSubtitleIndex];
-    if (!activeEl) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const elRect = activeEl.getBoundingClientRect();
-    const offset = elRect.top - containerRect.top;
-
-    // 计算“有效可视高度”用于视觉居中：桌面直接用容器高度，移动端考虑底部控制条等遮挡
-    let visibleHeight = containerRect.height;
-
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      const viewportHeight = window.innerHeight;
-      const overlaysHeight = activeCard ? 260 : 140; // 底部控制条 + 可能出现的知识卡片 bottom sheet
-      visibleHeight = Math.max(viewportHeight - containerRect.top - overlaysHeight, 1);
-    }
-
-    const target =
-      container.scrollTop +
-      offset -
-      visibleHeight / 2 +
-      elRect.height / 2;
-
-    container.scrollTo({
-      top: target,
-      behavior: 'smooth'
     });
   };
 
@@ -1828,25 +1831,6 @@ export default function WatchPage() {
             <button
               type="button"
               className="inline-flex flex-1 flex-col items-center justify-center"
-              onClick={() => handleRowLoop(currentSubtitleIndex)}
-              disabled={isTrial && trialEnded}
-            >
-              <IconLoop
-                className={`h-4 w-4 ${
-                  sentenceLoop ? 'text-[#FF2442]' : 'text-gray-500'
-                }`}
-              />
-              <span
-                className={`mt-0.5 text-[10px] ${
-                  sentenceLoop ? 'text-[#FF2442]' : 'text-gray-500'
-                }`}
-              >
-                循环
-              </span>
-            </button>
-            <button
-              type="button"
-              className="inline-flex flex-1 flex-col items-center justify-center"
               onClick={() => handleToggleLike(currentSubtitleIndex)}
             >
               <IconLike
@@ -1869,20 +1853,57 @@ export default function WatchPage() {
           </div>
         )}
 
-        {/* 底部：播放控制区域 */}
+        {/* 底部：播放控制区域（移动端） */}
         <div className="flex items-center justify-between gap-3">
+          {/* 回到当前句列表位置 */}
           <button
             type="button"
-            className={`flex h-8 w-8 items-center justify-center rounded-full ${
-              maskChinese
-                ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-[#FF2442]'
-            }`}
-            onClick={() => setMaskChinese(v => !v)}
-            aria-label="遮罩中文"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-[#FF2442]"
+            onClick={scrollToCurrentSubtitle}
+            aria-label="回到当前句列表位置"
           >
-            <IconEye className="h-4 w-4" />
+            <IconList className="h-4 w-4" />
           </button>
+
+          {/* 倍速：自定义下拉菜单，浮在按钮上方 */}
+          <div className="relative flex h-8 min-w-[60px] items-center justify-center text-[11px] text-gray-600">
+            {isSpeedMenuOpen && !isTrial && !trialEnded && (
+                <div className="absolute bottom-10 z-30 w-[72px] rounded-xl border border-gray-100 bg-white py-1 text-[11px] text-gray-700 shadow-lg shadow-black/10">
+                  {speedOptions.map(speed => {
+                    const label = `${speed.toString().replace(/\.0$/, '')}x`;
+                    const active = playbackRate === speed;
+                    return (
+                        <button
+                            key={speed}
+                            type="button"
+                            className={`flex w-full items-center justify-center px-2 py-1 ${
+                                active ? 'bg-[#FF2442]/5 text-[#FF2442]' : 'hover:bg-gray-50'
+                            }`}
+                            onClick={() => {
+                              setPlaybackRate(speed);
+                              setIsSpeedMenuOpen(false);
+                            }}
+                        >
+                          {label}
+                        </button>
+                    );
+                  })}
+                </div>
+            )}
+            <button
+                type="button"
+                className="flex h-8 min-w-[60px] items-center justify-center rounded-full bg-gray-50 px-2 text-xs font-medium text-gray-800 hover:bg-gray-100 hover:text-[#FF2442]"
+                onClick={() => {
+                  if (isTrial && trialEnded) return;
+                  setIsSpeedMenuOpen(v => !v);
+                }}
+                aria-label="选择播放速度"
+            >
+              {playbackRate.toString().replace(/\.0$/, '')}x
+            </button>
+          </div>
+
+          {/* 上一句 */}
           <button
             type="button"
             className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -1892,6 +1913,8 @@ export default function WatchPage() {
           >
             <IconPrev className="h-4 w-4" />
           </button>
+
+          {/* 播放 / 暂停 */}
           <button
             type="button"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FF2442] text-white shadow-md shadow-[#FF2442]/40"
@@ -1905,6 +1928,8 @@ export default function WatchPage() {
               <IconPlay className="h-4 w-4" />
             )}
           </button>
+
+          {/* 下一句 */}
           <button
             type="button"
             className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -1914,13 +1939,32 @@ export default function WatchPage() {
           >
             <IconNext className="h-4 w-4" />
           </button>
+
+          {/* 单句循环开关 */}
+          <button
+              type="button"
+              className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                  sentenceLoop
+                      ? 'bg-[#FF2442]/10 text-[#FF2442]'
+                      : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-[#FF2442]'
+              }`}
+              onClick={() => handleRowLoop(currentSubtitleIndex)}
+              disabled={isTrial && trialEnded}
+              aria-label="单句循环"
+          >
+            <IconLoop className="h-4 w-4" />
+          </button>
+
+          {/* 中 / 英 / 中英 切换按钮：仅显示当前状态，点击循环切换 */}
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-[#FF2442]"
-            onClick={scrollToCurrentSubtitle}
-            aria-label="回到当前句列表位置"
+            className="flex h-8 w-[56px] items-center justify-center rounded-full bg-gray-50 px-3 text-[11px] text-gray-600 hover:bg-gray-100 hover:text-[#FF2442]"
+            onClick={cycleScriptMode}
+            aria-label="切换字幕语言"
           >
-            <IconList className="h-4 w-4" />
+            {scriptMode === 'cn' && '中'}
+            {scriptMode === 'en' && '英'}
+            {scriptMode === 'both' && '中/英'}
           </button>
         </div>
       </div>
