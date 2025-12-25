@@ -18,7 +18,27 @@ export const KnowledgeCardSchema = z.object({
     ipa: z.string().optional(),              // 音标
     def: z.string().min(1, '释义不能为空'),   // 中文释义
     sentence: z.string().optional(),         // 例句
-    type: z.enum(['word', 'phrase', 'idiom', 'slang']).optional() // 类型
+    // 卡片类型：
+    // word           单词
+    // phrase         短语
+    // phrasal_verb   短语动词
+    // expression     惯用表达
+    // spoken_pattern 口语句式
+    // idiom          习语 / 俚语
+    // slang          俚语（兼容老数据）
+    // proper_noun    专有名词
+    type: z
+      .enum([
+        'word',
+        'phrase',
+        'phrasal_verb',
+        'expression',
+        'spoken_pattern',
+        'idiom',
+        'slang',
+        'proper_noun'
+      ])
+      .optional() // 类型
   })
 });
 

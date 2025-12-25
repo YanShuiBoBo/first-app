@@ -40,9 +40,196 @@ interface KnowledgeCard {
     ipa?: string;
     def: string;
     sentence?: string;
-    type?: 'word' | 'phrase' | 'idiom' | 'slang';
-    };
+    // 卡片类型与后端保持一致
+    // word           单词
+    // phrase         短语
+    // phrasal_verb   短语动词
+    // expression     惯用表达
+    // spoken_pattern 口语句式
+    // idiom          习语 / 俚语
+    // slang          俚语（兼容老数据）
+    // proper_noun    专有名词
+    type?:
+      | 'word'
+      | 'phrase'
+      | 'phrasal_verb'
+      | 'expression'
+      | 'spoken_pattern'
+      | 'idiom'
+      | 'slang'
+      | 'proper_noun';
+  };
 }
+
+// 不同类型卡片在气泡中展示的中文标签
+const getCardTypeLabel = (
+  type: KnowledgeCard['data']['type'] | undefined
+): string | null => {
+  switch (type) {
+    case 'word':
+      return '单词';
+    case 'phrase':
+      return '短语';
+    case 'phrasal_verb':
+      return '短语动词';
+    case 'expression':
+      return '惯用表达';
+    case 'spoken_pattern':
+      return '口语句式';
+    case 'idiom':
+    case 'slang':
+      return '习语 / 俚语';
+    case 'proper_noun':
+      return '专有名词';
+    default:
+      return null;
+  }
+};
+
+// 不同类型卡片在字幕中的高亮样式（Xiaohongshu 风格）
+const getHighlightClassNames = (
+  type: KnowledgeCard['data']['type'] | undefined
+): string => {
+  switch (type) {
+    // 1. 单词：深蓝色 + 加粗
+    case 'word':
+      return 'cursor-pointer font-semibold text-[#1D4ED8] hover:text-[#1E40AF]';
+    // 2. 短语：浅蓝色背景
+    case 'phrase':
+      return 'cursor-pointer rounded bg-blue-50 px-1 text-[#1D4ED8] hover:bg-blue-100';
+    // 3. 短语动词：绿色 + 下划线
+    case 'phrasal_verb':
+      return 'cursor-pointer text-[#16A34A] underline underline-offset-2 hover:text-[#15803D]';
+    // 4. 惯用表达：橙色边框 / 背景
+    case 'expression':
+      return 'cursor-pointer rounded border border-orange-300 bg-orange-50 px-1 text-[#C05621] hover:bg-orange-100';
+    // 5. 口语句式：紫色斜体
+    case 'spoken_pattern':
+      return 'cursor-pointer italic text-[#7C3AED] hover:text-[#6D28D9]';
+    // 6. 习语 / 俚语：红色 + 波浪下划线（使用 inline style 做波浪）
+    case 'idiom':
+    case 'slang':
+      return 'cursor-pointer text-[#FF2442]';
+    // 7. 专有名词：灰色背景
+    case 'proper_noun':
+      return 'cursor-pointer rounded bg-gray-100 px-1 text-gray-800 hover:bg-gray-200';
+    // 默认：红色下划线（兼容旧数据）
+    default:
+      return 'cursor-pointer text-[#FF2442] underline-offset-2 hover:underline';
+  }
+};
+
+// 部分类型需要额外的 inline style（例如习语的波浪下划线）
+const getHighlightInlineStyle = (
+  type: KnowledgeCard['data']['type'] | undefined
+): React.CSSProperties | undefined => {
+  if (type === 'idiom' || type === 'slang') {
+    return { textDecoration: 'underline wavy #FF2442' };
+  }
+  return undefined;
+};
+
+// 内部结构：一段文本要么是普通文本，要么关联到某个卡片
+interface HighlightSegment {
+  text: string;
+  card?: KnowledgeCard;
+}
+
+// 工具函数：判断是否为“单词边界”字符
+const isWordBoundaryChar = (ch: string): boolean => {
+  // 字母 / 数字以外的都视为边界（空格、标点等）
+  return !/[A-Za-z0-9]/.test(ch);
+};
+
+// 根据整句英文字幕 + 全部卡片，计算出不重叠的高亮片段
+// 支持多词短语 / 短语动词：优先选择“更长的匹配”
+const buildHighlightSegments = (
+  text: string,
+  cards: KnowledgeCard[]
+): HighlightSegment[] => {
+  if (!text || cards.length === 0) {
+    return [{ text }];
+  }
+
+  const lowerText = text.toLowerCase();
+
+  type Match = { start: number; end: number; card: KnowledgeCard };
+  const matches: Match[] = [];
+
+  for (const card of cards) {
+    const rawKeyword = card.trigger_word?.trim();
+    if (!rawKeyword) continue;
+
+    const keyword = rawKeyword.toLowerCase();
+    if (!keyword.length) continue;
+
+    const isWordLike =
+      !card.data.type || card.data.type === 'word' || card.data.type === 'proper_noun';
+
+    let searchStart = 0;
+    while (searchStart <= lowerText.length - keyword.length) {
+      const idx = lowerText.indexOf(keyword, searchStart);
+      if (idx === -1) break;
+
+      const start = idx;
+      const end = idx + keyword.length;
+
+      if (isWordLike) {
+        const before = start === 0 ? ' ' : lowerText[start - 1];
+        const after = end >= lowerText.length ? ' ' : lowerText[end];
+        if (!isWordBoundaryChar(before) || !isWordBoundaryChar(after)) {
+          searchStart = idx + 1;
+          continue;
+        }
+      }
+
+      matches.push({ start, end, card });
+      searchStart = idx + keyword.length;
+    }
+  }
+
+  if (matches.length === 0) {
+    return [{ text }];
+  }
+
+  // 按起始位置 + 长度（长的优先）排序，然后去除重叠
+  matches.sort((a, b) => {
+    if (a.start !== b.start) return a.start - b.start;
+    const lenA = a.end - a.start;
+    const lenB = b.end - b.start;
+    return lenB - lenA;
+  });
+
+  const nonOverlapping: Match[] = [];
+  let lastEnd = -1;
+  for (const m of matches) {
+    if (m.start >= lastEnd) {
+      nonOverlapping.push(m);
+      lastEnd = m.end;
+    }
+  }
+
+  const segments: HighlightSegment[] = [];
+  let cursor = 0;
+
+  nonOverlapping.forEach((m, index) => {
+    if (cursor < m.start) {
+      segments.push({ text: text.slice(cursor, m.start) });
+    }
+    segments.push({
+      text: text.slice(m.start, m.end),
+      card: m.card
+    });
+    cursor = m.end;
+
+    // 结束时添加尾部文本
+    if (index === nonOverlapping.length - 1 && cursor < text.length) {
+      segments.push({ text: text.slice(cursor) });
+    }
+  });
+
+  return segments;
+};
 
 // 简单线性图标，使用 currentColor 作为颜色，尽量做到“一眼能懂”
 const IconReplay: React.FC<React.SVGProps<SVGSVGElement>> = props => (
@@ -121,6 +308,12 @@ const IconPause: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   </svg>
 );
 
+const IconPrint: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 1024 1024" fill="currentColor" {...props}>
+    <path d="M341.333333 640v170.666667h384v-170.666667H341.333333z m-42.666666 42.666667H170.666667V341.333333h128V170.666667h469.333333v170.666666h128v341.333334h-128v170.666666H298.666667v-170.666666z m42.666666-298.666667H213.333333v256h42.666667v-42.666667h554.666667v42.666667h42.666666V384H341.333333z m0-42.666667h384V213.333333H341.333333v128z m-85.333333 85.333334h128v42.666666H256v-42.666666z" />
+  </svg>
+);
+
 export default function WatchPage() {
   // 使用useParams获取路由参数
   const params = useParams();
@@ -152,6 +345,7 @@ export default function WatchPage() {
   const [likedSubtitles, setLikedSubtitles] = useState<Set<number>>(
     () => new Set()
   );
+  const [scriptMode, setScriptMode] = useState<'both' | 'en' | 'cn'>('both');
   const [cardPopover, setCardPopover] = useState<{
     card: KnowledgeCard;
     top: number;
@@ -1140,27 +1334,57 @@ export default function WatchPage() {
                     共 {videoData.subtitles.length} 句 · 点击句子即可跳转
                   </span>
                 </div>
-                <div className="ml-3 flex flex-col items-end gap-1">
+                <div className="ml-3 flex items-center gap-2">
+                  <button
+                      type="button"
+                      className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] text-gray-400 hover:border-[#FF2442]/50"
+                      onClick={() =>
+                          setScriptMode(prev =>
+                              prev === 'both' ? 'en' : prev === 'en' ? 'cn' : 'both'
+                          )
+                      }
+                      aria-label="切换脚本显示语言"
+                  >
+                    <span
+                        className={`px-0.5 ${
+                            scriptMode === 'cn'
+                                ? 'text-[#FF2442] font-medium'
+                                : 'text-gray-400'
+                        }`}
+                    >
+                      中
+                    </span>
+                    <span className="px-0.5 text-gray-300">|</span>
+                    <span
+                        className={`px-0.5 ${
+                            scriptMode === 'en'
+                                ? 'text-[#FF2442] font-medium'
+                                : 'text-gray-400'
+                        }`}
+                    >
+                      英
+                    </span>
+                    <span className="px-0.5 text-gray-300">|</span>
+                    <span
+                        className={`px-0.5 ${
+                            scriptMode === 'both'
+                                ? 'text-[#FF2442] font-medium'
+                                : 'text-gray-400'
+                        }`}
+                    >
+                      中/英
+                    </span>
+                  </button>
+                  {/* 打印按钮：线性图标，无文字 */}
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] hover:bg-gray-50"
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-[#FF2442]"
                     onClick={handleExportTranscript}
+                    aria-label="打印字幕"
                   >
-                    <span>🖨️</span>
-                    <span>打印</span>
+                    <IconPrint className="h-4 w-4" />
                   </button>
-                  <button
-                    type="button"
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] ${
-                      maskChinese
-                        ? 'border-[#FF2442]/40 bg-[#FF2442]/5 text-[#FF2442]'
-                        : 'border-gray-200 bg-white text-gray-500'
-                    }`}
-                    onClick={() => setMaskChinese(v => !v)}
-                  >
-                    <span>👁️</span>
-                    <span>遮罩: {maskChinese ? 'ON' : 'OFF'}</span>
-                  </button>
+                  {/* 语言切换按钮：中 | 英 | 中/英 文本分段，根据 scriptMode 高亮 */}
                 </div>
               </div>
 
@@ -1171,7 +1395,6 @@ export default function WatchPage() {
               >
                 {videoData.subtitles.map((subtitle, index) => {
                   const isActive = currentSubtitleIndex === index;
-                  const words = subtitle.text_en.split(' ');
 
                   const baseCardClasses =
                     'relative cursor-pointer rounded-xl border px-3 py-2 transition-all';
@@ -1204,50 +1427,46 @@ export default function WatchPage() {
                         )}
                       </div>
 
-                      <div className="mt-0.5 text-[13px] font-medium text-gray-800">
-                        {words.map((word, wordIndex) => {
-                          const cleanedWord = word.replace(/[^\w]/g, '');
-                          const isTriggerWord = videoData.cards.some(
-                            card =>
-                              card.trigger_word.toLowerCase() ===
-                              cleanedWord.toLowerCase()
-                          );
+                      {/* 英文行：根据 scriptMode 控制显示 */}
+                      {(scriptMode === 'both' || scriptMode === 'en') && (
+                        <div className="mt-0.5 text-[13px] font-medium text-gray-800">
+                          {buildHighlightSegments(
+                            subtitle.text_en,
+                            videoData.cards ?? []
+                          ).map((segment, segIndex) => {
+                            if (!segment.card) {
+                              return (
+                                <span key={segIndex}>{segment.text}</span>
+                              );
+                            }
 
-                          if (isTriggerWord) {
+                            const type = segment.card.data.type;
                             return (
                               <span
-                                key={wordIndex}
-                                className="cursor-pointer text-[#FF2442] underline-offset-2 hover:underline"
+                                key={segIndex}
+                                className={getHighlightClassNames(type)}
+                                style={getHighlightInlineStyle(type)}
                                 onClick={e => {
                                   e.stopPropagation();
                                   handleWordClick(
-                                    cleanedWord,
+                                    segment.card!.trigger_word,
                                     e.currentTarget as HTMLElement
                                   );
                                 }}
                               >
-                                {word}{' '}
+                                {segment.text}
                               </span>
                             );
-                          }
+                          })}
+                        </div>
+                      )}
 
-                          return (
-                            <span key={wordIndex}>
-                              {word}{' '}
-                            </span>
-                          );
-                        })}
-                      </div>
-
-                      <div
-                        className={`mt-0.5 text-[12px] ${
-                          maskChinese
-                            ? 'text-transparent bg-gray-200/90 rounded-[4px] px-1 py-0.5'
-                            : 'text-gray-500'
-                        }`}
-                      >
-                        {subtitle.text_cn}
-                      </div>
+                      {/* 中文行：根据 scriptMode 控制显示 */}
+                      {(scriptMode === 'both' || scriptMode === 'cn') && (
+                        <div className="mt-0.5 text-[12px] text-gray-500">
+                          {subtitle.text_cn}
+                        </div>
+                      )}
 
                       {/* 工具栏：桌面端所有行显示（仅图标，弱化存在感） */}
                       <div className={toolbarDesktopClasses}>
@@ -1402,9 +1621,9 @@ export default function WatchPage() {
               <span className="text-sm font-semibold text-gray-900">
                 {cardPopover.card.trigger_word}
               </span>
-              {cardPopover.card.data.type && (
+              {getCardTypeLabel(cardPopover.card.data.type) && (
                 <span className="rounded-full bg-[#FF2442]/5 px-2 py-[2px] text-[10px] text-[#FF2442]">
-                  {cardPopover.card.data.type}
+                  {getCardTypeLabel(cardPopover.card.data.type)}
                 </span>
               )}
             </div>
