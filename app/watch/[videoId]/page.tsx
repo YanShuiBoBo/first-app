@@ -617,10 +617,20 @@ export default function WatchPage() {
     const containerRect = container.getBoundingClientRect();
     const elRect = activeEl.getBoundingClientRect();
     const offset = elRect.top - containerRect.top;
+
+    // 计算“有效可视高度”用于视觉居中：桌面直接用容器高度，移动端考虑底部控制条等遮挡
+    let visibleHeight = containerRect.height;
+
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      const viewportHeight = window.innerHeight;
+      const overlaysHeight = activeCard ? 260 : 140; // 底部控制条 + 可能出现的知识卡片 bottom sheet
+      visibleHeight = Math.max(viewportHeight - containerRect.top - overlaysHeight, 1);
+    }
+
     const target =
       container.scrollTop +
       offset -
-      containerRect.height / 2 +
+      visibleHeight / 2 +
       elRect.height / 2;
 
     container.scrollTo({
@@ -936,8 +946,8 @@ export default function WatchPage() {
               </div>
 
               {/* Layer 2: 视频区域 */}
-              {/* 使用稳定的 16:9 容器，移动端吸顶展示，避免滑动就看不到视频 */}
-              <div className="bg-black sticky top-0 z-20 lg:static">
+              {/* 使用稳定的 16:9 容器，吸顶展示，避免滑动就看不到视频 */}
+              <div className="bg-black sticky top-0 z-20">
                 <div className="relative aspect-video w-full">
                   {!isPlayerReady && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black">
