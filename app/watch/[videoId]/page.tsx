@@ -553,18 +553,167 @@ export default function WatchPage() {
   };
 
   // 导出脚本：简单复制到剪贴板
+  // 导出 / 打印脚本：打开新窗口，提供「中/英/中英」三种模式和打印按钮
   const handleExportTranscript = async () => {
-    if (!videoData?.subtitles?.length) return;
+    if (!videoData?.subtitles?.length || typeof window === 'undefined') return;
 
     try {
-      const lines = videoData.subtitles.map(sub => {
-        const timeLabel = formatDuration(sub.start);
-        return `[${timeLabel}] ${sub.text_en} / ${sub.text_cn}`;
-      });
+      const escapeHtml = (text: string) =>
+        text
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
 
-      if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(lines.join('\n'));
+      const rowsHtml = videoData.subtitles
+        .map(sub => {
+          const timeLabel = formatDuration(sub.start);
+          return `
+            <div class="item">
+              <div class="time">[${timeLabel}]</div>
+              <div class="line-en">${escapeHtml(sub.text_en)}</div>
+              <div class="line-cn">${escapeHtml(sub.text_cn)}</div>
+            </div>
+          `;
+        })
+        .join('\n');
+
+      const title = escapeHtml(videoData.title || '精读字幕');
+
+      const html = `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title} - 打印字幕</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 16px 24px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        background: #f8f8f8;
+        color: #111827;
       }
+      #toolbar {
+        position: sticky;
+        top: 0;
+        padding: 12px 0 16px;
+        margin-bottom: 8px;
+        background: #f8f8f8;
+      }
+      #toolbar h1 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      #toolbar .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        font-size: 12px;
+      }
+      #toolbar button {
+        border-radius: 999px;
+        border: 1px solid #e5e7eb;
+        background: #ffffff;
+        padding: 6px 12px;
+        cursor: pointer;
+      }
+      #toolbar button.mode-active {
+        border-color: #ff2442;
+        background: #ffe7ec;
+        color: #ff2442;
+      }
+      #toolbar button#print-btn {
+        border-color: #ff2442;
+        background: #ff2442;
+        color: #ffffff;
+      }
+      .subtitle-list {
+        margin-top: 4px;
+      }
+      .item {
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e5e7eb;
+        page-break-inside: avoid;
+      }
+      .time {
+        font-size: 11px;
+        color: #9ca3af;
+        margin-bottom: 2px;
+      }
+      .line-en {
+        font-size: 13px;
+        color: #111827;
+        margin-bottom: 2px;
+      }
+      .line-cn {
+        font-size: 12px;
+        color: #4b5563;
+      }
+
+      body.mode-en .line-cn { display: none; }
+      body.mode-cn .line-en { display: none; }
+
+      @media print {
+        #toolbar { display: none; }
+        body {
+          background: #ffffff;
+          padding: 0 16px;
+        }
+      }
+    </style>
+  </head>
+  <body class="mode-both">
+    <div id="toolbar">
+      <h1>打印字幕 - ${title}</h1>
+      <div class="buttons">
+        <button id="btn-both" class="mode-active" type="button">中 / 英</button>
+        <button id="btn-en" type="button">英</button>
+        <button id="btn-cn" type="button">中</button>
+        <button id="print-btn" type="button">🖨 打印</button>
+      </div>
+    </div>
+    <div class="subtitle-list">
+      ${rowsHtml}
+    </div>
+    <script>
+      (function () {
+        var body = document.body;
+        var btnBoth = document.getElementById('btn-both');
+        var btnEn = document.getElementById('btn-en');
+        var btnCn = document.getElementById('btn-cn');
+        var btnPrint = document.getElementById('print-btn');
+
+        function setMode(mode) {
+          body.classList.remove('mode-both', 'mode-en', 'mode-cn');
+          body.classList.add('mode-' + mode);
+          btnBoth.classList.remove('mode-active');
+          btnEn.classList.remove('mode-active');
+          btnCn.classList.remove('mode-active');
+          if (mode === 'both') btnBoth.classList.add('mode-active');
+          if (mode === 'en') btnEn.classList.add('mode-active');
+          if (mode === 'cn') btnCn.classList.add('mode-active');
+        }
+
+        btnBoth.addEventListener('click', function () { setMode('both'); });
+        btnEn.addEventListener('click', function () { setMode('en'); });
+        btnCn.addEventListener('click', function () { setMode('cn'); });
+        btnPrint.addEventListener('click', function () { window.print(); });
+      })();
+    </script>
+  </body>
+</html>`;
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        console.error('无法打开打印窗口');
+        return;
+      }
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
     } catch (err) {
       console.error('导出脚本失败:', err);
     }
@@ -909,7 +1058,7 @@ export default function WatchPage() {
                     onClick={handleExportTranscript}
                   >
                     <span>🖨️</span>
-                    <span>导出</span>
+                    <span>打印</span>
                   </button>
                   <button
                     type="button"
@@ -942,7 +1091,7 @@ export default function WatchPage() {
                     : 'border-transparent bg-white hover:border-gray-200 hover:bg-gray-50';
 
                   const toolbarDesktopClasses =
-                    'mt-2 hidden items-center gap-2 text-[11px] text-gray-500 lg:flex';
+                    'mt-2 hidden flex-nowrap items-center gap-1 text-[11px] text-gray-500 lg:flex';
                   const toolbarMobileClasses = `mt-2 items-center gap-2 text-[11px] text-gray-500 lg:hidden ${
                     isActive ? 'flex' : 'hidden'
                   }`;
@@ -1010,11 +1159,12 @@ export default function WatchPage() {
                         {subtitle.text_cn}
                       </div>
 
-                      {/* 工具栏：桌面端所有行显示 */}
+                      {/* 工具栏：桌面端所有行显示（仅图标，弱化存在感） */}
                       <div className={toolbarDesktopClasses}>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 hover:bg-gray-200"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gray-50 text-[13px] text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title="重听"
                           onClick={e => {
                             e.stopPropagation();
                             handleRowReplay(index);
@@ -1022,11 +1172,11 @@ export default function WatchPage() {
                           disabled={isTrial && trialEnded}
                         >
                           <span>🔊</span>
-                          <span>重听</span>
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 hover:bg-gray-200"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gray-50 text-[13px] text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title="跟读"
                           onClick={e => {
                             e.stopPropagation();
                             handleRowMic(index);
@@ -1034,15 +1184,15 @@ export default function WatchPage() {
                           disabled={isTrial && trialEnded}
                         >
                           <span>🎤</span>
-                          <span>跟读</span>
                         </button>
                         <button
                           type="button"
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${
+                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-[13px] ${
                             sentenceLoop && isActive
                               ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600'
                           }`}
+                          title="单句循环"
                           onClick={e => {
                             e.stopPropagation();
                             handleRowLoop(index);
@@ -1050,30 +1200,30 @@ export default function WatchPage() {
                           disabled={isTrial && trialEnded}
                         >
                           <span>🔂</span>
-                          <span>循环</span>
                         </button>
                         <button
                           type="button"
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${
+                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-[13px] ${
                             likedSubtitles.has(index)
                               ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600'
                           }`}
+                          title="收藏"
                           onClick={e => {
                             e.stopPropagation();
                             handleToggleLike(index);
                           }}
                         >
                           <span>❤️</span>
-                          <span>收藏</span>
                         </button>
                       </div>
 
-                      {/* 工具栏：移动端仅当前行展开 */}
+                      {/* 工具栏：移动端仅当前行展开（仅图标） */}
                       <div className={toolbarMobileClasses}>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 hover:bg-gray-200"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gray-50 text-[13px] text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title="重听"
                           onClick={e => {
                             e.stopPropagation();
                             handleRowReplay(index);
@@ -1081,11 +1231,11 @@ export default function WatchPage() {
                           disabled={isTrial && trialEnded}
                         >
                           <span>🔊</span>
-                          <span>重听</span>
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 hover:bg-gray-200"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gray-50 text-[13px] text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title="跟读"
                           onClick={e => {
                             e.stopPropagation();
                             handleRowMic(index);
@@ -1093,15 +1243,15 @@ export default function WatchPage() {
                           disabled={isTrial && trialEnded}
                         >
                           <span>🎤</span>
-                          <span>跟读</span>
                         </button>
                         <button
                           type="button"
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${
+                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-[13px] ${
                             sentenceLoop && isActive
                               ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600'
                           }`}
+                          title="单句循环"
                           onClick={e => {
                             e.stopPropagation();
                             handleRowLoop(index);
@@ -1109,22 +1259,21 @@ export default function WatchPage() {
                           disabled={isTrial && trialEnded}
                         >
                           <span>🔂</span>
-                          <span>循环</span>
                         </button>
                         <button
                           type="button"
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${
+                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-[13px] ${
                             likedSubtitles.has(index)
                               ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600'
                           }`}
+                          title="收藏"
                           onClick={e => {
                             e.stopPropagation();
                             handleToggleLike(index);
                           }}
                         >
                           <span>❤️</span>
-                          <span>收藏</span>
                         </button>
                       </div>
                     </div>
