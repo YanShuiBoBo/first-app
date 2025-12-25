@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Stream, type StreamPlayerApi } from '@cloudflare/stream-react';
 import { usePlayerStore } from '@/lib/store/player-store';
@@ -377,10 +377,171 @@ export default function WatchPage() {
   const ttsVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
 
+  // 影子跟读（Shadowing）相关状态
+  // mode:
+  // - idle：当前无跟读任务
+  // - ready：已跳到某句，等待用户按空格开始录音
+  // - recording：正在录音
+  // - reviewing：录音完成，可回放
+  const [shadowMode, setShadowMode] = useState<
+    'idle' | 'ready' | 'recording' | 'reviewing'
+  >('idle');
+  const [shadowSubtitleIndex, setShadowSubtitleIndex] = useState<number | null>(
+    null
+  );
+  const [shadowAudioUrl, setShadowAudioUrl] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<BlobPart[]>([]);
+
   // 初始化登录状态（Phase 1 先不做强门禁，只同步一下本地登录信息）
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // 开始影子跟读录音
+  const startShadowRecording = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+
+    // 基础能力检测：需要支持 getUserMedia + MediaRecorder
+    if (
+      !navigator.mediaDevices ||
+      typeof navigator.mediaDevices.getUserMedia !== 'function' ||
+      typeof MediaRecorder === 'undefined'
+    ) {
+      console.warn('当前浏览器不支持麦克风录音');
+      setShadowMode('idle');
+      return;
+    }
+
+    try {
+      // 每次开始录音前清理旧的本地音频 URL，避免内存泄漏
+      if (shadowAudioUrl) {
+        URL.revokeObjectURL(shadowAudioUrl);
+        setShadowAudioUrl(null);
+      }
+
+      // 主动暂停视频，避免录音时播放原声
+      if (streamRef.current) {
+        streamRef.current.pause();
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+      recordedChunksRef.current = [];
+
+      mr.ondataavailable = event => {
+        if (event.data && event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      mr.onstop = () => {
+        try {
+          const blob = new Blob(recordedChunksRef.current, {
+            type: 'audio/webm'
+          });
+          const url = URL.createObjectURL(blob);
+          setShadowAudioUrl(url);
+          setShadowMode('reviewing');
+
+          // 录音结束后自动回放一次用户自己的声音
+          const audio = new Audio(url);
+          void audio.play();
+        } catch (err) {
+          console.error('生成本地录音失败:', err);
+          setShadowMode('idle');
+        }
+      };
+
+      mr.start();
+      setShadowMode('recording');
+    } catch (err) {
+      console.error('获取麦克风权限失败:', err);
+      setShadowMode('idle');
+    }
+  }, [shadowAudioUrl]);
+
+  // 停止影子跟读录音
+  const stopShadowRecording = useCallback(() => {
+    const mr = mediaRecorderRef.current;
+    if (!mr) return;
+
+    try {
+      mr.stop();
+      mr.stream.getTracks().forEach(track => track.stop());
+    } catch (err) {
+      console.error('停止录音失败:', err);
+    } finally {
+      mediaRecorderRef.current = null;
+    }
+  }, []);
+
+  // 组件卸载时清理录音资源
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current) {
+        try {
+          mediaRecorderRef.current.stop();
+          mediaRecorderRef.current.stream
+            .getTracks()
+            .forEach(track => track.stop());
+        } catch {
+          // ignore
+        }
+      }
+      if (shadowAudioUrl) {
+        URL.revokeObjectURL(shadowAudioUrl);
+      }
+    };
+  }, [shadowAudioUrl]);
+
+  // 桌面端：按住空格开始录音，松开空格结束录音
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space') return;
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+      ) {
+        return;
+      }
+
+      if (shadowMode !== 'ready') return;
+
+      event.preventDefault();
+      void startShadowRecording();
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== 'Space') return;
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+      ) {
+        return;
+      }
+
+      if (shadowMode !== 'recording') return;
+
+      event.preventDefault();
+      stopShadowRecording();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [shadowMode, startShadowRecording, stopShadowRecording]);
 
   // 首次在浏览器端挂载时初始化 Supabase 客户端
   useEffect(() => {
@@ -715,6 +876,11 @@ export default function WatchPage() {
     if (isTrial && subtitle.start >= TRIAL_LIMIT_SECONDS) {
       return;
     }
+
+    // 手动切换句子时，重置影子跟读状态
+    setShadowMode('idle');
+    setShadowSubtitleIndex(null);
+
     // 跳转到当前句子的开始时间
     streamRef.current.currentTime = subtitle.start;
     jumpToSubtitle(index);
@@ -876,7 +1042,9 @@ export default function WatchPage() {
     }
   };
 
-  // 行内工具栏：跟读（跳到句首并暂停，留给用户自己朗读）
+  // 行内工具栏：跟读（影子跟读入口）
+  // 桌面端：点击麦克风 -> 跳到该句并暂停，进入 ready 状态；按住空格开始录音，松开空格结束。
+  // 移动端：点击后直接开始录音，再次点击结束录音（简化版）。
   const handleRowMic = (index: number) => {
     if (!videoData?.subtitles || !streamRef.current) return;
 
@@ -890,11 +1058,26 @@ export default function WatchPage() {
       return;
     }
 
-    // 精准跳回该句开头，并更新全局当前句 / 时间，再暂停，方便用户跟读
+    // 精准跳回该句开头，并更新全局当前句 / 时间，再暂停，作为跟读起点
     streamRef.current.currentTime = subtitle.start;
     jumpToSubtitle(index);
     setCurrentTime(subtitle.start);
     streamRef.current.pause();
+
+    setShadowSubtitleIndex(index);
+
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      // 移动端：直接点击即开始录音，再次点击结束
+      if (shadowMode === 'recording') {
+        stopShadowRecording();
+      } else {
+        setShadowMode('ready');
+        void startShadowRecording();
+      }
+    } else {
+      // 桌面端：进入 ready 状态，等待用户按空格开始录音
+      setShadowMode('ready');
+    }
   };
 
   // 行内工具栏：收藏 / 取消收藏（本地状态，后续可接入后端）
