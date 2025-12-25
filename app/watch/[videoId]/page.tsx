@@ -70,8 +70,17 @@ export default function WatchPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [subtitleMode, setSubtitleMode] = useState<'both' | 'en' | 'cn'>('both');
   const [trialEnded, setTrialEnded] = useState(false);
+  const [maskChinese, setMaskChinese] = useState(false);
+  const [likedSubtitles, setLikedSubtitles] = useState<Set<number>>(
+    () => new Set()
+  );
+  const [cardPopover, setCardPopover] = useState<{
+    card: KnowledgeCard;
+    top: number;
+    left: number;
+    placement: 'top' | 'bottom';
+  } | null>(null);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -112,8 +121,8 @@ export default function WatchPage() {
         }
 
         // get_video_with_content 返回结构:
-        // { video: {...}, subtitles: [...], knowledge_cards: [{trigger_word, data}, ...] }
-        const { video, subtitles, knowledge_cards } = data as {
+        // { video: {..., view_count?}, subtitles: [...], knowledge_cards: [{trigger_word, data}, ...] }
+        const result = data as {
           video: {
             id: string;
             cf_video_id: string;
@@ -125,11 +134,13 @@ export default function WatchPage() {
             description?: string | null;
             difficulty?: number | null;
             tags?: string[] | null;
+            view_count?: number | null;
           };
-          view_count?: number | null;
           subtitles: SubtitleItem[] | null;
           knowledge_cards: KnowledgeCard[] | null;
         };
+
+        const { video, subtitles, knowledge_cards } = result;
 
         if (!video) {
           throw new Error('视频数据为空');
@@ -148,7 +159,7 @@ export default function WatchPage() {
           description: video.description,
           difficulty: video.difficulty,
           tags: video.tags,
-          view_count: (video as any).view_count ?? 0,
+          view_count: video.view_count ?? 0,
           subtitles: subtitles || [],
           cards: knowledge_cards || []
         };
@@ -249,6 +260,7 @@ export default function WatchPage() {
 
   // 播放器状态 - Hooks必须在条件返回之前调用
   const {
+    currentTime,
     currentSubtitleIndex,
     activeCard,
     playbackRate,
@@ -372,40 +384,63 @@ export default function WatchPage() {
     jumpToSubtitle(index);
   };
 
-  // 高亮单词点击事件
-  const handleWordClick = (word: string) => {
-    if (videoData?.cards) {
-      const lower = word.toLowerCase();
-      const card = videoData.cards.find(
-        card => card.trigger_word.toLowerCase() === lower
-      );
-      if (card) {
-        showCard(card);
-      }
-    }
-  };
+  // 高亮单词点击事件（桌面端：气泡；移动端：Bottom Sheet）
+  const handleWordClick = (word: string, target?: HTMLElement | null) => {
+    if (!videoData?.cards) return;
 
-  // 点击知识卡片：高亮卡片，并尝试把视频跳到包含这个单词的第一句
-  const handleCardClick = (card: KnowledgeCard) => {
+    const lower = word.toLowerCase();
+    const card = videoData.cards.find(
+      item => item.trigger_word.toLowerCase() === lower
+    );
+    if (!card) return;
+
+    // 始终更新全局 activeCard，用于知识卡片列表和移动端 bottom sheet
     showCard(card);
 
-    if (!videoData?.subtitles || !streamRef.current) return;
-
-    // 试看已结束：不再控制视频时间，只展示卡片内容
-    if (isTrial && trialEnded) {
+    if (!target || typeof window === 'undefined') {
       return;
     }
 
-    const lower = card.trigger_word.toLowerCase();
-    const index = videoData.subtitles.findIndex(sub =>
-      sub.text_en.toLowerCase().includes(lower)
-    );
-
-    if (index >= 0) {
-      const subtitle = videoData.subtitles[index];
-      streamRef.current.currentTime = subtitle.start;
-      jumpToSubtitle(index);
+    // 移动端直接用 bottom sheet，不使用悬浮气泡
+    if (window.innerWidth < 1024) {
+      setCardPopover(null);
+      return;
     }
+
+    const rect = target.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    const bubbleWidth = 260;
+    const bubbleHeight = 140;
+    const margin = 16;
+
+    // 默认在单词下方
+    let top = rect.bottom + 8;
+    let placement: 'top' | 'bottom' = 'bottom';
+
+    // 若接近底部，则在上方展示
+    if (rect.bottom + bubbleHeight + margin > viewportHeight) {
+      top = rect.top - bubbleHeight - 8;
+      placement = 'top';
+    }
+
+    // 水平居中对齐单词，再根据左右边缘做修正
+    let left = rect.left + rect.width / 2 - bubbleWidth / 2;
+
+    if (left + bubbleWidth + margin > viewportWidth) {
+      left = viewportWidth - bubbleWidth - margin;
+    }
+    if (left < margin) {
+      left = margin;
+    }
+
+    setCardPopover({
+      card,
+      top,
+      left,
+      placement
+    });
   };
 
   const formatDuration = (seconds: number): string => {
@@ -414,10 +449,127 @@ export default function WatchPage() {
     return `${minutes}:${secs}`;
   };
 
-  const renderDifficultyStars = (difficulty?: number | null) => {
-    const d = Math.min(Math.max(difficulty ?? 3, 1), 5);
-    return '🌟'.repeat(d);
+  // 上一句 / 下一句
+  const handlePrevSentence = () => {
+    if (!videoData?.subtitles) return;
+    const prevIndex = Math.max(currentSubtitleIndex - 1, 0);
+    if (prevIndex === currentSubtitleIndex) return;
+    handleSubtitleClick(prevIndex);
   };
+
+  const handleNextSentence = () => {
+    if (!videoData?.subtitles) return;
+    const nextIndex = Math.min(
+      currentSubtitleIndex + 1,
+      videoData.subtitles.length - 1
+    );
+    if (nextIndex === currentSubtitleIndex) return;
+    handleSubtitleClick(nextIndex);
+  };
+
+  // 行内工具栏：重听当前句
+  const handleRowReplay = (index: number) => {
+    if (!streamRef.current) return;
+    handleSubtitleClick(index);
+    // 试看结束后不再自动播放
+    if (isTrial && trialEnded) return;
+    void streamRef.current.play();
+  };
+
+  // 行内工具栏：单句循环并跳转到该句
+  const handleRowLoop = (index: number) => {
+    if (!videoData?.subtitles || !streamRef.current) return;
+    handleSubtitleClick(index);
+    const { sentenceLoop: loopOn } = usePlayerStore.getState();
+    if (!loopOn) {
+      toggleSentenceLoop();
+    }
+  };
+
+  // 行内工具栏：跟读（跳到句首并暂停，留给用户自己朗读）
+  const handleRowMic = (index: number) => {
+    if (!videoData?.subtitles || !streamRef.current) return;
+    handleSubtitleClick(index);
+    // 试看结束后不再变更播放状态
+    if (isTrial && trialEnded) return;
+    streamRef.current.pause();
+  };
+
+  // 行内工具栏：收藏 / 取消收藏（本地状态，后续可接入后端）
+  const handleToggleLike = (index: number) => {
+    setLikedSubtitles(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  // 将当前高亮句滚动到可视区域中间
+  const scrollToCurrentSubtitle = () => {
+    if (!subtitlesContainerRef.current) return;
+    const container = subtitlesContainerRef.current;
+    const activeEl = subtitleItemRefs.current[currentSubtitleIndex];
+    if (!activeEl) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const elRect = activeEl.getBoundingClientRect();
+    const offset = elRect.top - containerRect.top;
+    const target =
+      container.scrollTop +
+      offset -
+      containerRect.height / 2 +
+      elRect.height / 2;
+
+    container.scrollTo({
+      top: target,
+      behavior: 'smooth'
+    });
+  };
+
+  // 导出脚本：简单复制到剪贴板
+  const handleExportTranscript = async () => {
+    if (!videoData?.subtitles?.length) return;
+
+    try {
+      const lines = videoData.subtitles.map(sub => {
+        const timeLabel = formatDuration(sub.start);
+        return `[${timeLabel}] ${sub.text_en} / ${sub.text_cn}`;
+      });
+
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(lines.join('\n'));
+      }
+    } catch (err) {
+      console.error('导出脚本失败:', err);
+    }
+  };
+
+  // 点击页面空白处关闭桌面端知识卡片气泡
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+
+      if (target.closest('[data-card-popover="true"]')) {
+        return;
+      }
+
+      setCardPopover(null);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('click', handleClickOutside);
+      return () => {
+        window.removeEventListener('click', handleClickOutside);
+      };
+    }
+
+    return undefined;
+  }, []);
 
   // 当前字幕自动跟随滚动到视图中间
   // 移动端：基于视口高度计算真正“可见区域”，扣掉底部精读控制条和知识卡片 bottom sheet 的遮挡
@@ -436,7 +588,8 @@ export default function WatchPage() {
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       // 视口高度 - 字幕容器到顶部的距离 - 底部悬浮区域高度 = 实际可见高度
       const viewportHeight = window.innerHeight;
-      const overlaysHeight = activeCard ? 200 : 120; // 精读控制条 + 可能出现的知识卡片 bottom sheet
+      // 底部包含：固定播放器控制条 (~70px) + 可能出现的知识卡片 bottom sheet
+      const overlaysHeight = activeCard ? 260 : 140;
       visibleHeight = Math.max(
         viewportHeight - containerRect.top - overlaysHeight,
         1
@@ -458,10 +611,10 @@ export default function WatchPage() {
   // 页面渲染
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-950 text-slate-200">
+      <div className="flex min-h-screen items-center justify-center bg-[#F8F8F8] text-gray-700">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-sky-500 border-t-transparent" />
-          <p className="text-sm text-slate-400">正在加载精读内容...</p>
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#FF2442]/30 border-t-[#FF2442]" />
+          <p className="text-sm text-gray-500">正在加载精读内容...</p>
         </div>
       </div>
     );
@@ -469,177 +622,308 @@ export default function WatchPage() {
 
   if (error || !videoData) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-950 text-slate-100">
-        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-6 py-5 text-center text-sm">
+      <div className="flex min-h-screen items-center justify-center bg-[#F8F8F8] text-gray-900">
+        <div className="rounded-2xl border border-red-100 bg-white px-6 py-5 text-center text-sm shadow-sm shadow-red-100/60">
           <p className="mb-2 text-base font-semibold">获取视频数据失败</p>
-          <p className="text-red-200">{error || '未知错误'}</p>
+          <p className="text-xs text-gray-500">{error || '未知错误'}</p>
         </div>
       </div>
     );
   }
 
+  const activeSubtitle =
+    videoData.subtitles[currentSubtitleIndex] ?? null;
+
+  const currentTimeLabel = formatDuration(currentTime);
+  const totalTimeLabel = formatDuration(videoData.duration ?? 0);
+
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-slate-950 text-slate-50">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute left-[-18%] top-[-20%] h-72 w-72 rounded-full bg-sky-500/25 blur-3xl" />
-        <div className="absolute right-[-18%] bottom-[-24%] h-80 w-80 rounded-full bg-violet-500/25 blur-3xl" />
-      </div>
+    <div className="relative flex min-h-screen flex-col bg-[#F8F8F8] text-gray-900">
+      {/* 左上角返回首页 */}
+      <Link
+        href="/"
+        className="fixed left-4 top-4 z-30 inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs text-gray-700 shadow-sm hover:border-gray-300 hover:bg-white"
+      >
+        <span className="text-lg leading-none">←</span>
+        <span>返回首页</span>
+      </Link>
 
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 pb-6 pt-6 lg:gap-6 lg:pb-10 lg:pt-10">
-        {/* 顶部：模式标签 + 返回首页 + 时长信息（轻量显示） */}
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div className="flex items-center justify-between gap-3 md:justify-start">
-            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-400">
-              Watch · 精读模式
-            </p>
-            <Link
-              href="/"
-              className="rounded-full border border-slate-700/60 px-2 py-0.5 text-[11px] text-slate-300 hover:border-sky-500 hover:text-sky-300"
-            >
-              ← 返回首页
-            </Link>
-          </div>
-          <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-400 md:mt-0 md:justify-end">
-            <span className="inline-flex items-center rounded-full bg-slate-900/80 px-3 py-1">
-              ⏱ {formatDuration(videoData.duration)}
-            </span>
-            <span className="inline-flex items-center rounded-full bg-slate-900/80 px-3 py-1">
-              🔥 已学习 {videoData.view_count ?? 0} 次
-            </span>
-            <span className="inline-flex items-center rounded-full border border-slate-700/80 px-3 py-1">
-              双语字幕 · 知识卡片 · 单词点击解释
-            </span>
-          </div>
-        </div>
-
-        {/* 布局：视频 + 弹幕为主角，知识卡片用浮层/抽屉呈现，不再占一整列 */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
-          {/* 左栏 - 视频播放器 (60%) */}
-          {/* 移动端：使用 sticky 固定在顶部，滚动脚本时视频始终可见 */}
-          <div className="sticky top-0 lg:static lg:col-span-7">
+      <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col px-4 pb-24 pt-16 lg:pb-10 lg:pt-20">
+        <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
+          {/* 左侧：全能学习台 THE STATION */}
+          <section className="flex w-full flex-col lg:w-[70%] lg:max-w-[960px]">
             <div
               ref={videoRef}
-              className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-black/80 shadow-xl shadow-slate-950/70"
+              className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm"
             >
-              <div className="relative aspect-video w-full">
-                {!isPlayerReady && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
-                    <div className="flex flex-col items-center gap-3 text-xs text-slate-400">
-                      <div className="h-10 w-10 animate-pulse rounded-full bg-slate-700" />
-                      <span>视频加载中...</span>
+              {/* Layer 1: Header（桌面端显示） */}
+              <div className="hidden h-14 items-center justify-between border-b border-gray-100 px-6 sm:flex">
+                <div className="flex flex-col overflow-hidden">
+                  <div className="truncate text-sm font-semibold text-gray-900">
+                    {videoData.title}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-gray-500">
+                    {videoData.tags &&
+                      videoData.tags.slice(0, 3).map(tag => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-gray-100 px-2 py-0.5"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    {videoData.difficulty && (
+                      <span className="rounded-full bg-[#FFF0F2] px-2 py-0.5 text-[#FF2442]">
+                        Level {videoData.difficulty}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="hidden text-[11px] text-gray-400 md:flex md:flex-col md:items-end">
+                  <span>时长 {formatDuration(videoData.duration)}</span>
+                  <span className="mt-0.5">
+                    已学习 {videoData.view_count ?? 0} 次
+                  </span>
+                </div>
+              </div>
+
+              {/* Layer 2: 视频区域 */}
+              {/* 使用稳定的 16:9 容器，避免加载前后高度变化 */}
+              <div className="bg-black">
+                <div className="relative aspect-video w-full">
+                  {!isPlayerReady && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black">
+                      <div className="flex flex-col items-center gap-3 text-xs text-gray-300">
+                        <div className="h-10 w-10 animate-pulse rounded-full bg-gray-700" />
+                        <span>视频加载中...</span>
+                      </div>
                     </div>
+                  )}
+                  <Stream
+                    src={videoData.cf_video_id}
+                    controls
+                    width="100%"
+                    // 使用 Cloudflare 提供的 streamRef 和 onTimeUpdate 来获取时间信息
+                    streamRef={streamRef}
+                    onTimeUpdate={handleTimeUpdate}
+                    poster={videoData.poster}
+                    preload="auto"
+                    onLoadedData={handlePlayerLoaded}
+                    onPlay={handlePlay}
+                    onPause={handlePause}
+                  />
+                </div>
+              </div>
+
+              {/* Layer 3: 播放控制栏（桌面端） */}
+              <div className="hidden h-14 items-center justify-between border-t border-gray-100 px-6 text-xs text-gray-600 lg:flex">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500">
+                    {currentTimeLabel} / {totalTimeLabel}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 hover:bg-gray-200"
+                    onClick={handlePrevSentence}
+                    disabled={isTrial && trialEnded}
+                  >
+                    <span className="text-base leading-none">⏮</span>
+                    <span>上一句</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FF2442] text-white shadow-md shadow-[#FF2442]/40"
+                    onClick={handleTogglePlay}
+                    disabled={isTrial && trialEnded}
+                  >
+                    <span className="text-lg leading-none">
+                      {isPlaying ? '⏸' : '▶'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 hover:bg-gray-200"
+                    onClick={handleNextSentence}
+                    disabled={isTrial && trialEnded}
+                  >
+                    <span>下一句</span>
+                    <span className="text-base leading-none">⏭</span>
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 hover:bg-gray-200"
+                    onClick={handleChangeSpeed}
+                    disabled={isTrial && trialEnded}
+                  >
+                    <span className="text-[11px] text-gray-500">倍速</span>
+                    <span className="text-xs font-medium text-gray-800">
+                      {playbackRate.toFixed(2).replace(/\.00$/, '')}x
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${
+                      sentenceLoop
+                        ? 'bg-[#FF2442]/10 text-[#FF2442]'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                    onClick={toggleSentenceLoop}
+                    disabled={isTrial && trialEnded}
+                  >
+                    <span className="text-sm leading-none">🔂</span>
+                    <span>{sentenceLoop ? '单句循环' : '连续播放'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Layer 4: 当前句放大面板（桌面端） */}
+              {/* 使用较紧凑的最小高度，减少整体占用，让整块内容尽量压缩在视口内 */}
+              <div className="hidden min-h-[6rem] flex-col justify-center gap-2 border-t border-gray-100 bg-gray-50/80 px-8 py-3 lg:flex">
+                {activeSubtitle ? (
+                  <>
+                    <div className="text-[15px] font-semibold text-gray-900">
+                      {activeSubtitle.text_en}
+                    </div>
+                    <div
+                      className={`text-sm text-gray-600 ${
+                        maskChinese ? 'blur-sm opacity-70' : ''
+                      }`}
+                    >
+                      {activeSubtitle.text_cn}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-gray-600">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 shadow-sm hover:bg-gray-50"
+                        onClick={() => handleRowReplay(currentSubtitleIndex)}
+                        disabled={isTrial && trialEnded}
+                      >
+                        <span>🔊</span>
+                        <span>重听</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 shadow-sm hover:bg-gray-50"
+                        onClick={() => handleRowMic(currentSubtitleIndex)}
+                        disabled={isTrial && trialEnded}
+                      >
+                        <span>🎤</span>
+                        <span>跟读</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 shadow-sm ${
+                          sentenceLoop
+                            ? 'bg-[#FF2442]/10 text-[#FF2442]'
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                        onClick={() => handleRowLoop(currentSubtitleIndex)}
+                        disabled={isTrial && trialEnded}
+                      >
+                        <span>🔂</span>
+                        <span>循环</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 shadow-sm ${
+                          likedSubtitles.has(currentSubtitleIndex)
+                            ? 'bg-[#FF2442]/10 text-[#FF2442]'
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                        onClick={() => handleToggleLike(currentSubtitleIndex)}
+                      >
+                        <span>❤️</span>
+                        <span>收藏</span>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-400">
+                    开始播放后，这里会放大显示当前句子。
                   </div>
                 )}
-                <Stream
-                  src={videoData.cf_video_id}
-                  controls
-                  width="100%"
-                  // 使用 Cloudflare 提供的 streamRef 和 onTimeUpdate 来获取时间信息
-                  streamRef={streamRef}
-                  onTimeUpdate={handleTimeUpdate}
-                  poster={videoData.poster}
-                  // 尝试多加载一些数据，方便更快切到高清码率
-                  preload="auto"
-                  onLoadedData={handlePlayerLoaded}
-                  onPlay={handlePlay}
-                  onPause={handlePause}
-                />
               </div>
             </div>
 
-            {/* 视频下方：标题 + 作者 + 难度 + 标签 + 简介 */}
-            <div className="mt-4 space-y-2">
-              <h1 className="text-xl font-semibold leading-tight text-slate-50 md:text-2xl">
-                {videoData.title}
-              </h1>
-              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                {videoData.author && (
-                  <span className="inline-flex items-center gap-1">
-                    <span>作者</span>
-                    <span className="font-medium text-slate-200">
-                      {videoData.author}
-                    </span>
-                  </span>
-                )}
-                {videoData.difficulty && (
-                  <span className="inline-flex items-center gap-1">
-                    <span>难度</span>
-                    <span>{renderDifficultyStars(videoData.difficulty)}</span>
-                  </span>
-                )}
+            {/* 移动端：视频下方的基础信息 */}
+            <div className="mt-3 flex flex-col gap-2 text-xs text-gray-500 lg:hidden">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-full bg-white px-2 py-1">
+                  ⏱ {formatDuration(videoData.duration)}
+                </span>
+                <span className="inline-flex items-center rounded-full bg-white px-2 py-1">
+                  🔥 已学习 {videoData.view_count ?? 0} 次
+                </span>
               </div>
-              {videoData.tags && videoData.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 text-[11px] text-slate-400">
-                  {videoData.tags.slice(0, 6).map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full bg-slate-900/80 px-2 py-0.5"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
               {videoData.description && (
-                <p className="max-w-2xl text-sm text-slate-300">
+                <p className="text-[12px] leading-relaxed text-gray-600">
                   {videoData.description}
                 </p>
               )}
             </div>
-          </div>
+          </section>
 
-          {/* 右侧 - 字幕流（桌面端占较宽比例，便于“弹幕感”阅读），底部带一个简洁的知识卡片入口 */}
-          <div className="lg:col-span-5">
-            <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-900/80 p-4">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold text-slate-100">
-                  脚本流
-                </h2>
-                <div className="inline-flex rounded-full bg-slate-900/80 p-0.5 text-[11px] text-slate-300">
+          {/* 右侧：交互式课本 THE LIST */}
+          <aside className="mt-4 flex w-full flex-col lg:mt-0 lg:w-[30%]">
+            <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm lg:max-h-[calc(100vh-180px)]">
+              {/* 顶部工具栏（Sticky） */}
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 text-xs text-gray-500">
+                <div className="flex flex-col">
+                  <span className="text-[13px] font-medium text-gray-900">
+                    交互式课本
+                  </span>
+                  <span className="mt-0.5 text-[11px] text-gray-400">
+                    共 {videoData.subtitles.length} 句 · 点击句子即可跳转
+                  </span>
+                </div>
+                <div className="ml-3 flex flex-col items-end gap-1">
                   <button
                     type="button"
-                    className={`px-2 py-0.5 rounded-full ${
-                      subtitleMode === 'both'
-                        ? 'bg-sky-500 text-slate-950'
-                        : 'text-slate-300'
-                    }`}
-                    onClick={() => setSubtitleMode('both')}
+                    className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] hover:bg-gray-50"
+                    onClick={handleExportTranscript}
                   >
-                    中英
+                    <span>🖨️</span>
+                    <span>导出</span>
                   </button>
                   <button
                     type="button"
-                    className={`px-2 py-0.5 rounded-full ${
-                      subtitleMode === 'en'
-                        ? 'bg-sky-500 text-slate-950'
-                        : 'text-slate-300'
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] ${
+                      maskChinese
+                        ? 'border-[#FF2442]/40 bg-[#FF2442]/5 text-[#FF2442]'
+                        : 'border-gray-200 bg-white text-gray-500'
                     }`}
-                    onClick={() => setSubtitleMode('en')}
+                    onClick={() => setMaskChinese(v => !v)}
                   >
-                    英
-                  </button>
-                  <button
-                    type="button"
-                    className={`px-2 py-0.5 rounded-full ${
-                      subtitleMode === 'cn'
-                        ? 'bg-sky-500 text-slate-950'
-                        : 'text-slate-300'
-                    }`}
-                    onClick={() => setSubtitleMode('cn')}
-                  >
-                    中
+                    <span>👁️</span>
+                    <span>遮罩: {maskChinese ? 'ON' : 'OFF'}</span>
                   </button>
                 </div>
               </div>
 
+              {/* 字幕列表 */}
               <div
                 ref={subtitlesContainerRef}
-                className="mt-1 max-h-[50vh] space-y-3 overflow-y-auto pr-1 text-sm lg:h-[60vh]"
+                className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm"
               >
                 {videoData.subtitles.map((subtitle, index) => {
+                  const isActive = currentSubtitleIndex === index;
                   const words = subtitle.text_en.split(' ');
 
-                  const isActive = currentSubtitleIndex === index;
+                  const baseCardClasses =
+                    'relative cursor-pointer rounded-xl border px-3 py-2 transition-all';
+                  const stateClasses = isActive
+                    ? 'border-[#FF2442] bg-red-50'
+                    : 'border-transparent bg-white hover:border-gray-200 hover:bg-gray-50';
+
+                  const toolbarDesktopClasses =
+                    'mt-2 hidden items-center gap-2 text-[11px] text-gray-500 lg:flex';
+                  const toolbarMobileClasses = `mt-2 items-center gap-2 text-[11px] text-gray-500 lg:hidden ${
+                    isActive ? 'flex' : 'hidden'
+                  }`;
 
                   return (
                     <div
@@ -647,85 +931,191 @@ export default function WatchPage() {
                       ref={el => {
                         subtitleItemRefs.current[index] = el;
                       }}
-                      className={`relative cursor-pointer rounded-xl border px-3 py-2 transition-all ${
-                        isActive
-                          ? 'border-sky-400 bg-sky-500/90 text-slate-950 shadow-lg shadow-sky-900/40'
-                          : 'border-transparent bg-slate-900/60 text-slate-50 hover:border-slate-700 hover:bg-slate-900'
-                      }`}
+                      className={`${baseCardClasses} ${stateClasses}`}
                       onClick={() => handleSubtitleClick(index)}
                     >
                       {isActive && (
-                        <div className="absolute inset-y-2 left-0 w-1 rounded-full bg-sky-200" />
+                        <div className="absolute inset-y-2 left-0 w-1 rounded-full bg-[#FF2442]" />
                       )}
 
-                      <div
-                        className={`text-[11px] ${
-                          isActive ? 'text-slate-900/80' : 'text-slate-500'
-                        }`}
-                      >
-                        {Math.floor(subtitle.start / 60)}:{Math.floor(subtitle.start % 60).toString().padStart(2, '0')}
+                      <div className="flex items-center justify-between text-[11px] text-gray-400">
+                        <span>{formatDuration(subtitle.start)}</span>
+                        {likedSubtitles.has(index) && (
+                          <span className="text-[#FF2442]">❤️</span>
+                        )}
                       </div>
 
-                      {(subtitleMode === 'both' || subtitleMode === 'en') && (
-                        <div
-                          className={`mt-1 font-medium ${
-                            isActive ? 'text-slate-950' : 'text-slate-50'
-                          }`}
-                        >
-                          {words.map((word, wordIndex) => {
-                            const cleanedWord = word.replace(/[^\w]/g, '');
-                            const isTriggerWord = videoData.cards.some(
-                              card =>
-                                card.trigger_word.toLowerCase() ===
-                                cleanedWord.toLowerCase()
-                            );
+                      <div className="mt-0.5 text-[13px] font-medium text-gray-800">
+                        {words.map((word, wordIndex) => {
+                          const cleanedWord = word.replace(/[^\w]/g, '');
+                          const isTriggerWord = videoData.cards.some(
+                            card =>
+                              card.trigger_word.toLowerCase() ===
+                              cleanedWord.toLowerCase()
+                          );
 
-                            if (isTriggerWord) {
-                              return (
-                                <span
-                                  key={wordIndex}
-                                  className="cursor-pointer text-sky-400 underline-offset-2 hover:underline"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    handleWordClick(cleanedWord);
-                                  }}
-                                >
-                                  {word}{' '}
-                                </span>
-                              );
-                            }
-
+                          if (isTriggerWord) {
                             return (
-                              <span key={wordIndex}>
+                              <span
+                                key={wordIndex}
+                                className="cursor-pointer text-[#FF2442] underline-offset-2 hover:underline"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleWordClick(
+                                    cleanedWord,
+                                    e.currentTarget as HTMLElement
+                                  );
+                                }}
+                              >
                                 {word}{' '}
                               </span>
                             );
-                          })}
-                        </div>
-                      )}
+                          }
 
-                      {(subtitleMode === 'both' || subtitleMode === 'cn') && (
-                        <div
-                          className={`mt-1 text-xs ${
-                            isActive ? 'text-slate-900/90' : 'text-slate-400'
-                          }`}
+                          return (
+                            <span key={wordIndex}>
+                              {word}{' '}
+                            </span>
+                          );
+                        })}
+                      </div>
+
+                      <div
+                        className={`mt-0.5 text-[12px] text-gray-500 ${
+                          maskChinese ? 'blur-sm opacity-70' : ''
+                        }`}
+                      >
+                        {subtitle.text_cn}
+                      </div>
+
+                      {/* 工具栏：桌面端所有行显示 */}
+                      <div className={toolbarDesktopClasses}>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 hover:bg-gray-200"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleRowReplay(index);
+                          }}
+                          disabled={isTrial && trialEnded}
                         >
-                          {subtitle.text_cn}
-                        </div>
-                      )}
+                          <span>🔊</span>
+                          <span>重听</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 hover:bg-gray-200"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleRowMic(index);
+                          }}
+                          disabled={isTrial && trialEnded}
+                        >
+                          <span>🎤</span>
+                          <span>跟读</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${
+                            sentenceLoop && isActive
+                              ? 'bg-[#FF2442]/10 text-[#FF2442]'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleRowLoop(index);
+                          }}
+                          disabled={isTrial && trialEnded}
+                        >
+                          <span>🔂</span>
+                          <span>循环</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${
+                            likedSubtitles.has(index)
+                              ? 'bg-[#FF2442]/10 text-[#FF2442]'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleToggleLike(index);
+                          }}
+                        >
+                          <span>❤️</span>
+                          <span>收藏</span>
+                        </button>
+                      </div>
+
+                      {/* 工具栏：移动端仅当前行展开 */}
+                      <div className={toolbarMobileClasses}>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 hover:bg-gray-200"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleRowReplay(index);
+                          }}
+                          disabled={isTrial && trialEnded}
+                        >
+                          <span>🔊</span>
+                          <span>重听</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 hover:bg-gray-200"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleRowMic(index);
+                          }}
+                          disabled={isTrial && trialEnded}
+                        >
+                          <span>🎤</span>
+                          <span>跟读</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${
+                            sentenceLoop && isActive
+                              ? 'bg-[#FF2442]/10 text-[#FF2442]'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleRowLoop(index);
+                          }}
+                          disabled={isTrial && trialEnded}
+                        >
+                          <span>🔂</span>
+                          <span>循环</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${
+                            likedSubtitles.has(index)
+                              ? 'bg-[#FF2442]/10 text-[#FF2442]'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleToggleLike(index);
+                          }}
+                        >
+                          <span>❤️</span>
+                          <span>收藏</span>
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
               </div>
 
-              {/* 桌面端：底部知识卡片小入口，不单独占列，只放在脚本流卡片底部 */}
-              <div className="mt-4 hidden border-t border-slate-800/80 pt-3 text-xs text-slate-400 lg:block">
+              {/* 底部知识卡片入口（桌面端） */}
+              <div className="hidden border-t border-gray-100 px-4 py-3 text-[11px] text-gray-500 lg:block">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="font-medium text-slate-200">
-                    知识卡片
-                  </span>
+                  <span className="font-medium text-gray-800">知识卡片</span>
                   {activeCard && (
-                    <span className="text-sky-300">
+                    <span className="text-[#FF2442]">
                       当前：{activeCard.trigger_word}
                     </span>
                   )}
@@ -738,8 +1128,8 @@ export default function WatchPage() {
                         type="button"
                         className={`rounded-full border px-2 py-0.5 text-[11px] ${
                           activeCard?.trigger_word === card.trigger_word
-                            ? 'border-sky-500 bg-sky-500/20 text-sky-100'
-                            : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-sky-500/60 hover:text-sky-200'
+                            ? 'border-[#FF2442] bg-[#FF2442]/5 text-[#FF2442]'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-800'
                         }`}
                         onClick={() => showCard(card)}
                       >
@@ -747,116 +1137,58 @@ export default function WatchPage() {
                       </button>
                     ))
                   ) : (
-                    <span className="text-slate-500">
-                      暂无知识卡片
-                    </span>
+                    <span className="text-gray-400">暂无知识卡片</span>
                   )}
                 </div>
               </div>
             </div>
-          </div>
-
-        </div>
-
-        {/* 底部控制条 - 仅在移动端显示，贴近 APP 模式体验 */}
-        <div className="fixed inset-x-0 bottom-0 z-30 rounded-t-2xl border-t border-slate-800/80 bg-slate-950/95 px-4 py-3 text-xs text-slate-200 shadow-[0_-10px_40px_rgba(15,23,42,0.9)] lg:hidden">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex flex-col gap-0.5">
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] text-slate-300">
-                精读控制
-              </span>
-              <span className="text-[11px] text-slate-500">
-                句子 {currentSubtitleIndex + 1}/{videoData.subtitles.length}
-              </span>
-            </div>
-            <span className="text-[11px] text-slate-500">
-              当前模式：{sentenceLoop ? '单句循环' : '连续播放'}
-            </span>
-          </div>
-          <span className="hidden text-[11px] text-slate-500 sm:block">
-            点句子跳转 · 单句循环专注跟读
-          </span>
-        </div>
-
-          <div className="flex items-center justify-between gap-3">
-            {/* 左侧：句子播放模式 */}
-            <button
-              type="button"
-              className={`inline-flex flex-1 items-center justify-center gap-1 rounded-full px-3 py-2 text-[11px] ${
-                sentenceLoop
-                  ? 'bg-sky-500 text-slate-950'
-                  : 'bg-slate-900 text-slate-200'
-              }`}
-              onClick={toggleSentenceLoop}
-              disabled={isTrial && trialEnded}
-            >
-              <span className="text-base leading-none">⟲</span>
-              <span>
-                {sentenceLoop ? '切换连续播放' : '开启单句循环'}
-              </span>
-            </button>
-
-            {/* 中间：播放按钮 */}
-            <button
-              type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/40"
-              onClick={handleTogglePlay}
-              disabled={isTrial && trialEnded}
-            >
-              <span className="text-lg leading-none">
-                {isPlaying ? '⏸' : '▶︎'}
-              </span>
-            </button>
-
-            {/* 右侧：播放速度 */}
-            <button
-              type="button"
-              className="inline-flex flex-1 items-center justify-center gap-1 rounded-full bg-slate-900 px-3 py-2 text-[11px] text-slate-200"
-              onClick={handleChangeSpeed}
-              disabled={isTrial && trialEnded}
-            >
-              <span className="text-base leading-none">1x</span>
-              <span>{playbackRate.toFixed(2).replace(/\.00$/, '')}x</span>
-            </button>
-          </div>
+          </aside>
         </div>
       </main>
 
-      {/* 桌面端：知识卡片浮层（不改变布局，只覆盖在右侧区域附近） */}
-      {activeCard && (
-        <div className="pointer-events-none fixed inset-0 z-40 hidden lg:block">
-          <div className="pointer-events-auto absolute right-8 top-28 w-[320px] rounded-2xl border border-sky-500/70 bg-slate-950/95 px-4 py-3 text-sm text-slate-100 shadow-xl shadow-sky-900/50">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="text-base font-semibold text-sky-300">
-                {activeCard.trigger_word}
-              </div>
-              <button
-                type="button"
-                className="text-xs text-slate-400 hover:text-slate-200"
-                onClick={hideCard}
-              >
-                关闭
-              </button>
-            </div>
-            {activeCard.data.type && (
-              <div className="mb-1 inline-flex rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] text-sky-100">
-                {activeCard.data.type}
-              </div>
-            )}
-            {activeCard.data.ipa && (
-              <div className="mt-1 text-xs text-slate-300">
-                {activeCard.data.ipa}
-              </div>
-            )}
-            <div className="mt-2 text-xs text-slate-100">
-              {activeCard.data.def}
-            </div>
-            {activeCard.data.sentence && (
-              <div className="mt-3 text-[11px] text-slate-300">
-                <span className="italic">
-                  {activeCard.data.sentence}
+      {/* 桌面端：知识卡片气泡 Popover */}
+      {cardPopover && (
+        <div
+          className="pointer-events-none fixed inset-0 z-40 hidden lg:block"
+          // 背景层不拦截点击，只用来承载绝对定位的气泡
+        >
+          <div
+            data-card-popover="true"
+            className="pointer-events-auto absolute w-[260px] rounded-2xl border border-gray-200 bg-white px-3.5 py-3 text-xs text-gray-800 shadow-lg shadow-black/20"
+            style={{
+              top: cardPopover.top,
+              left: cardPopover.left
+            }}
+          >
+            {/* 小三角 */}
+            <div
+              className={`absolute h-2 w-2 rotate-45 border border-gray-200 bg-white ${
+                cardPopover.placement === 'bottom'
+                  ? 'left-1/2 -translate-x-1/2 -top-1 border-b-0 border-r-0'
+                  : 'left-1/2 -translate-x-1/2 -bottom-1 border-t-0 border-l-0'
+              }`}
+            />
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-sm font-semibold text-gray-900">
+                {cardPopover.card.trigger_word}
+              </span>
+              {cardPopover.card.data.type && (
+                <span className="rounded-full bg-[#FF2442]/5 px-2 py-[2px] text-[10px] text-[#FF2442]">
+                  {cardPopover.card.data.type}
                 </span>
+              )}
+            </div>
+            {cardPopover.card.data.ipa && (
+              <div className="mb-1 text-[11px] text-gray-500">
+                {cardPopover.card.data.ipa}
+              </div>
+            )}
+            <div className="text-[11px] leading-relaxed text-gray-800">
+              {cardPopover.card.data.def}
+            </div>
+            {cardPopover.card.data.sentence && (
+              <div className="mt-2 text-[11px] text-gray-500">
+                {cardPopover.card.data.sentence}
               </div>
             )}
           </div>
@@ -865,29 +1197,29 @@ export default function WatchPage() {
 
       {/* 移动端：知识卡片 Bottom Sheet */}
       {activeCard && (
-        <div className="fixed inset-x-0 bottom-0 z-40 rounded-t-3xl border-t border-slate-800/80 bg-slate-950/95 px-4 pb-6 pt-4 shadow-[0_-20px_45px_rgba(15,23,42,0.9)] lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 rounded-t-3xl border-t border-gray-200 bg-white px-4 pb-6 pt-4 shadow-[0_-18px_40px_rgba(0,0,0,0.18)] lg:hidden">
           <div className="mx-auto max-w-2xl">
             <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-semibold text-slate-50">
+              <div className="text-sm font-semibold text-gray-900">
                 {activeCard.trigger_word}
               </div>
               <button
-                className="text-xs text-slate-400 hover:text-slate-200"
+                className="text-xs text-gray-400 hover:text-gray-700"
                 onClick={hideCard}
               >
                 收起
               </button>
             </div>
             {activeCard.data.ipa && (
-              <div className="mb-1 text-xs text-slate-400">
+              <div className="mb-1 text-xs text-gray-500">
                 {activeCard.data.ipa}
               </div>
             )}
-            <div className="text-sm text-slate-100">
+            <div className="text-sm text-gray-800">
               {activeCard.data.def}
             </div>
             {activeCard.data.sentence && (
-              <div className="mt-2 text-xs text-slate-400">
+              <div className="mt-2 text-xs text-gray-500">
                 {activeCard.data.sentence}
               </div>
             )}
@@ -895,28 +1227,87 @@ export default function WatchPage() {
         </div>
       )}
 
+      {/* 移动端：底部播放器控制条 */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white px-4 py-2.5 text-xs text-gray-600 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] lg:hidden">
+        <div className="mb-1 flex items-center justify-between">
+          <span className="text-[11px] text-gray-400">
+            句子 {currentSubtitleIndex + 1}/{videoData.subtitles.length} ·{' '}
+            {sentenceLoop ? '单句循环' : '连续播放'}
+          </span>
+          <span className="text-[11px] text-gray-400">
+            {currentTimeLabel} / {totalTimeLabel}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            className={`inline-flex items-center justify-center rounded-full px-2 py-1 text-[11px] ${
+              maskChinese
+                ? 'text-[#FF2442]'
+                : 'text-gray-600 hover:text-[#FF2442]'
+            }`}
+            onClick={() => setMaskChinese(v => !v)}
+          >
+            <span className="text-base leading-none">👁️</span>
+            <span className="ml-1">遮罩</span>
+          </button>
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+            onClick={handlePrevSentence}
+            disabled={isTrial && trialEnded}
+          >
+            ⏮
+          </button>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FF2442] text-white shadow-md shadow-[#FF2442]/40"
+            onClick={handleTogglePlay}
+            disabled={isTrial && trialEnded}
+          >
+            {isPlaying ? '⏸' : '▶'}
+          </button>
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+            onClick={handleNextSentence}
+            disabled={isTrial && trialEnded}
+          >
+            ⏭
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded-full px-2 py-1 text-[11px] text-gray-600 hover:text-[#FF2442]"
+            onClick={scrollToCurrentSubtitle}
+          >
+            <span className="text-base leading-none">🔁</span>
+            <span className="ml-1">列表</span>
+          </button>
+        </div>
+      </div>
+
       {/* 试看结束提示遮罩 */}
       {isTrial && trialEnded && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 text-center text-sm text-slate-100">
-          <div className="max-w-xs rounded-2xl bg-slate-900/95 p-4 shadow-xl shadow-black/70">
-            <h2 className="mb-2 text-base font-semibold text-slate-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-6 text-center text-sm text-gray-800">
+          <div className="max-w-xs rounded-2xl bg-white p-4 shadow-xl shadow-black/20">
+            <h2 className="mb-2 text-base font-semibold text-gray-900">
               6 分钟试看已结束
             </h2>
-            <p className="mb-4 text-xs text-slate-300">
+            <p className="mb-4 text-xs text-gray-500">
               想解锁完整精读、无限次回看和全部知识卡片，请使用激活码注册后登录。
             </p>
             <div className="flex flex-col gap-2 text-xs">
               <button
                 type="button"
                 onClick={() => router.push('/login')}
-                className="w-full rounded-full bg-sky-500 px-3 py-2 font-medium text-slate-950 shadow-sm shadow-sky-500/40 hover:bg-sky-400"
+                className="w-full rounded-full bg-[#FF2442] px-3 py-2 font-medium text-white shadow-sm shadow-[#FF2442]/40 hover:bg-[#ff4a61]"
               >
                 去登录 / 注册
               </button>
               <button
                 type="button"
                 onClick={() => router.push('/')}
-                className="w-full rounded-full border border-slate-600 px-3 py-2 text-slate-200 hover:border-slate-400 hover:text-white"
+                className="w-full rounded-full border border-gray-200 px-3 py-2 text-gray-700 hover:border-gray-300 hover:text-gray-900"
               >
                 回到首页
               </button>

@@ -23,7 +23,7 @@ interface VideoCard {
   difficulty?: number | null;
   tags?: string[] | null;
   cover_image_id?: string | null;
-   view_count?: number | null;
+  view_count?: number | null;
 }
 
 export default function Home() {
@@ -33,9 +33,8 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [learnedCount, setLearnedCount] = useState(0);
   const [studyDates, setStudyDates] = useState<string[]>([]);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Supabase 客户端只在浏览器端初始化，避免构建 / 预渲染阶段触发环境变量错误
+  // Supabase 客户端只在浏览器端初始化
   const [supabase, setSupabase] =
     useState<ReturnType<typeof createBrowserClient> | null>(null);
 
@@ -61,13 +60,10 @@ export default function Home() {
         .eq('status', 'published')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        throw error;
-      }
-
+      if (error) throw error;
       setVideos(data || []);
-    } catch (error) {
-      console.error('获取视频数据失败:', error);
+    } catch (err) {
+      console.error('获取视频数据失败:', err);
     } finally {
       setIsLoading(false);
     }
@@ -75,11 +71,11 @@ export default function Home() {
 
   // 获取当前用户的学习统计（已学习数量 + 当月学习日历）
   const fetchStudyStats = useCallback(
-    async (userEmail: string, videoTotal: number) => {
+    async (userEmail: string) => {
       if (!supabase) return;
 
       try {
-        // 已学习视频数量：在 user_video_progress 中存在记录即可视为已学
+        // 已学习视频数量
         const { count: learned } = await supabase
           .from('user_video_progress')
           .select('id', { count: 'exact', head: true })
@@ -88,7 +84,7 @@ export default function Home() {
 
         setLearnedCount(learned || 0);
 
-        // 本月学习日历（基于本地日期计算，避免 UTC 偏移）
+        // 本月学习日历
         const today = new Date();
         const year = today.getFullYear();
         const month = today.getMonth(); // 0-based
@@ -118,8 +114,8 @@ export default function Home() {
           ) || [];
 
         setStudyDates(dateList);
-      } catch (error) {
-        console.error('获取学习统计失败:', error);
+      } catch (err) {
+        console.error('获取学习统计失败:', err);
         setLearnedCount(0);
         setStudyDates([]);
       }
@@ -136,17 +132,18 @@ export default function Home() {
   // 登录用户与视频列表就绪后，获取学习统计
   useEffect(() => {
     if (!user?.email || videos.length === 0) return;
-    fetchStudyStats(user.email, videos.length);
+    fetchStudyStats(user.email);
   }, [user?.email, videos.length, fetchStudyStats]);
 
   // 过滤视频
-  const filteredVideos = videos.filter(video => {
-    const matchesSearch = searchQuery ?
-      video.title.toLowerCase().includes(searchQuery.toLowerCase()) : true;
+  const filteredVideos = videos.filter((video) => {
+    const matchesSearch = searchQuery
+      ? video.title.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
     return matchesSearch;
   });
 
-  // 所有标签 - 暂时没有标签功能
+  // 所有标签 - 暂时没有标签功能（预留）
   const allTags: string[] = [];
 
   // 格式化时长
@@ -162,99 +159,154 @@ export default function Home() {
   };
 
   // Cloudflare Images 访问地址（作为 poster 之后的兜底方案）
-  // 尽量优先使用 poster（通常是 videodelivery.net 的缩略图），
-  // 避免部分网络环境下对 imagedelivery.net 的限制导致封面加载失败。
   const CF_IMAGES_ACCOUNT_HASH =
     process.env.NEXT_PUBLIC_CF_IMAGES_ACCOUNT_ID || '';
 
   const getCoverSrc = (video: VideoCard, fallback: string) => {
-    // 1）优先使用 poster（例如 Cloudflare Stream 的缩略图）
-    if (video.poster) {
-      return video.poster;
-    }
+    if (video.poster) return video.poster;
 
-    // 2）其次尝试 cover_image_id
     if (video.cover_image_id) {
-      // 如果 cover_image_id 已经是完整 URL，直接返回
       if (video.cover_image_id.startsWith('http')) {
         return video.cover_image_id;
       }
-
-      // 否则在配置了 Cloudflare Images 的情况下按规则拼接
       if (CF_IMAGES_ACCOUNT_HASH) {
         return `https://imagedelivery.net/${CF_IMAGES_ACCOUNT_HASH}/${video.cover_image_id}/public`;
       }
     }
 
-    // 3）最后退回到本地占位图
     return fallback;
   };
 
   // 首页推荐视频：使用点击量最高的视频作为推荐来源（如果有数据）
   const heroVideo =
-    videos.length > 0
-      ? videos.reduce((best, v) => {
-          const bestViews = (best.view_count ?? 0);
-          const currentViews = (v.view_count ?? 0);
+    filteredVideos.length > 0
+      ? filteredVideos.reduce((best, v) => {
+          const bestViews = best.view_count ?? 0;
+          const currentViews = v.view_count ?? 0;
           return currentViews > bestViews ? v : best;
-        }, videos[0])
+        }, filteredVideos[0])
       : null;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#09090b] text-slate-50">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute left-[-15%] top-[-10%] h-64 w-64 rounded-full bg-sky-500/25 blur-3xl" />
-        <div className="absolute right-[-20%] bottom-[-10%] h-80 w-80 rounded-full bg-violet-500/25 blur-3xl" />
-      </div>
-
-      {/* Header */}
+    <div className="min-h-screen bg-[#F8F8F8] text-gray-900">
       <Header />
 
-      {/* 主内容区 - 固定 Header 下方 */}
-      <main className="mx-auto flex max-w-7xl flex-col gap-10 px-4 pb-12 pt-24">
-        {/* 主布局：左侧内容 + 右侧侧栏 */}
-        <section className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-start">
-          {/* 左侧：Hero + 文案 + 搜索 + 视频列表 */}
-          <div className="space-y-6 lg:col-span-9">
-            {/* 左侧 Hero：仅占内容区域，不影响右侧侧栏位置 */}
-            {heroVideo && (
-              <div className="overflow-hidden rounded-2xl border border-white/5 bg-zinc-900/40 shadow-lg shadow-black/60">
-                <div className="relative h-52 w-full md:h-64 lg:h-72">
-                  <Image
-                    unoptimized
-                    src={getCoverSrc(
-                      heroVideo,
-                      '/images/hero-placeholder-960x540.png'
-                    )}
-                    alt={heroVideo.title}
-                    fill
-                    className="object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
-                  <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
-                    <div className="mb-3 flex items-center gap-2 text-[11px] text-zinc-300">
-                      <span className="rounded-full bg-white/10 px-3 py-1 text-[10px] uppercase tracking-[0.22em]">
-                        Immersive English
-                      </span>
-                      <span className="rounded-full bg-emerald-500/80 px-2 py-0.5 text-[10px] text-emerald-50">
-                        精选推荐
-                      </span>
+      <main className="mx-auto flex max-w-7xl flex-1 flex-col gap-6 px-4 pb-10 pt-20 md:flex-row md:items-start md:gap-8">
+        {/* 左侧主区域 */}
+        <section className="flex-1 space-y-4">
+          {/* 顶部：标题 + 搜索 */}
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-gray-400">
+                Immersive · English
+              </p>
+              <h2 className="mt-2 text-xl font-semibold leading-tight text-gray-900 md:text-2xl">
+                精读素材库
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                精选短视频 + 双语脚本 + 知识卡片，小红书风格的高颜值精读体验。
+              </p>
+            </div>
+
+            <div className="w-full md:w-80">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="搜一搜你想练的场景，如 travel / movie / daily"
+                  className="w-full rounded-full border border-gray-200 bg-gray-100 px-4 py-2 pl-11 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#FF2442] focus:outline-none focus:ring-2 focus:ring-[#FF2442]/20"
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={searchQuery}
+                />
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
+                  <span className="text-sm">🔍</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filter Tabs */}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-6 text-sm">
+              <button
+                type="button"
+                className={`pb-1 ${
+                  filteredTag === null
+                    ? 'border-b-2 border-[#FF2442] font-semibold text-gray-900'
+                    : 'text-gray-500 hover:text-gray-800'
+                }`}
+                onClick={() => setFilteredTag(null)}
+              >
+                推荐
+              </button>
+              {allTags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  className={`pb-1 ${
+                    filteredTag === tag
+                      ? 'border-b-2 border-[#FF2442] font-semibold text-gray-900'
+                      : 'text-gray-500 hover:text-gray-800'
+                  }`}
+                  onClick={() =>
+                    setFilteredTag((prev) => (prev === tag ? null : tag))
+                  }
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+            {!isLoading && (
+              <div className="hidden text-xs text-gray-500 sm:block">
+                共 {filteredVideos.length} 个视频
+              </div>
+            )}
+          </div>
+
+          {/* 推荐位：使用点击量最高的视频 */}
+          {heroVideo && (
+            <Link
+              href={`/watch/${heroVideo.cf_video_id}`}
+              className="block overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="flex flex-col md:flex-row">
+                <div className="relative w-full md:w-1/2">
+                  <div className="relative h-48 w-full overflow-hidden md:h-full">
+                    <Image
+                      unoptimized
+                      src={getCoverSrc(
+                        heroVideo,
+                        '/images/hero-placeholder-960x540.png'
+                      )}
+                      alt={heroVideo.title}
+                      fill
+                      className="object-cover transition-transform duration-300 hover:scale-[1.03]"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-1 flex-col justify-between gap-3 p-4 md:p-5">
+                  <div>
+                    <div className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-[#FF2442]">
+                      今日主推
                     </div>
-                    <h1 className="max-w-xl text-2xl font-semibold leading-tight text-zinc-50 md:text-3xl">
+                    <h1 className="mt-2 line-clamp-2 text-[16px] font-semibold leading-snug text-gray-900">
                       {heroVideo.title}
                     </h1>
-                    {/* 首页 Hero 不再展示简介，避免在小屏幕被割裂显示 */}
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-zinc-300">
+                    {heroVideo.description && (
+                      <p className="mt-2 line-clamp-2 text-sm text-gray-600">
+                        {heroVideo.description}
+                      </p>
+                    )}
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
                       {heroVideo.author && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
-                          <span>作者</span>
-                          <span className="font-medium">
-                            {heroVideo.author}
+                        <span className="inline-flex items-center gap-1">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-[10px] text-gray-600">
+                            {heroVideo.author.charAt(0).toUpperCase()}
                           </span>
+                          <span>{heroVideo.author}</span>
                         </span>
                       )}
                       {heroVideo.difficulty && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600">
                           <span>难度</span>
                           <span>{renderDifficultyStars(heroVideo.difficulty)}</span>
                         </span>
@@ -264,7 +316,7 @@ export default function Home() {
                           {heroVideo.tags.slice(0, 3).map((tag) => (
                             <span
                               key={tag}
-                              className="rounded-full bg-zinc-800/90 px-2 py-0.5 text-[10px]"
+                              className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600"
                             >
                               {tag}
                             </span>
@@ -272,274 +324,113 @@ export default function Home() {
                         </span>
                       )}
                     </div>
-                    <div className="mt-4 flex items-center gap-3">
-                      <Link
-                        href={`/watch/${heroVideo.cf_video_id}`}
-                        className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2 text-xs font-medium text-zinc-950 shadow-md shadow-emerald-500/40 transition-transform hover:-translate-y-0.5 hover:bg-emerald-400"
-                      >
-                        <span className="text-base leading-none">▶</span>
-                        <span>开始精读</span>
-                      </Link>
-                      <div className="flex items-center gap-2 text-xs text-zinc-300">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5">
-                          <span>⏱</span>
-                          <span>{formatDuration(heroVideo.duration)}</span>
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5">
-                          <span>🔥</span>
-                          <span>
-                            已学习 {heroVideo.view_count ?? 0} 次
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="inline-flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5">
+                        <span>⏱</span>
+                        <span>{formatDuration(heroVideo.duration)}</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5">
+                        <span>🔥</span>
+                        <span>已学习 {heroVideo.view_count ?? 0} 次</span>
+                      </span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#FF2442] px-3 py-1 text-[11px] font-medium text-white">
+                      <span>▶</span>
+                      <span>开始精读</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          )}
+
+          {/* 视频网格列表：小红书风格卡片 */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {isLoading ? (
+              <>
+                <div className="h-48 animate-pulse rounded-xl bg-gray-200" />
+                <div className="h-48 animate-pulse rounded-xl bg-gray-200" />
+                <div className="h-48 animate-pulse rounded-xl bg-gray-200" />
+                <div className="h-48 animate-pulse rounded-xl bg-gray-200" />
+              </>
+            ) : filteredVideos.length === 0 ? (
+              <div className="col-span-full rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-500">
+                暂无视频数据，稍后再来看看～
+              </div>
+            ) : (
+              filteredVideos.map((video) => (
+                <Link
+                  key={video.id}
+                  href={`/watch/${video.cf_video_id}`}
+                  className="group flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="relative h-40 w-full overflow-hidden">
+                    <Image
+                      unoptimized
+                      src={getCoverSrc(
+                        video,
+                        '/images/card-placeholder-640x360.png'
+                      )}
+                      alt={video.title}
+                      fill
+                      className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col justify-between gap-2 p-3">
+                    <div>
+                      <h3 className="line-clamp-2 text-[15px] font-semibold text-gray-900">
+                        {video.title}
+                      </h3>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500">
+                      {/* 左侧：作者行 */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-[11px] text-gray-600">
+                          {(video.author || '英').charAt(0).toUpperCase()}
+                        </div>
+                        <span>{video.author || '创作者'}</span>
+                      </div>
+                      {/* 右侧：点赞 / 次数 */}
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 text-gray-400">
+                          <span className="transition-colors group-hover:text-[#FF2442]">
+                            ❤️
                           </span>
+                          <span>{video.view_count ?? 0}</span>
                         </span>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </Link>
+              ))
             )}
-
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-400">
-                  Immersive · English
-                </p>
-                <h2 className="mt-3 text-xl font-semibold leading-tight md:text-2xl">
-                  精读素材库
-                </h2>
-                <p className="mt-2 text-sm text-slate-400">
-                  精选短视频 + 双语脚本 + 知识卡片，碎片时间也能高效进步。
-                </p>
-              </div>
-
-              <div className="w-full md:w-72">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="搜一搜你想练的场景，如 travel / movie / daily"
-                    className="w-full rounded-full border border-slate-700/70 bg-slate-900/80 px-4 py-2 pl-11 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    value={searchQuery}
-                  />
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
-                    <span className="text-sm">🔍</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 左侧下方：全部视频列表，和右侧统计处于同一行，避免中间留大块空白 */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-semibold text-slate-100">
-                    全部内容
-                  </h2>
-                  <p className="mt-1 text-xs text-slate-500">
-                    每一条都是配好字幕和知识卡片的精读素材，刷完就是完整一轮输入。
-                  </p>
-                </div>
-                {!isLoading && (
-                  <div className="hidden text-xs text-slate-500 sm:block">
-                    共 {filteredVideos.length} 个视频
-                  </div>
-                )}
-              </div>
-
-              {/* 标签筛选 */}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                    filteredTag === null
-                      ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/40'
-                      : 'bg-slate-900/70 text-slate-300 hover:bg-slate-800'
-                  }`}
-                  onClick={() => setFilteredTag(null)}
-                >
-                  全部
-                </button>
-                {allTags.map(tag => (
-                  <button
-                    key={tag}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                      filteredTag === tag
-                        ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/40'
-                        : 'bg-slate-900/70 text-slate-300 hover:bg-slate-800'
-                    }`}
-                    onClick={() => setFilteredTag(tag)}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-
-              {/* 视频列表 */}
-              {isLoading ? (
-                <div className="flex h-64 items-center justify-center">
-                  <div className="h-16 w-16 animate-spin rounded-full border-4 border-sky-500 border-t-transparent" />
-                </div>
-              ) : filteredVideos.length > 0 ? (
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {filteredVideos.map(video => (
-                    <Link
-                      key={video.id}
-                      href={`/watch/${video.cf_video_id}`}
-                      className="group block overflow-hidden rounded-xl border border-white/5 bg-zinc-900/60 shadow-md shadow-black/60 transition-transform hover:-translate-y-1 hover:border-sky-500/60"
-                    >
-                      {/* 视频封面 */}
-                      <div className="relative">
-                        <Image
-                          unoptimized
-                          src={getCoverSrc(
-                            video,
-                            '/images/card-placeholder-640x360.png'
-                          )}
-                          alt={video.title}
-                          width={640}
-                          height={360}
-                          className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-                        <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[11px] text-slate-100">
-                          <span className="inline-flex items-center rounded-full bg-black/70 px-2 py-1">
-                            ⏱ {formatDuration(video.duration)}
-                          </span>
-                          <span className="inline-flex items-center rounded-full bg-zinc-900/80 px-2 py-1 text-[10px] font-medium text-zinc-200">
-                            精读视频 · 双语字幕
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 视频信息 */}
-                      <div className="flex items-start justify-between px-4 py-3">
-                        <div className="pr-2">
-                          <h3 className="line-clamp-2 text-sm font-semibold text-slate-50">
-                            {video.title}
-                          </h3>
-                          {video.author && (
-                            <p className="mt-1 text-[11px] text-zinc-400">
-                              作者 · {video.author}
-                            </p>
-                          )}
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
-                            {video.difficulty && (
-                              <span>{renderDifficultyStars(video.difficulty)}</span>
-                            )}
-                            {video.tags &&
-                              video.tags.slice(0, 2).map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="rounded-full bg-zinc-800/90 px-2 py-0.5 text-[10px] text-zinc-300"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                          </div>
-                        </div>
-                        {/* 右侧：点击量 */}
-                        <div className="ml-2 mt-1 flex items-center gap-1 text-[11px] text-zinc-400">
-                          <span>🔥</span>
-                          <span>{video.view_count ?? 0}</span>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-20 text-center text-slate-500">
-                  <p className="mb-2 text-lg">没有找到匹配的视频</p>
-                  <p className="text-sm">
-                    可以换个关键词，或者清空搜索重新试试～
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 右侧：学习统计 & 官方通知玻璃侧栏（仅桌面端常驻展示） */}
-          <div className="hidden lg:col-span-3 lg:block">
-            <div className="flex flex-col gap-4 lg:sticky lg:top-24">
-              <StatsCard
-                totalVideos={videos.length}
-                learnedVideos={learnedCount}
-                notLearnedVideos={Math.max(
-                  videos.length - learnedCount,
-                  0
-                )}
-              />
-              <StudyCalendar
-                year={new Date().getFullYear()}
-                month={new Date().getMonth() + 1}
-                studyDates={studyDates}
-              />
-              <NotificationCard />
-            </div>
           </div>
         </section>
 
-      </main>
-
-      {/* 移动端：右侧浮动按钮 + 抽屉式学习面板 */}
-      <div className="lg:hidden">
-        {/* 漂浮触发按钮（右侧） */}
-        <button
-          type="button"
-          onClick={() => setIsMobileSidebarOpen(true)}
-          className="fixed bottom-6 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-sky-500/40 ring-1 ring-white/30 backdrop-blur-md"
-        >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[15px] text-sky-500 shadow-sm shadow-emerald-400/40">
-            📊
-          </span>
-          <span className="pr-1">
-            学习面板
-          </span>
-        </button>
-
-        {/* 抽屉与遮罩层 */}
-        {isMobileSidebarOpen && (
-          <>
-            <div
-              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-              onClick={() => setIsMobileSidebarOpen(false)}
+        {/* 右侧侧边栏：改为独立白色卡片 */}
+        <aside className="mt-4 w-full space-y-4 md:mt-20 md:w-72">
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <StatsCard
+              totalVideos={videos.length}
+              learnedVideos={learnedCount}
+              notLearnedVideos={Math.max(videos.length - learnedCount, 0)}
             />
-            {/* 抽屉本身使用 flex 布局撑满高度，内部内容区域单独滚动 */}
-            <div className="fixed inset-y-0 right-0 z-50 flex w-5/6 max-w-xs translate-x-0 flex-col bg-slate-950/95 p-4 shadow-xl shadow-black/80">
-              <div className="mb-3 flex flex-shrink-0 items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-sky-400">
-                    Study Panel
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    看进度、打卡日历、查看官方消息
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsMobileSidebarOpen(false)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800/80 text-slate-200 shadow-sm shadow-black/60"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="flex-1 space-y-4 overflow-y-auto pb-10">
-                <StatsCard
-                  totalVideos={videos.length}
-                  learnedVideos={learnedCount}
-                  notLearnedVideos={Math.max(
-                    videos.length - learnedCount,
-                    0
-                  )}
-                />
-                <StudyCalendar
-                  year={new Date().getFullYear()}
-                  month={new Date().getMonth() + 1}
-                  studyDates={studyDates}
-                />
-                <NotificationCard />
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+          </div>
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <StudyCalendar
+              year={new Date().getFullYear()}
+              month={new Date().getMonth() + 1}
+              studyDates={studyDates}
+            />
+          </div>
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <NotificationCard />
+          </div>
+        </aside>
+      </main>
     </div>
   );
 }
+

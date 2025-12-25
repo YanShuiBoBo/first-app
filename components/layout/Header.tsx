@@ -40,18 +40,18 @@ export default function Header() {
   const { user, isLoggedIn } = useAuthStore();
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-md">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 via-blue-500 to-violet-500 text-sm font-bold text-white shadow-lg shadow-sky-500/30">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FF2442] text-sm font-bold text-white shadow-sm shadow-rose-200">
             IE
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold text-zinc-50">
+            <span className="text-sm font-semibold text-gray-900">
               Immersive English
             </span>
-            <span className="text-[11px] text-zinc-400">
+            <span className="text-[11px] text-gray-500">
               沉浸式英语精读
             </span>
           </div>
@@ -66,13 +66,13 @@ export default function Header() {
                 <>
                   <Link
                     href="/admin/videos"
-                    className="hidden rounded-full border border-white/10 bg-zinc-900/70 px-3 py-1.5 text-xs text-zinc-200 shadow-sm shadow-black/40 transition-colors hover:border-sky-400 hover:text-white sm:inline-flex"
+                    className="hidden rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 shadow-sm shadow-gray-100 transition-colors hover:border-gray-300 hover:text-gray-900 sm:inline-flex"
                   >
                     素材管理
                   </Link>
                   <Link
                     href="/admin/access-codes"
-                    className="hidden rounded-full border border-white/10 bg-zinc-900/70 px-3 py-1.5 text-xs text-zinc-200 shadow-sm shadow-black/40 transition-colors hover:border-sky-400 hover:text-white sm:inline-flex"
+                    className="hidden rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 shadow-sm shadow-gray-100 transition-colors hover:border-gray-300 hover:text-gray-900 sm:inline-flex"
                   >
                     激活码管理
                   </Link>
@@ -80,9 +80,9 @@ export default function Header() {
               )}
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-full border border-white/10 bg-zinc-900/70 px-2.5 py-1.5 text-zinc-100 shadow-sm shadow-black/40 transition-colors hover:border-sky-400 hover:text-white"
+                className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-2.5 py-1.5 text-gray-800 shadow-sm shadow-gray-100 transition-colors hover:border-gray-300 hover:text-gray-900"
               >
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-50">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white">
                   {getDisplayName(user).charAt(0).toUpperCase() || 'U'}
                 </div>
                 <span className="max-w-[140px] truncate">
@@ -107,13 +107,13 @@ export default function Header() {
             <div className="flex items-center gap-2">
               <Link
                 href="/login"
-                className="rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-900/80"
+                className="rounded-full px-4 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100"
               >
                 登录
               </Link>
               <Link
                 href="/register"
-                className="rounded-full bg-sky-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm shadow-sky-500/40 transition-colors hover:bg-sky-500"
+                className="rounded-full bg-[#FF2442] px-4 py-1.5 text-xs font-medium text-white shadow-sm shadow-rose-300/60 transition-colors hover:bg-[#e9203b]"
               >
                 注册
               </Link>
