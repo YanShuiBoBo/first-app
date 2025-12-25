@@ -1040,8 +1040,9 @@ export default function WatchPage() {
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       // 视口高度 - 字幕容器到顶部的距离 - 底部悬浮区域高度 = 实际可见高度
       const viewportHeight = window.innerHeight;
-      // 底部包含：固定播放器控制条 (~70px) + 可能出现的知识卡片 bottom sheet
-      const overlaysHeight = activeCard ? 260 : 140;
+      // 底部包含：固定播放器控制条 (~70px)，这里不再根据知识卡片状态改变高度，
+      // 避免点击高亮词弹出卡片时强制滚动回当前播放句
+      const overlaysHeight = 140;
       visibleHeight = Math.max(
         viewportHeight - containerRect.top - overlaysHeight,
         1
@@ -1058,7 +1059,7 @@ export default function WatchPage() {
       top: target,
       behavior: 'smooth'
     });
-  }, [currentSubtitleIndex, activeCard]);
+  }, [currentSubtitleIndex]);
 
   // 页面渲染
   if (isLoading) {
@@ -1238,7 +1239,34 @@ export default function WatchPage() {
                 {activeSubtitle ? (
                   <>
                     <div className="text-[15px] font-semibold text-gray-900">
-                      {activeSubtitle.text_en}
+                      {buildHighlightSegments(
+                        activeSubtitle.text_en,
+                        videoData.cards ?? []
+                      ).map((segment, segIndex) => {
+                        if (!segment.card) {
+                          return (
+                            <span key={segIndex}>{segment.text}</span>
+                          );
+                        }
+
+                        const type = segment.card.data.type;
+                        return (
+                          <span
+                            key={segIndex}
+                            className={getHighlightClassNames(type)}
+                            style={getHighlightInlineStyle(type)}
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleWordClick(
+                                segment.card!.trigger_word,
+                                e.currentTarget as HTMLElement
+                              );
+                            }}
+                          >
+                            {segment.text}
+                          </span>
+                        );
+                      })}
                     </div>
                     <div
                       className={`text-sm ${
