@@ -295,6 +295,14 @@ const IconPrint: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   </svg>
 );
 
+// 返回箭头（左上角返回首页）
+const IconArrowLeft: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+    <path d="M9.5 3.5L5 8l4.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M5.2 8H13" strokeLinecap="round" />
+  </svg>
+);
+
 // 列表 / 回到当前句按钮图标
 const IconList: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
@@ -1021,7 +1029,7 @@ export default function WatchPage() {
         <button id="btn-both" class="mode-active" type="button">中 / 英</button>
         <button id="btn-en" type="button">英</button>
         <button id="btn-cn" type="button">中</button>
-        <button id="print-btn" type="button">🖨 打印</button>
+        <button id="print-btn" type="button">打印</button>
       </div>
     </div>
     <div class="subtitle-list">
@@ -1166,7 +1174,7 @@ export default function WatchPage() {
         href="/"
         className="fixed left-4 top-4 z-30 inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs text-gray-700 shadow-sm hover:border-gray-300 hover:bg-white"
       >
-        <span className="text-lg leading-none">←</span>
+        <IconArrowLeft className="h-3.5 w-3.5" />
         <span>返回首页</span>
       </Link>
 
@@ -1251,7 +1259,7 @@ export default function WatchPage() {
                     onClick={handlePrevSentence}
                     disabled={isTrial && trialEnded}
                   >
-                    <span className="text-base leading-none">⏮</span>
+                    <IconPrev className="h-3.5 w-3.5" />
                     <span>上一句</span>
                   </button>
                   <button
@@ -1260,9 +1268,11 @@ export default function WatchPage() {
                     onClick={handleTogglePlay}
                     disabled={isTrial && trialEnded}
                   >
-                    <span className="text-lg leading-none">
-                      {isPlaying ? '⏸' : '▶'}
-                    </span>
+                    {isPlaying ? (
+                      <IconPause className="h-4 w-4" />
+                    ) : (
+                      <IconPlay className="h-4 w-4" />
+                    )}
                   </button>
                   <button
                     type="button"
@@ -1271,7 +1281,7 @@ export default function WatchPage() {
                     disabled={isTrial && trialEnded}
                   >
                     <span>下一句</span>
-                    <span className="text-base leading-none">⏭</span>
+                    <IconNext className="h-3.5 w-3.5" />
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1408,10 +1418,10 @@ export default function WatchPage() {
             <div className="mt-3 flex flex-col gap-2 text-xs text-gray-500 lg:hidden">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center rounded-full bg-white px-2 py-1">
-                  ⏱ {formatDuration(videoData.duration)}
+                  时长 {formatDuration(videoData.duration)}
                 </span>
                 <span className="inline-flex items-center rounded-full bg-white px-2 py-1">
-                  🔥 学习 {videoData.view_count ?? 0} 次
+                  学习 {videoData.view_count ?? 0} 次
                 </span>
               </div>
               {videoData.description && (
@@ -1524,7 +1534,7 @@ export default function WatchPage() {
                       <div className="flex items-center justify-between text-[11px] text-gray-400">
                         <span>{formatDuration(subtitle.start)}</span>
                         {likedSubtitles.has(index) && (
-                          <span className="text-[#FF2442]">❤️</span>
+                          <IconLike className="h-3.5 w-3.5 text-[#FF2442]" />
                         )}
                       </div>
 
