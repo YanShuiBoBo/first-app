@@ -36,19 +36,60 @@ function getDisplayName(user: DisplayUser) {
   return '用户';
 }
 
-export default function Header() {
+function SearchIcon() {
+  return (
+    <svg
+      className="h-4 w-4 text-gray-400"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="5" />
+      <path d="m16 16 4 4" />
+    </svg>
+  );
+}
+
+function BellIcon() {
+  return (
+    <svg
+      className="h-4 w-4 text-gray-500"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 4a4 4 0 0 0-4 4v2.8c0 .5-.2 1-.6 1.3L6 14h12l-1.4-1.9a2 2 0 0 1-.6-1.3V8a4 4 0 0 0-4-4Z" />
+      <path d="M10 18a2 2 0 0 0 4 0" />
+    </svg>
+  );
+}
+
+interface HeaderProps {
+  searchQuery?: string;
+  onSearchChange?: (value: string) => void;
+}
+
+export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const { user, isLoggedIn } = useAuthStore();
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-        {/* Logo */}
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2">
+        {/* 左侧 Logo */}
         <Link href="/" className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FF2442] text-sm font-bold text-white shadow-sm shadow-rose-200">
             IE
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold text-gray-900">
+            <span className="font-serif text-sm font-semibold text-gray-900">
               Immersive English
             </span>
             <span className="text-[11px] text-gray-500">
@@ -57,7 +98,25 @@ export default function Header() {
           </div>
         </Link>
 
-        {/* Right Section */}
+        {/* 中间搜索框（桌面端） */}
+        {onSearchChange && (
+          <div className="hidden flex-1 md:block">
+            <div className="relative mx-auto max-w-xl">
+              <input
+                type="text"
+                placeholder="搜索标题、作者、标签..."
+                className="w-full rounded-full border border-gray-200 bg-neutral-50 px-4 py-2 pl-11 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#FF2442] focus:outline-none focus:ring-2 focus:ring-[#FF2442]/15"
+                value={searchQuery ?? ''}
+                onChange={(e) => onSearchChange(e.target.value)}
+              />
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
+                <SearchIcon />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 右侧区域：通知 + 用户 */}
         <div className="flex items-center gap-3 text-sm">
           {isLoggedIn && user ? (
             <>
@@ -66,18 +125,29 @@ export default function Header() {
                 <>
                   <Link
                     href="/admin/videos"
-                    className="hidden rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 shadow-sm shadow-gray-100 transition-colors hover:border-gray-300 hover:text-gray-900 sm:inline-flex"
+                    className="hidden rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 shadow-sm shadow-gray-100 transition-colors hover:border-gray-300 hover:text-gray-900 lg:inline-flex"
                   >
                     素材管理
                   </Link>
                   <Link
                     href="/admin/access-codes"
-                    className="hidden rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 shadow-sm shadow-gray-100 transition-colors hover:border-gray-300 hover:text-gray-900 sm:inline-flex"
+                    className="hidden rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 shadow-sm shadow-gray-100 transition-colors hover:border-gray-300 hover:text-gray-900 lg:inline-flex"
                   >
                     激活码管理
                   </Link>
                 </>
               )}
+
+              {/* 通知按钮 */}
+              <button
+                type="button"
+                className="hidden h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-base shadow-sm shadow-gray-100 transition-colors hover:border-gray-300 hover:bg-gray-50 sm:flex"
+              >
+                <BellIcon />
+                <span className="sr-only">查看通知</span>
+              </button>
+
+              {/* 用户头像 */}
               <button
                 type="button"
                 className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-2.5 py-1.5 text-gray-800 shadow-sm shadow-gray-100 transition-colors hover:border-gray-300 hover:text-gray-900"
@@ -121,6 +191,24 @@ export default function Header() {
           )}
         </div>
       </div>
+
+      {/* 移动端搜索栏 */}
+      {onSearchChange && (
+        <div className="block border-t border-gray-100 px-4 pb-2 pt-1 md:hidden">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="搜索标题、作者、标签..."
+              className="w-full rounded-full border border-gray-200 bg-neutral-50 px-4 py-2 pl-11 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#FF2442] focus:outline-none focus:ring-2 focus:ring-[#FF2442]/15"
+              value={searchQuery ?? ''}
+              onChange={(e) => onSearchChange(e.target.value)}
+            />
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
+              <SearchIcon />
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

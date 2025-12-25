@@ -41,22 +41,22 @@ export default function StudyCalendar({
   const monthLabel = `${year} 年 ${month} 月`;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/60 p-4 shadow-sm shadow-black/40 backdrop-blur-xl">
+    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-400">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-400">
             Study calendar
           </div>
-          <h3 className="mt-1 text-sm font-semibold text-zinc-50">
+          <h3 className="mt-1 text-sm font-semibold text-neutral-900">
             本月学习日历
           </h3>
         </div>
-        <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-200">
+        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600">
           {monthLabel}
         </span>
       </div>
 
-      <div className="mb-2 grid grid-cols-7 text-center text-[10px] font-medium text-zinc-500">
+      <div className="mb-2 grid grid-cols-7 text-center text-[10px] font-medium text-neutral-400">
         {['一', '二', '三', '四', '五', '六', '日'].map((d) => (
           <div key={d}>{d}</div>
         ))}
@@ -72,11 +72,11 @@ export default function StudyCalendar({
             const studied = cell.dateKey ? studySet.has(cell.dateKey) : false;
 
             const baseCls =
-              'flex h-7 items-center justify-center rounded-full border text-[11px]';
+              'flex h-7 items-center justify-center rounded-full border text-[11px] transition-colors';
 
             const cls = studied
-              ? 'border-emerald-400 bg-emerald-500/20 text-emerald-100'
-              : 'border-transparent text-zinc-500 hover:border-zinc-700 hover:bg-zinc-900/80';
+              ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+              : 'border-transparent text-neutral-400 hover:border-neutral-300 hover:bg-neutral-50';
 
             return (
               <div key={cell.dateKey} className={baseCls + ' ' + cls}>
