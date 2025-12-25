@@ -445,9 +445,14 @@ export default function WatchPage() {
           setShadowAudioUrl(url);
           setShadowMode('reviewing');
 
-          // 录音结束后自动回放一次用户自己的声音
-          const audio = new Audio(url);
-          void audio.play();
+          // 桌面端：录音结束后自动回放一次自己的声音
+          // 移动端（手机 / iPad）：不自动播放，等待用户点击「重听」按钮手动回放
+          const isMobileLike =
+            typeof window !== 'undefined' && window.innerWidth < 1024;
+          if (!isMobileLike) {
+            const audio = new Audio(url);
+            void audio.play();
+          }
         } catch (err) {
           console.error('生成本地录音失败:', err);
           setShadowMode('idle');
@@ -1003,6 +1008,19 @@ export default function WatchPage() {
 
   // 行内工具栏：重听当前句
   const handleRowReplay = (index: number) => {
+    // 移动端 & 有影子跟读录音时：优先回放用户自己的录音
+    if (
+      typeof window !== 'undefined' &&
+      window.innerWidth < 1024 &&
+      shadowMode === 'reviewing' &&
+      shadowAudioUrl &&
+      shadowSubtitleIndex === index
+    ) {
+      const audio = new Audio(shadowAudioUrl);
+      void audio.play();
+      return;
+    }
+
     if (!streamRef.current) return;
     handleSubtitleClick(index);
     // 试看结束后不再自动播放
