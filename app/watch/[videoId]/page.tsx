@@ -75,6 +75,52 @@ const IconLike: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   </svg>
 );
 
+const IconEye: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
+    <path
+      d="M2 8s2.2-3.6 6-3.6S14 8 14 8s-2.2 3.6-6 3.6S2 8 2 8z"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle cx="8" cy="8" r="1.8" />
+  </svg>
+);
+
+const IconList: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
+    <path d="M3 4h10" strokeLinecap="round" />
+    <path d="M3 8h10" strokeLinecap="round" />
+    <path d="M3 12h10" strokeLinecap="round" />
+  </svg>
+);
+
+const IconPrev: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
+    <path d="M5.5 3.5v9" strokeLinecap="round" />
+    <path d="M11 12.5L7.5 8 11 3.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const IconNext: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
+    <path d="M10.5 3.5v9" strokeLinecap="round" />
+    <path d="M5 12.5L8.5 8 5 3.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const IconPlay: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="currentColor" {...props}>
+    <path d="M5.8 4.1L11.2 8 5.8 11.9Z" />
+  </svg>
+);
+
+const IconPause: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="currentColor" {...props}>
+    <rect x="4.4" y="3.5" width="2.2" height="9" rx="0.6" />
+    <rect x="9.4" y="3.5" width="2.2" height="9" rx="0.6" />
+  </svg>
+);
+
 export default function WatchPage() {
   // 使用useParams获取路由参数
   const params = useParams();
@@ -890,8 +936,8 @@ export default function WatchPage() {
               </div>
 
               {/* Layer 2: 视频区域 */}
-              {/* 使用稳定的 16:9 容器，避免加载前后高度变化 */}
-              <div className="bg-black">
+              {/* 使用稳定的 16:9 容器，移动端吸顶展示，避免滑动就看不到视频 */}
+              <div className="bg-black sticky top-0 z-20 lg:static">
                 <div className="relative aspect-video w-full">
                   {!isPlayerReady && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black">
@@ -991,8 +1037,10 @@ export default function WatchPage() {
                       {activeSubtitle.text_en}
                     </div>
                     <div
-                      className={`text-sm text-gray-600 ${
-                        maskChinese ? 'blur-sm opacity-70' : ''
+                      className={`text-sm ${
+                        maskChinese
+                          ? 'text-transparent bg-gray-200/90 rounded-[4px] px-2 py-0.5'
+                          : 'text-gray-600'
                       }`}
                     >
                       {activeSubtitle.text_cn}
@@ -1109,7 +1157,7 @@ export default function WatchPage() {
               {/* 字幕列表 */}
               <div
                 ref={subtitlesContainerRef}
-                className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm"
+                className="flex-1 max-h-[60vh] space-y-3 overflow-y-auto px-4 py-3 text-sm"
               >
                 {videoData.subtitles.map((subtitle, index) => {
                   const isActive = currentSubtitleIndex === index;
@@ -1123,9 +1171,8 @@ export default function WatchPage() {
 
                   const toolbarDesktopClasses =
                     'mt-2 hidden flex-nowrap items-center gap-2 text-[11px] text-gray-500 lg:flex';
-                  const toolbarMobileClasses = `mt-2 items-center gap-2 text-[11px] text-gray-500 lg:hidden ${
-                    isActive ? 'flex' : 'hidden'
-                  }`;
+                  // 移动端不再在每行下方展示工具栏，统一放到底部控制条
+                  const toolbarMobileClasses = 'hidden lg:hidden';
 
                   return (
                     <div
@@ -1183,8 +1230,10 @@ export default function WatchPage() {
                       </div>
 
                       <div
-                        className={`mt-0.5 text-[12px] text-gray-500 ${
-                          maskChinese ? 'blur-sm opacity-70' : ''
+                        className={`mt-0.5 text-[12px] ${
+                          maskChinese
+                            ? 'text-transparent bg-gray-200/90 rounded-[4px] px-1 py-0.5'
+                            : 'text-gray-500'
                         }`}
                       >
                         {subtitle.text_cn}
@@ -1409,50 +1458,123 @@ export default function WatchPage() {
             {currentTimeLabel} / {totalTimeLabel}
           </span>
         </div>
+        {/* 顶部：字幕相关操作（重听 / 跟读 / 循环 / 收藏） */}
+        {videoData.subtitles.length > 0 && (
+          <div className="mb-2 flex items-center justify-between text-[11px] text-gray-500">
+            <button
+              type="button"
+              className="inline-flex flex-1 flex-col items-center justify-center"
+              onClick={() => handleRowReplay(currentSubtitleIndex)}
+              disabled={isTrial && trialEnded}
+            >
+              <IconReplay className="h-4 w-4 text-gray-500" />
+              <span className="mt-0.5 text-[10px] text-gray-500">重听</span>
+            </button>
+            <button
+              type="button"
+              className="inline-flex flex-1 flex-col items-center justify-center"
+              onClick={() => handleRowMic(currentSubtitleIndex)}
+              disabled={isTrial && trialEnded}
+            >
+              <IconMic className="h-4 w-4 text-gray-500" />
+              <span className="mt-0.5 text-[10px] text-gray-500">跟读</span>
+            </button>
+            <button
+              type="button"
+              className="inline-flex flex-1 flex-col items-center justify-center"
+              onClick={() => handleRowLoop(currentSubtitleIndex)}
+              disabled={isTrial && trialEnded}
+            >
+              <IconLoop
+                className={`h-4 w-4 ${
+                  sentenceLoop ? 'text-[#FF2442]' : 'text-gray-500'
+                }`}
+              />
+              <span
+                className={`mt-0.5 text-[10px] ${
+                  sentenceLoop ? 'text-[#FF2442]' : 'text-gray-500'
+                }`}
+              >
+                循环
+              </span>
+            </button>
+            <button
+              type="button"
+              className="inline-flex flex-1 flex-col items-center justify-center"
+              onClick={() => handleToggleLike(currentSubtitleIndex)}
+            >
+              <IconLike
+                className={`h-4 w-4 ${
+                  likedSubtitles.has(currentSubtitleIndex)
+                    ? 'text-[#FF2442]'
+                    : 'text-gray-400'
+                }`}
+              />
+              <span
+                className={`mt-0.5 text-[10px] ${
+                  likedSubtitles.has(currentSubtitleIndex)
+                    ? 'text-[#FF2442]'
+                    : 'text-gray-500'
+                }`}
+              >
+                收藏
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* 底部：播放控制区域 */}
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
-            className={`inline-flex items-center justify-center rounded-full px-2 py-1 text-[11px] ${
+            className={`flex h-8 w-8 items-center justify-center rounded-full ${
               maskChinese
-                ? 'text-[#FF2442]'
-                : 'text-gray-600 hover:text-[#FF2442]'
+                ? 'bg-[#FF2442]/10 text-[#FF2442]'
+                : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-[#FF2442]'
             }`}
             onClick={() => setMaskChinese(v => !v)}
+            aria-label="遮罩中文"
           >
-            <span className="text-base leading-none">👁️</span>
-            <span className="ml-1">遮罩</span>
+            <IconEye className="h-4 w-4" />
           </button>
           <button
             type="button"
             className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
             onClick={handlePrevSentence}
             disabled={isTrial && trialEnded}
+            aria-label="上一句"
           >
-            ⏮
+            <IconPrev className="h-4 w-4" />
           </button>
           <button
             type="button"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FF2442] text-white shadow-md shadow-[#FF2442]/40"
             onClick={handleTogglePlay}
             disabled={isTrial && trialEnded}
+            aria-label={isPlaying ? '暂停' : '播放'}
           >
-            {isPlaying ? '⏸' : '▶'}
+            {isPlaying ? (
+              <IconPause className="h-4 w-4" />
+            ) : (
+              <IconPlay className="h-4 w-4" />
+            )}
           </button>
           <button
             type="button"
             className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
             onClick={handleNextSentence}
             disabled={isTrial && trialEnded}
+            aria-label="下一句"
           >
-            ⏭
+            <IconNext className="h-4 w-4" />
           </button>
           <button
             type="button"
-            className="inline-flex items-center justify-center rounded-full px-2 py-1 text-[11px] text-gray-600 hover:text-[#FF2442]"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-[#FF2442]"
             onClick={scrollToCurrentSubtitle}
+            aria-label="回到当前句列表位置"
           >
-            <span className="text-base leading-none">🔁</span>
-            <span className="ml-1">列表</span>
+            <IconList className="h-4 w-4" />
           </button>
         </div>
       </div>
