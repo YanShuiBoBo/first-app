@@ -642,12 +642,14 @@ export default function WatchPage() {
     }
   };
 
-  const handleChangeSpeed = () => {
-    const speeds = [0.8, 1, 1.25];
-    const current = usePlayerStore.getState().playbackRate;
-    const index = speeds.indexOf(current);
-    const next = speeds[(index + 1) % speeds.length];
-    setPlaybackRate(next);
+  // 可选倍速列表
+  const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3];
+
+  // 下拉框切换播放速度
+  const handleSpeedSelect: React.ChangeEventHandler<HTMLSelectElement> = e => {
+    const value = parseFloat(e.target.value);
+    if (!Number.isFinite(value)) return;
+    setPlaybackRate(value);
   };
 
   // 播放速度变化时同步到 Cloudflare 播放器
@@ -1258,17 +1260,21 @@ export default function WatchPage() {
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 hover:bg-gray-200"
-                    onClick={handleChangeSpeed}
-                    disabled={isTrial && trialEnded}
-                  >
-                    <span className="text-[11px] text-gray-500">倍速</span>
-                    <span className="text-xs font-medium text-gray-800">
-                      {playbackRate.toFixed(2).replace(/\.00$/, '')}x
-                    </span>
-                  </button>
+                  <div className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1">
+                    <span className="mr-1 text-[11px] text-gray-500">倍速</span>
+                    <select
+                      className="bg-transparent text-xs font-medium text-gray-800 outline-none focus:outline-none"
+                      value={String(playbackRate)}
+                      onChange={handleSpeedSelect}
+                      disabled={isTrial && trialEnded}
+                    >
+                      {speedOptions.map(speed => (
+                        <option key={speed} value={speed.toString()}>
+                          {speed.toString().replace(/\\.0$/, '')}x
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <button
                     type="button"
                     className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${
