@@ -368,12 +368,6 @@ export default function Home() {
       return 0;
     });
 
-  const totalDurationSeconds = videos.reduce(
-    (sum, video) => sum + (video.duration || 0),
-    0
-  );
-  const totalDurationHours = totalDurationSeconds / 3600;
-
   const displayName =
     (user?.email && user.email.split('@')[0]) || '朋友';
 
@@ -449,66 +443,6 @@ export default function Home() {
             像一本铺在书桌上的精美杂志，精选短视频 + 双语脚本 + 知识卡片，帮你轻松沉浸学英语。
           </p>
         </section>
-
-        {/* 移动端数据胶囊 */}
-        {/*<section className="mt-4 flex gap-3 overflow-x-auto pb-1 text-xs text-neutral-600 md:hidden">*/}
-        {/*  <button*/}
-        {/*    type="button"*/}
-        {/*    className="inline-flex min-w-[180px] items-center justify-between rounded-2xl bg-gradient-to-r from-rose-50 to-rose-100 px-4 py-3 shadow-sm"*/}
-        {/*    onClick={() => setIsStatsSheetOpen(true)}*/}
-        {/*  >*/}
-        {/*    <div className="flex items-center gap-2">*/}
-        {/*      <IconFlame />*/}
-        {/*      <div className="text-left">*/}
-        {/*        <div className="text-[11px] text-neutral-500">*/}
-        {/*          连击天数*/}
-        {/*        </div>*/}
-        {/*        <div className="text-xs font-medium text-neutral-700">*/}
-        {/*          本月已打卡*/}
-        {/*        </div>*/}
-        {/*      </div>*/}
-        {/*    </div>*/}
-        {/*    <div className="whitespace-nowrap text-sm font-semibold text-neutral-900">*/}
-        {/*      {studyDates.length} 天*/}
-        {/*    </div>*/}
-        {/*  </button>*/}
-        {/*  <button*/}
-        {/*    type="button"*/}
-        {/*    className="inline-flex min-w-[180px] items-center justify-between rounded-2xl bg-gradient-to-r from-sky-50 to-sky-100 px-4 py-3 shadow-sm"*/}
-        {/*    onClick={() => setIsStatsSheetOpen(true)}*/}
-        {/*  >*/}
-        {/*    <div className="flex items-center gap-2">*/}
-        {/*      <IconClock />*/}
-        {/*      <div className="text-left">*/}
-        {/*        <div className="text-[11px] text-neutral-500">*/}
-        {/*          累计时长*/}
-        {/*        </div>*/}
-        {/*        <div className="text-xs font-medium text-neutral-700">*/}
-        {/*          统计全库精读时长*/}
-        {/*        </div>*/}
-        {/*      </div>*/}
-        {/*    </div>*/}
-        {/*    <div className="whitespace-nowrap text-sm font-semibold text-neutral-900">*/}
-        {/*      {totalDurationHours.toFixed(1)} h*/}
-        {/*    </div>*/}
-        {/*  </button>*/}
-        {/*  <div className="inline-flex min-w-[180px] items-center justify-between rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100 px-4 py-3 shadow-sm">*/}
-        {/*    <div className="flex items-center gap-2">*/}
-        {/*      <IconStack />*/}
-        {/*      <div className="text-left">*/}
-        {/*        <div className="text-[11px] text-neutral-500">*/}
-        {/*          素材总数*/}
-        {/*        </div>*/}
-        {/*        <div className="text-xs font-medium text-neutral-700">*/}
-        {/*          当前可精读的视频*/}
-        {/*        </div>*/}
-        {/*      </div>*/}
-        {/*    </div>*/}
-        {/*    <div className="whitespace-nowrap text-sm font-semibold text-neutral-900">*/}
-        {/*      {videos.length} 部*/}
-        {/*    </div>*/}
-        {/*  </div>*/}
-        {/*</section>*/}
 
         {/* Hero + 右侧控制台（统一大 Banner + 右侧玻璃卡片） */}
         <section className="mt-6">
@@ -629,13 +563,13 @@ export default function Home() {
                       <div className="flex items-center justify-between">
                         <span className="text-white/70">素材总数</span>
                         <span className="text-sm font-semibold">
-                          {videos.length} 部
+                          {videos.length} 期
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-white/70">总学习时长</span>
+                        <span className="text-white/70">已学期数</span>
                         <span className="text-sm font-semibold">
-                          {totalDurationHours.toFixed(1)} h
+                          {learnedCount} 期
                         </span>
                       </div>
                     </div>
@@ -780,16 +714,25 @@ export default function Home() {
           <div className="flex items-center justify-between text-xs text-neutral-600 md:hidden">
             <div className="flex items-center gap-2">
               <span>排序:</span>
-              <select
-                className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] text-neutral-700 focus:border-[#FF2442] focus:outline-none focus:ring-1 focus:ring-[#FF2442]/20"
-                value={sortOrder}
-                onChange={(e) =>
-                  setSortOrder(e.target.value as SortOrder)
-                }
-              >
-                <option value="hottest">综合</option>
-                <option value="latest">最新</option>
-              </select>
+              <div className="inline-flex items-center rounded-full border border-neutral-200 bg-white p-0.5">
+                {[
+                  { value: 'hottest' as SortOrder, label: '综合' },
+                  { value: 'latest' as SortOrder, label: '最新' }
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] ${
+                      sortOrder === opt.value
+                        ? 'bg-neutral-900 text-white'
+                        : 'text-neutral-600'
+                    }`}
+                    onClick={() => setSortOrder(opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <button
               type="button"
@@ -1082,7 +1025,7 @@ export default function Home() {
                 </div>
                 <div className="space-y-1">
                   <div>本月已打卡 {studyDates.length} 天</div>
-                  <div>素材总时长约 {totalDurationHours.toFixed(1)} 小时</div>
+                  <div>已学期数 {learnedCount} 期</div>
                 </div>
               </div>
             </div>
