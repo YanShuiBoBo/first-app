@@ -139,6 +139,7 @@ def annotate_subtitles(
       "knowledge": [...]
     }
 
+
   注意：最终结果还会经过 content_validator 进一步约束和修正。
   """
   system_prompt = (
@@ -152,10 +153,12 @@ def annotate_subtitles(
     "4. difficulty: 1=入门，2=进阶，3=大师，根据整体语言难度和表达复杂度判断；\\n"
     "5. knowledge 中每个元素包含 trigger_word 和 data，data 内必须有 def(中文释义)，"
     "可选 ipa(音标)、sentence(例句)、type(类型，"
-    "只能是 word/phrase/phrasal_verb/expression/spoken_pattern/idiom/proper_noun/slang 之一)；\\n"
+    "只能是 word/phrase/phrasal_verb/expression/spoken_pattern/idiom/proper_noun/slang 之一)；请从英语学习角度识别每一句中包含的 单词、短语、短语动词、惯用表达、口语句式、习语、专有名词\\n"
     "6. 请严格输出合法 JSON，不要包含任何注释、额外说明或 Markdown；"
     "确保可以被 json.loads 直接解析。"
   )
+
+  print(f"  -> 开始请求Deepseek: {skeleton}")
 
   raw_text = call_deepseek_chat(
     system_prompt=system_prompt,
@@ -164,6 +167,7 @@ def annotate_subtitles(
     temperature=temperature,
   )
 
+  print(f"  -> 结束请求Deepseek: {raw_text}")
   # 先尝试直接解析
   try:
     return json.loads(raw_text)

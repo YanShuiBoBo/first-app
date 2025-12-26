@@ -448,7 +448,7 @@ def process_dir(
     skeleton_subtitles = load_and_clean_srt(srt_path)
 
   skeleton = build_skeleton_json(title=title, author=author, subtitles=skeleton_subtitles)
-  print(f"  -> 清洗后字幕: {skeleton_subtitles}")
+  print(f"  -> 清洗后字幕行: {(len(skeleton_subtitles))}")
 
   # Step 6: 调用 DeepSeek 生成完整内容
   print("Step 6: 调用 DeepSeek 生成中文翻译 + 知识卡片...")
