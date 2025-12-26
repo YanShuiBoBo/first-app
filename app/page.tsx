@@ -836,7 +836,7 @@ export default function Home() {
                     />
                     {completedSet.has(video.id) && (
                       <span className="absolute left-2 top-2 rounded-full bg-neutral-900/80 px-2 py-0.5 text-[10px] font-medium text-white">
-                        已完成
+                        已学习
                       </span>
                     )}
                   </div>
