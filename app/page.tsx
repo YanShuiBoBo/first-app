@@ -45,25 +45,6 @@ function IconClock() {
   );
 }
 
-function IconStack() {
-  return (
-    <svg
-      className="h-3.5 w-3.5"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m4 7 8-4 8 4-8 4-8-4Z" />
-      <path d="m4 12 8 4 8-4" />
-      <path d="m4 17 8 4 8-4" />
-    </svg>
-  );
-}
-
 function IconFilter() {
   return (
     <svg
@@ -262,10 +243,36 @@ export default function Home() {
   const getDifficultyLevel = (
     difficulty?: number | null
   ): Exclude<DifficultyFilter, 'all'> => {
-    const d = difficulty ?? 3;
-    if (d <= 2) return 'easy';
-    if (d === 3) return 'medium';
-    return 'hard';
+    const d = difficulty ?? 1;
+    if (d === 1) return 'easy';
+    if (d === 2) return 'medium';
+    if (d === 3) return 'hard';
+    return 'easy';
+  };
+
+  const getDifficultyStyle = (
+    difficulty?: number | null,
+    variant: 'banner' | 'card' = 'card'
+  ) => {
+    const level = getDifficultyLevel(difficulty);
+
+    if (variant === 'banner') {
+      if (level === 'easy') {
+        return 'border border-emerald-300/40 bg-emerald-400/20 text-emerald-100';
+      }
+      if (level === 'medium') {
+        return 'border border-amber-300/40 bg-amber-400/20 text-amber-100';
+      }
+      return 'border border-rose-300/40 bg-rose-400/20 text-rose-100';
+    }
+
+    if (level === 'easy') {
+      return 'bg-emerald-50 text-emerald-600';
+    }
+    if (level === 'medium') {
+      return 'bg-amber-50 text-amber-700';
+    }
+    return 'bg-rose-50 text-rose-600';
   };
 
   const completedSet = new Set(completedVideoIds);
@@ -385,9 +392,12 @@ export default function Home() {
     return `${minutes}:${secs}`;
   };
 
-  const renderDifficultyStars = (difficulty?: number | null) => {
-    const d = Math.min(Math.max(difficulty ?? 3, 1), 5);
-    return '🌟'.repeat(d);
+  const renderDifficultyLabel = (difficulty?: number | null) => {
+    const d = difficulty ?? 1;
+    if (d === 1) return '入门';
+    if (d === 2) return '进阶';
+    if (d === 3) return '大师';
+    return '入门';
   };
 
   // Cloudflare Images 访问地址（作为 poster 之后的兜底方案）
@@ -550,9 +560,13 @@ export default function Home() {
                         </span>
                       )}
                       {heroVideo.difficulty && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
-                          <span>难度</span>
-                          <span>{renderDifficultyStars(heroVideo.difficulty)}</span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${getDifficultyStyle(
+                            heroVideo.difficulty,
+                            'banner'
+                          )}`}
+                        >
+                          <span>{renderDifficultyLabel(heroVideo.difficulty)}</span>
                         </span>
                       )}
                       {heroVideo.tags && heroVideo.tags.length > 0 && (
@@ -571,31 +585,6 @@ export default function Home() {
 
                     {/* 预习概览区：从标签或描述中提炼 */}
                     <div className="mt-4 border-t border-white/10 pt-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">
-                          Pre-study preview
-                        </span>
-                        <span className="text-[10px] text-white/50">
-                          点击进入可查看完整卡片
-                        </span>
-                      </div>
-                      {heroVideo.tags && heroVideo.tags.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {heroVideo.tags.slice(0, 3).map((tag) => (
-                            <span
-                              key={tag}
-                              className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] text-white"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      {!heroVideo.tags?.length && heroVideo.description && (
-                        <p className="mt-2 line-clamp-2 text-[12px] text-white/80">
-                          {heroVideo.description}
-                        </p>
-                      )}
                     </div>
 
                     {/* 底部：时长 / 热度 + 播放按钮 */}
@@ -874,9 +863,13 @@ export default function Home() {
                           <span>{video.view_count ?? 0}</span>
                         </span>
                         {video.difficulty && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5">
-                            <span>难度</span>
-                            <span>{renderDifficultyStars(video.difficulty)}</span>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${getDifficultyStyle(
+                              video.difficulty,
+                              'card'
+                            )}`}
+                          >
+                            <span>{renderDifficultyLabel(video.difficulty)}</span>
                           </span>
                         )}
                       </div>
