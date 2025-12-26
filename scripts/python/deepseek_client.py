@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 import requests
 from dotenv import load_dotenv
@@ -98,49 +98,13 @@ def _extract_json_block(text: str) -> str:
   return text[start : end + 1]
 
 
-def annotate_subtitles(
-  skeleton: Dict[str, Any],
-  model: Optional[str] = None,
-  temperature: float = 0.2,
+def _call_deepseek_for_chunk(
+  payload: Dict[str, Any],
+  model: Optional[str],
+  temperature: float,
 ) -> Dict[str, Any]:
   """
-  使用 DeepSeek 对英文骨架字幕进行：
-    1) 逐句中文翻译；
-    2) 全局难度估计；
-    3) 主题标签提取；
-    4) 简介撰写；
-    5) 知识卡片抽取。
-
-  输入 skeleton 结构示例：
-    {
-      "title": "...",
-      "author": "...",
-      "difficulty": 0,
-      "tags": [],
-      "description": "",
-      "subtitles": [
-        {"start": "...", "end": "...", "text_en": "Hello.", "text_cn": ""},
-        ...
-      ],
-      "knowledge": []
-    }
-
-  返回的 Dict 结构应该与用户给出的示例一致：
-    {
-      "title": "中文标题",
-      "author": "作者",
-      "difficulty": 2,
-      "tags": [...],
-      "description": "...",
-      "subtitles": [
-        {"start": "...", "end": "...", "text_en": "...", "text_cn": "..."},
-        ...
-      ],
-      "knowledge": [...]
-    }
-
-
-  注意：最终结果还会经过 content_validator 进一步约束和修正。
+  对单个字幕分片调用 DeepSeek，并解析为 JSON。
   """
   system_prompt = (
     "你是一个严谨的英语教学编辑助手，负责把已经结构化好的英文字幕，"
@@ -158,16 +122,13 @@ def annotate_subtitles(
     "确保可以被 json.loads 直接解析。"
   )
 
-  print(f"  -> 开始请求Deepseek: {skeleton}")
-
   raw_text = call_deepseek_chat(
     system_prompt=system_prompt,
-    user_payload=skeleton,
+    user_payload=payload,
     model=model,
     temperature=temperature,
   )
 
-  print(f"  -> 结束请求Deepseek: {raw_text}")
   # 先尝试直接解析
   try:
     return json.loads(raw_text)
@@ -182,5 +143,127 @@ def annotate_subtitles(
       ) from exc
 
 
-__all__ = ["annotate_subtitles"]
+def annotate_subtitles(
+  skeleton: Dict[str, Any],
+  model: Optional[str] = None,
+  temperature: float = 0.2,
+) -> Dict[str, Any]:
+  """
+  使用 DeepSeek 对英文骨架字幕进行：
+    1) 逐句中文翻译；
+    2) 全局难度估计；
+    3) 主题标签提取；
+    4) 简介撰写；
+    5) 知识卡片抽取。
 
+  内部自动对字幕进行分片，多次调用 DeepSeek，避免单次上下文/输出被截断。
+
+  返回结构与用户示例一致：
+    {
+      "title": "中文标题",
+      "author": "作者",
+      "difficulty": 2,
+      "tags": [...],
+      "description": "...",
+      "subtitles": [...],
+      "knowledge": [...]
+    }
+  """
+  subtitles: List[Dict[str, Any]] = skeleton.get("subtitles") or []
+
+  if not subtitles:
+    return {
+      "title": skeleton.get("title") or "未命名视频",
+      "author": skeleton.get("author") or "",
+      "difficulty": 2,
+      "tags": skeleton.get("tags") or [],
+      "description": skeleton.get("description") or "",
+      "subtitles": [],
+      "knowledge": [],
+    }
+
+  # 按字幕条目分片，避免一次发送过多内容导致 DeepSeek 截断。
+  # 这里采用简单的条目数粒度控制，后续如有需要可改为按总字符数。
+  max_items_per_chunk = 30
+
+  all_text_cn: List[str] = ["" for _ in subtitles]
+  all_knowledge: List[Dict[str, Any]] = []
+
+  # 元信息（标题/作者/难度/标签/简介）：优先取第一批的结果，否则回退 skeleton
+  meta_title = None
+  meta_author = None
+  meta_difficulty = None
+  meta_tags: Optional[List[str]] = None
+  meta_description = None
+
+  total_chunks = (len(subtitles) + max_items_per_chunk - 1) // max_items_per_chunk
+
+  for chunk_index in range(total_chunks):
+    start_idx = chunk_index * max_items_per_chunk
+    end_idx = min((chunk_index + 1) * max_items_per_chunk, len(subtitles))
+    chunk_subs = subtitles[start_idx:end_idx]
+
+    chunk_payload = {
+      "title": skeleton.get("title") or "未命名视频",
+      "author": skeleton.get("author") or "",
+      "difficulty": skeleton.get("difficulty") or 0,
+      "tags": skeleton.get("tags") or [],
+      "description": skeleton.get("description") or "",
+      "subtitles": chunk_subs,
+      "knowledge": [],
+    }
+
+    print(f"  -> 请求 DeepSeek，分片 {chunk_index + 1}/{total_chunks}，字幕条目数: {len(chunk_subs)}")
+    chunk_result = _call_deepseek_for_chunk(chunk_payload, model=model, temperature=temperature)
+
+    # 第一片：采纳元信息
+    if chunk_index == 0:
+      meta_title = chunk_result.get("title") or chunk_payload["title"]
+      meta_author = chunk_result.get("author") or chunk_payload["author"]
+      meta_difficulty = chunk_result.get("difficulty")
+      meta_tags = chunk_result.get("tags") or chunk_payload["tags"]
+      meta_description = chunk_result.get("description") or chunk_payload["description"]
+
+    # 合并字幕中文翻译
+    llm_subs: List[Dict[str, Any]] = chunk_result.get("subtitles") or []
+
+    for local_i in range(len(chunk_subs)):
+      global_i = start_idx + local_i
+      text_cn = ""
+      if local_i < len(llm_subs) and isinstance(llm_subs[local_i], dict):
+        raw_cn = llm_subs[local_i].get("text_cn")
+        if isinstance(raw_cn, str):
+          text_cn = raw_cn.strip()
+      all_text_cn[global_i] = text_cn
+
+    # 合并知识卡片
+    chunk_kn = chunk_result.get("knowledge") or []
+    if isinstance(chunk_kn, list):
+      all_knowledge.extend(chunk_kn)
+
+  # 组装整体 subtitles 结构，start/end/text_en 仍以 skeleton 为准
+  merged_subtitles: List[Dict[str, Any]] = []
+  for idx, base in enumerate(subtitles):
+    merged_subtitles.append(
+      {
+        "start": base.get("start"),
+        "end": base.get("end"),
+        "text_en": base.get("text_en", ""),
+        "text_cn": all_text_cn[idx],
+      }
+    )
+
+  result: Dict[str, Any] = {
+    "title": meta_title or skeleton.get("title") or "未命名视频",
+    "author": meta_author or skeleton.get("author") or "",
+    "difficulty": meta_difficulty if meta_difficulty is not None else 2,
+    "tags": meta_tags or skeleton.get("tags") or [],
+    "description": meta_description or skeleton.get("description") or "",
+    "subtitles": merged_subtitles,
+    "knowledge": all_knowledge,
+  }
+
+  return result
+
+
+__all__ = ["annotate_subtitles"]
