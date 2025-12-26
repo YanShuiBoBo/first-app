@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/store/auth-store";
@@ -17,6 +18,7 @@ interface VideoRow {
   tags?: string[] | null;
   description?: string | null;
   poster?: string | null;
+  cover_image_id?: string | null;
 }
 
 function formatDuration(seconds: number): string {
@@ -68,7 +70,8 @@ export default function AdminVideosPage() {
     difficulty: "",
     tags: "",
     poster: "",
-    duration: ""
+    duration: "",
+    cover_image_id: ""
   });
 
   // 字幕 / 卡片 JSON 文本
@@ -77,6 +80,12 @@ export default function AdminVideosPage() {
 
   const [isCreating, setIsCreating] = useState(false);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const [isUploadingPoster, setIsUploadingPoster] = useState(false);
+  const [posterUploadError, setPosterUploadError] = useState<string | null>(
+    null
+  );
+
+  const posterFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const router = useRouter();
   const { user, isLoggedIn, initialize } = useAuthStore();
@@ -104,7 +113,7 @@ export default function AdminVideosPage() {
         const { data, error } = await supabase
           .from("videos")
           .select(
-            "id, cf_video_id, title, status, duration, created_at, author, difficulty, tags, description, poster"
+            "id, cf_video_id, title, status, duration, created_at, author, difficulty, tags, description, poster, cover_image_id"
           )
           .order("created_at", { ascending: false });
 
@@ -161,7 +170,8 @@ export default function AdminVideosPage() {
       difficulty: video.difficulty ? String(video.difficulty) : "",
       tags: video.tags ? video.tags.join(", ") : "",
       poster: video.poster || "",
-      duration: String(video.duration || "")
+      duration: String(video.duration || ""),
+      cover_image_id: video.cover_image_id || ""
     });
     setModalError(null);
     setIsMetaModalOpen(true);
@@ -178,7 +188,8 @@ export default function AdminVideosPage() {
       difficulty: "3",
       tags: "",
       poster: "",
-      duration: ""
+      duration: "",
+      cover_image_id: ""
     });
     setModalError(null);
     setIsMetaModalOpen(true);
@@ -275,6 +286,7 @@ export default function AdminVideosPage() {
             cf_video_id: metaForm.cf_video_id,
             title: metaForm.title,
             poster: metaForm.poster || null,
+            cover_image_id: metaForm.cover_image_id || null,
             duration: durationNumber,
             status: "processing",
             author: metaForm.author || null,
@@ -301,7 +313,8 @@ export default function AdminVideosPage() {
             description: metaForm.description || null,
             difficulty: difficultyNumber,
             tags,
-            poster: metaForm.poster || null
+            poster: metaForm.poster || null,
+            cover_image_id: metaForm.cover_image_id || null
           })
           .eq("id", selectedVideo.id);
 
@@ -318,7 +331,9 @@ export default function AdminVideosPage() {
                   title: metaForm.title,
                   author: metaForm.author || null,
                   difficulty: difficultyNumber ?? undefined,
-                  tags
+                  tags,
+                  poster: metaForm.poster || null,
+                  cover_image_id: metaForm.cover_image_id || null
                 }
               : v
           )
@@ -330,6 +345,66 @@ export default function AdminVideosPage() {
       setModalError("保存基础信息失败");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // 上传首图到 Cloudflare Images，并自动回填 poster / cover_image_id
+  const handlePosterFileChange = async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // 简单的体积限制，避免误传过大的图片
+    if (file.size > 10 * 1024 * 1024) {
+      setPosterUploadError("图片过大，请压缩后再上传（建议不超过 10MB）");
+      event.target.value = "";
+      return;
+    }
+
+    setPosterUploadError(null);
+    setIsUploadingPoster(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/admin/images/upload", {
+        method: "POST",
+        body: formData
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json?.success) {
+        const message =
+          json?.error?.message || "上传首图失败，请稍后重试";
+        throw new Error(message);
+      }
+
+      const { id, deliveryUrl } = json.data as {
+        id: string;
+        deliveryUrl: string;
+      };
+
+      // 回填到表单：poster 使用可直接访问的 imagedelivery.net 地址，
+      // cover_image_id 保存 Cloudflare Images 内部 ID，方便后续兜底或脚本使用
+      setMetaForm((prev) => ({
+        ...prev,
+        poster: deliveryUrl,
+        cover_image_id: id
+      }));
+    } catch (err) {
+      console.error("上传首图失败:", err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "上传首图失败，请检查网络或 Cloudflare 配置";
+      setPosterUploadError(message);
+    } finally {
+      setIsUploadingPoster(false);
+      // 重置 input，这样用户可以重复选择同一文件
+      event.target.value = "";
     }
   };
 
@@ -790,6 +865,36 @@ export default function AdminVideosPage() {
                   }
                   placeholder="例如 Cloudflare Stream 的缩略图 / 任意可访问图片地址"
                 />
+                <div className="mt-1 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded bg-slate-900 px-2 py-1 text-[11px] text-white disabled:opacity-50"
+                    onClick={() => posterFileInputRef.current?.click()}
+                    disabled={isUploadingPoster}
+                  >
+                    {isUploadingPoster ? "上传中..." : "上传图片到 Cloudflare"}
+                  </button>
+                  <span className="text-[11px] text-slate-400">
+                    支持 JPG/PNG，自动生成 imagedelivery.net 首图地址
+                  </span>
+                  <input
+                    ref={posterFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePosterFileChange}
+                  />
+                </div>
+                {metaForm.cover_image_id && (
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Cloudflare Image ID：{metaForm.cover_image_id}
+                  </p>
+                )}
+                {posterUploadError && (
+                  <div className="mt-1 rounded border border-red-200 bg-red-50 px-2 py-1 text-[11px] text-red-600">
+                    {posterUploadError}
+                  </div>
+                )}
               </div>
               {isCreating && (
                 <div className="flex flex-col gap-1">
