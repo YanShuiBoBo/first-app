@@ -94,13 +94,37 @@ def init_upload() -> Dict[str, Any]:
 def upload_to_cloudflare(upload_url: str, video_path: Path) -> None:
   """把本地 MP4 上传到 Cloudflare 直传 URL。"""
   print(f"Step 2: 上传视频到 Cloudflare Stream: {video_path}")
+
+  size_mb = video_path.stat().st_size / (1024 * 1024)
+  print(f"  -> 视频文件大小约为 {size_mb:.1f} MB")
+
+  # Cloudflare 单次表单上传在约 200MB 左右存在上限，更大的文件推荐使用 tus 分片协议。
+  # 当前脚本暂未实现 tus，因此在大文件时提前给出友好提示，避免 413 错误迷惑用户。
+  if size_mb > 190:
+    raise RuntimeError(
+      "当前脚本使用的是 Cloudflare Stream 的表单直传方式，单次上传在 200MB 左右会返回 413。"
+      f" 当前文件大小约为 {size_mb:.1f} MB，请考虑先用 ffmpeg 压缩到 180MB 以内，"
+      "或后续改造脚本为 tus 分片上传。"
+    )
+
   with open(video_path, "rb") as f:
     resp = requests.post(
       upload_url,
       files={"file": f},
       timeout=3600,
     )
-    resp.raise_for_status()
+    try:
+      resp.raise_for_status()
+    except requests.HTTPError as exc:
+      if resp.status_code == 413:
+        raise RuntimeError(
+          "上传到 Cloudflare 时收到 413 Payload Too Large。"
+          " 这通常表示当前直传方式的视频体积超过了 Cloudflare 对单次上传的限制。"
+          " 建议先将视频压缩到更小（例如 1080p/更低码率，目标 < 180MB），"
+          "或后续将脚本改造为使用 tus 分片上传协议。"
+        ) from exc
+      raise
+
   print("  -> 视频上传完成")
 
 
@@ -249,7 +273,7 @@ def parse_title_and_author_from_dir(dir_path: Path) -> Tuple[str, str]:
   """
   name = dir_path.name.strip()
   if "-" in name:
-    title, author = name.split("-", 1)
+    title, author = name.split("&&", 1)
     return title.strip(), author.strip()
   return name, ""
 
