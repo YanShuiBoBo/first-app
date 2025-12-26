@@ -151,12 +151,86 @@ def load_gemini_json(path: Path) -> Dict[str, Any]:
   return data
 
 
+def find_cover_image(dir_path: Path) -> Optional[Path]:
+  """
+  在目录下寻找首图文件：
+  - 只看当前目录（不递归子目录）；
+  - 支持 png / jpg / jpeg / webp；
+  - 显式忽略 output.mp4 / gemini.json 本身。
+  """
+  patterns = ("*.png", "*.jpg", "*.jpeg", "*.webp")
+  for pattern in patterns:
+    for p in sorted(dir_path.glob(pattern)):
+      if not p.is_file():
+        continue
+      if p.name in ("output.mp4", "gemini.json"):
+        continue
+      return p
+  return None
+
+
+def upload_cover_image(image_path: Path) -> Optional[Tuple[str, str]]:
+  """
+  调用后端 /api/admin/images/upload 上传首图到 Cloudflare Images。
+
+  返回:
+    (image_id, delivery_url) 或 None（出错时）。
+  """
+  admin_secret = require_env("ADMIN_SECRET")
+
+  print(f"🖼  发现首图文件: {image_path.name}，上传到 Cloudflare Images...")
+
+  url = f"{API_BASE_URL}/api/admin/images/upload"
+
+  with open(image_path, "rb") as f:
+    files = {
+      "file": (image_path.name, f, "image/*"),
+    }
+    resp = requests.post(
+      url,
+      headers={"x-admin-secret": admin_secret},
+      files=files,
+      timeout=60,
+    )
+
+  try:
+    data = resp.json()
+  except Exception:
+    print(f"⚠️  封面上传返回非 JSON 内容：{resp.text}")
+    return None
+
+  if resp.status_code >= 400 or not data.get("success"):
+    print("⚠️  封面上传失败，将回退为视频帧缩略图")
+    try:
+      print(json.dumps(data, ensure_ascii=False, indent=2))
+    except Exception:
+      print(data)
+    return None
+
+  result = data.get("data") or {}
+  image_id = result.get("id")
+  delivery_url = result.get("deliveryUrl")
+
+  if not image_id or not delivery_url:
+    print("⚠️  封面上传成功但未返回 id/deliveryUrl，继续使用视频帧缩略图")
+    return None
+
+  print(f"✅ 封面上传成功，Image ID={image_id}")
+  return image_id, delivery_url
+
+
 def build_payload(
   cf_video_id: str,
   gem: Dict[str, Any],
   cf_meta: Dict[str, Any],
+  poster_override: Optional[str] = None,
+  cover_image_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-  """把 Gemini JSON + Cloudflare meta 映射为 /upload/finalize 所需的 payload。"""
+  """把 Gemini JSON + Cloudflare meta 映射为 /upload/finalize 所需的 payload。
+
+  poster_override / cover_image_id 用于支持本地首图上传到 Cloudflare Images，
+  优先使用 Images 的 imagedelivery.net 地址作为 poster。
+  """
 
   # 1) meta
   title = gem.get("title") or "未命名视频"
@@ -166,13 +240,21 @@ def build_payload(
   tags = gem.get("tags") or []
 
   duration = cf_meta.get("duration") or 0.0
-  poster = cf_meta.get("poster")
+
+  # poster 优先级：
+  # 1) 本地图片上传到 Cloudflare Images 后返回的 imagedelivery.net 地址
+  # 2) Cloudflare Stream 返回的 thumbnail/preview
+  # 3) 兜底：videodelivery.net 的缩略图
+  poster: Optional[str] = None
+  if poster_override:
+    poster = poster_override
+  else:
+    poster = cf_meta.get("poster")
 
   if not poster:
-    # 兜底：使用 videodelivery.net 的缩略图地址模式
     poster = f"https://videodelivery.net/{cf_video_id}/thumbnails/thumbnail.jpg"
 
-  meta = {
+  meta: Dict[str, Any] = {
     "title": title,
     "poster": poster,
     "duration": float(duration),
@@ -186,6 +268,10 @@ def build_payload(
     meta["difficulty"] = int(difficulty)
   if isinstance(tags, list):
     meta["tags"] = tags
+
+  # Cloudflare Images 的图片 ID（可选）
+  if cover_image_id:
+    meta["cover_image_id"] = cover_image_id
 
   # ---------- 2) subtitles ----------
 
@@ -394,6 +480,30 @@ def find_video_and_json(dir_path: Path) -> Tuple[Path, Path]:
   return video, json_file
 
 
+def find_gemini_json(dir_path: Path) -> Path:
+  """仅查找 Gemini JSON 文件（不要求目录中存在 MP4）。"""
+  if not dir_path.is_dir():
+    raise ValueError(f"不是有效目录: {dir_path}")
+
+  candidates = [
+    dir_path / "gemini.json",
+    dir_path / "content.json",
+  ]
+  candidates.extend(dir_path.glob("*.content.json"))
+  candidates.extend(dir_path.glob("*.json"))
+
+  json_file: Optional[Path] = None
+  for p in candidates:
+    if p.exists() and p.is_file():
+      json_file = p
+      break
+
+  if not json_file:
+    raise FileNotFoundError(f"目录中未找到 Gemini JSON 文件: {dir_path}")
+
+  return json_file
+
+
 def mark_done(dir_path: Path, cf_video_id: str, video_id: str) -> None:
   """在目录下写入一个标记文件，避免重复导入。"""
   done_file = dir_path / ".immersive_uploaded.json"
@@ -414,33 +524,96 @@ def is_done(dir_path: Path) -> bool:
   return done_file.exists()
 
 
-def process_dir(dir_path: Path, force: bool = False) -> None:
-  """处理单个目录：上传 + 入库。"""
+def process_dir(
+  dir_path: Path,
+  force: bool = False,
+  meta_only: bool = False,
+  cf_id: Optional[str] = None,
+  duration_override: Optional[float] = None,
+) -> None:
+  """处理单个目录。
+
+  正常模式：上传视频到 Cloudflare + 入库；
+  meta_only 模式：仅根据 gemini.json（以及本地封面图）生成并提交元数据，不上传视频。
+  """
   print()
   print("=" * 60)
   print(f"📁 处理目录: {dir_path}")
 
-  if is_done(dir_path) and not force:
+  if is_done(dir_path) and not force and not meta_only:
     print("⏭  检测到已存在 .immersive_uploaded.json，默认跳过（如需重新导入请删除该文件或使用 --force）")
     return
 
   try:
-    video_path, json_path = find_video_and_json(dir_path)
+    if meta_only:
+      video_path = None
+      json_path = find_gemini_json(dir_path)
+    else:
+      video_path, json_path = find_video_and_json(dir_path)
   except Exception as e:
     print(f"❌ 跳过目录（未找到必要文件）: {e}")
     return
 
-  print(f"🎬 视频文件: {video_path.name}")
+  if video_path is not None:
+    print(f"🎬 视频文件: {video_path.name}")
   print(f"🧠 Gemini JSON: {json_path.name}")
+
+  # 先尝试处理本地封面图（如果有）
+  cover_image_path = find_cover_image(dir_path)
+  cover_image_id: Optional[str] = None
+  poster_override: Optional[str] = None
+
+  if cover_image_path is not None:
+    try:
+      result = upload_cover_image(cover_image_path)
+      if result is not None:
+        cover_image_id, poster_override = result
+    except Exception as e:
+      print(f"⚠️  上传封面图失败，将使用视频帧缩略图: {e}")
 
   try:
     gem = load_gemini_json(json_path)
 
+    if meta_only:
+      # 仅处理 gemini.json 基本信息，不上传视频。
+      # cf_video_id 优先从参数 --cf-id 读取，其次尝试从 JSON 中读取。
+      cf_video_id = cf_id or gem.get("cf_video_id") or gem.get("cf_id")
+      if not cf_video_id:
+        raise ValueError(
+          "meta-only 模式需要提供 --cf-id 参数，"
+          "或在 gemini.json 中包含 cf_video_id 字段"
+        )
+
+      cf_meta = {
+        "duration": float(duration_override) if duration_override is not None else 0.0,
+        "poster": None,
+      }
+
+      payload = build_payload(
+        cf_video_id,
+        gem,
+        cf_meta,
+        poster_override=poster_override,
+        cover_image_id=cover_image_id,
+      )
+      result = finalize_upload(payload)
+
+      mark_done(dir_path, cf_video_id=cf_video_id, video_id=result["video_id"])
+      print("🎉 该目录（meta-only 模式）处理完成")
+      return
+
+    # 正常模式：上传视频 + 入库
     upload_info = init_upload()
-    upload_to_cloudflare(upload_info["uploadUrl"], video_path)
+    upload_to_cloudflare(upload_info["uploadUrl"], video_path)  # type: ignore[arg-type]
 
     cf_meta = fetch_cf_metadata(upload_info["uid"])
-    payload = build_payload(upload_info["uid"], gem, cf_meta)
+    payload = build_payload(
+      upload_info["uid"],
+      gem,
+      cf_meta,
+      poster_override=poster_override,
+      cover_image_id=cover_image_id,
+    )
     result = finalize_upload(payload)
 
     mark_done(dir_path, cf_video_id=upload_info["uid"], video_id=result["video_id"])
@@ -470,10 +643,36 @@ def main() -> None:
     help="即使目录已存在 .immersive_uploaded.json 也强制重新导入",
   )
 
+  parser.add_argument(
+    "--meta-only",
+    action="store_true",
+    help="只处理 gemini.json 基本信息数据（不上传视频），需要配合 --dir 使用",
+  )
+  parser.add_argument(
+    "--cf-id",
+    type=str,
+    help="meta-only 模式下使用的 Cloudflare 视频 ID（cf_video_id）；如不提供，将尝试从 gemini.json 中读取 cf_video_id 字段",
+  )
+  parser.add_argument(
+    "--duration",
+    type=float,
+    help="meta-only 模式下的视频时长（秒），可选，默认 0",
+  )
+
   args = parser.parse_args()
 
+  if args.meta_only and args.root:
+    print("❌ meta-only 模式目前仅支持 --dir，不支持 --root 批量处理")
+    sys.exit(1)
+
   if args.dir:
-    process_dir(Path(args.dir), force=args.force)
+    process_dir(
+      Path(args.dir),
+      force=args.force,
+      meta_only=args.meta_only,
+      cf_id=args.cf_id,
+      duration_override=args.duration,
+    )
     return
 
   root = Path(args.root)

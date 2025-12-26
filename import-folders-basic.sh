@@ -102,6 +102,29 @@ for dir in "$ROOT_DIR"/*/; do
   echo "标题：$title"
   echo "视频：$video_file"
 
+  # 优先尝试从当前目录中查找首图文件（png/jpg/jpeg/webp）
+  poster_url="$DEFAULT_POSTER_URL"
+  cover_image_id=""
+
+  poster_file=$(find "$dir" -maxdepth 1 -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.webp" \) | head -n 1 || true)
+  if [ -n "$poster_file" ]; then
+    echo "发现首图文件：$poster_file"
+    echo "上传首图到 Cloudflare Images..."
+    image_response=$(curl -s -X POST "$API_BASE_URL/api/admin/images/upload" \
+      -F "file=@$poster_file")
+
+    image_success=$(echo "$image_response" | jq -r '.success // false')
+    if [ "$image_success" = "true" ]; then
+      poster_url=$(echo "$image_response" | jq -r '.data.deliveryUrl')
+      cover_image_id=$(echo "$image_response" | jq -r '.data.id // ""')
+      echo "首图上传成功，poster: $poster_url"
+    else
+      echo "警告：首图上传失败，将使用默认占位图：$image_response"
+    fi
+  else
+    echo "未找到首图文件，使用默认占位图"
+  fi
+
   # Step 1: 获取上传 URL
   echo "Step 1: 获取 Cloudflare 上传 URL..."
   upload_response=$(curl -s -X POST "$API_BASE_URL/api/admin/upload/init" \
@@ -144,21 +167,22 @@ for dir in "$ROOT_DIR"/*/; do
   cf_video_id="$upload_uid"
   echo "成功上传视频，CF_VIDEO_ID：$cf_video_id"
 
-  # Step 3: 调用 finalize 入库（只填充标题 + 占位 meta）
+  # Step 3: 调用 finalize 入库（只填充标题 + 占位/本地首图 meta）
   echo "Step 3: 保存到 Supabase..."
 
   finalize_payload=$(jq -n \
     --arg cfid "$cf_video_id" \
     --arg title "$title" \
-    --arg poster "$DEFAULT_POSTER_URL" \
+    --arg poster "$poster_url" \
+    --arg cover_id "$cover_image_id" \
     --argjson subtitles "$PLACEHOLDER_SUBTITLES" \
     '{
       cf_video_id: $cfid,
-      meta: {
+      meta: ({
         title: $title,
         poster: $poster,
         duration: 0
-      },
+      } + (if ($cover_id // "") != "" then { cover_image_id: $cover_id } else {} end)),
       subtitles: $subtitles,
       cards: []
     }')
