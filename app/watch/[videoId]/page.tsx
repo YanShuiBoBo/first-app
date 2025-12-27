@@ -1361,30 +1361,38 @@ export default function WatchPage() {
               </div>
 
               {/* Layer 2: 视频区域 */}
-              {/* 使用稳定的 16:9 容器，吸顶展示，避免滑动就看不到视频 */}
-              <div className="sticky top-0 z-20 overflow-hidden rounded-2xl bg-black">
-                <div className="relative aspect-video w-full">
-                  {!isPlayerReady && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black">
-                      <div className="flex flex-col items-center gap-3 text-xs text-gray-300">
-                        <div className="h-10 w-10 animate-pulse rounded-full bg-gray-700" />
-                        <span>视频加载中...</span>
-                      </div>
+              {/* 移动端：视频使用 fixed 固定在视口顶部；桌面端：保持卡片内部吸顶体验 */}
+              <div className="relative w-full">
+                {/* 占位：在移动端预留 16:9 高度，避免下面内容被固定视频遮挡 */}
+                <div className="aspect-video w-full lg:hidden" />
+
+                {/* 真正的视频容器：小屏 fixed 顶部，大屏正常随内容滚动 */}
+                <div className="fixed inset-x-0 top-16 z-20 bg-black lg:static lg:inset-auto lg:top-auto lg:z-auto">
+                  <div className="mx-auto w-full max-w-[1600px] px-4 lg:px-0">
+                    <div className="relative aspect-video w-full overflow-hidden rounded-2xl">
+                      {!isPlayerReady && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black">
+                          <div className="flex flex-col items-center gap-3 text-xs text-gray-300">
+                            <div className="h-10 w-10 animate-pulse rounded-full bg-gray-700" />
+                            <span>视频加载中...</span>
+                          </div>
+                        </div>
+                      )}
+                      <Stream
+                        src={videoData.cf_video_id}
+                        controls
+                        width="100%"
+                        // 使用 Cloudflare 提供的 streamRef 和 onTimeUpdate 来获取时间信息
+                        streamRef={streamRef}
+                        onTimeUpdate={handleTimeUpdate}
+                        poster={videoData.poster}
+                        preload="auto"
+                        onLoadedData={handlePlayerLoaded}
+                        onPlay={handlePlay}
+                        onPause={handlePause}
+                      />
                     </div>
-                  )}
-                  <Stream
-                    src={videoData.cf_video_id}
-                    controls
-                    width="100%"
-                    // 使用 Cloudflare 提供的 streamRef 和 onTimeUpdate 来获取时间信息
-                    streamRef={streamRef}
-                    onTimeUpdate={handleTimeUpdate}
-                    poster={videoData.poster}
-                    preload="auto"
-                    onLoadedData={handlePlayerLoaded}
-                    onPlay={handlePlay}
-                    onPause={handlePause}
-                  />
+                  </div>
                 </div>
               </div>
 
