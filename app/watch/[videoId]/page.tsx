@@ -1326,7 +1326,8 @@ export default function WatchPage() {
           <section className="flex w-full flex-col lg:w-[70%] lg:max-w-[960px]">
             <div
               ref={videoRef}
-              className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm"
+              // 注意：这里不要再加 overflow-hidden，否则会导致内部使用 position: sticky 的视频区域在移动端失效
+              className="flex h-full flex-col rounded-2xl bg-white shadow-sm"
             >
               {/* Layer 1: Header（桌面端显示） */}
               <div className="hidden h-14 items-center justify-between border-b border-gray-100 px-6 sm:flex">
@@ -1361,7 +1362,7 @@ export default function WatchPage() {
 
               {/* Layer 2: 视频区域 */}
               {/* 使用稳定的 16:9 容器，吸顶展示，避免滑动就看不到视频 */}
-              <div className="bg-black sticky top-0 z-20">
+              <div className="sticky top-0 z-20 overflow-hidden rounded-2xl bg-black">
                 <div className="relative aspect-video w-full">
                   {!isPlayerReady && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black">
