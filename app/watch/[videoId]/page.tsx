@@ -163,8 +163,9 @@ const buildHighlightSegments = (
     const keyword = rawKeyword.toLowerCase();
     if (!keyword.length) continue;
 
-    const isWordLike =
-      !card.data.type || card.data.type === 'word' || card.data.type === 'proper_noun';
+    // 只要触发词本身是“单个英文/数字单词”，无论类型是什么，都按完整单词匹配，
+    // 避免出现 "yo" 高亮到 "you" 这种子串误匹配
+    const isSingleToken = /^[a-z0-9]+$/i.test(keyword);
 
     let searchStart = 0;
     while (searchStart <= lowerText.length - keyword.length) {
@@ -174,7 +175,7 @@ const buildHighlightSegments = (
       const start = idx;
       const end = idx + keyword.length;
 
-      if (isWordLike) {
+      if (isSingleToken) {
         const before = start === 0 ? ' ' : lowerText[start - 1];
         const after = end >= lowerText.length ? ' ' : lowerText[end];
         if (!isWordBoundaryChar(before) || !isWordBoundaryChar(after)) {
