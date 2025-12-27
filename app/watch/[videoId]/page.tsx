@@ -1367,9 +1367,9 @@ export default function WatchPage() {
                 <div className="aspect-video w-full lg:hidden" />
 
                 {/* 真正的视频容器：小屏 fixed 顶部，大屏正常随内容滚动 */}
-                <div className="fixed inset-x-0 top-16 z-20 bg-black lg:static lg:inset-auto lg:top-auto lg:z-auto">
+                <div className="fixed inset-x-0 top-16 z-20 lg:static lg:inset-auto lg:top-auto lg:z-auto">
                   <div className="mx-auto w-full max-w-[1600px] px-4 lg:px-0">
-                    <div className="relative aspect-video w-full overflow-hidden rounded-2xl">
+                    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-lg shadow-black/25">
                       {!isPlayerReady && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black">
                           <div className="flex flex-col items-center gap-3 text-xs text-gray-300">
