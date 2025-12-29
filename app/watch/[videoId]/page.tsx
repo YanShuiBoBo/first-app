@@ -332,6 +332,31 @@ const IconSound: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   </svg>
 );
 
+// 语言切换图标：双层方块 + 底部横线
+const IconLang: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" {...props}>
+    <rect x="2.7" y="3" width="5.3" height="5.3" rx="1.1" />
+    <path d="M4.35 4.4h2.3M5.5 4.4v2.5M4.3 6.9h2.4" strokeLinecap="round" />
+    <rect x="8" y="7.3" width="5.3" height="5.3" rx="1.1" />
+    <path d="M9.2 9h2.8M10.6 9v2.4M9.3 11.4h2.6" strokeLinecap="round" />
+  </svg>
+);
+
+// 倍速图标：简单的仪表盘指针，表示“变速 / 快慢”
+const IconSpeed: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.4"
+    {...props}
+  >
+    <path d="M3.2 11.6a5 5 0 0 1 9.6 0" strokeLinecap="round" />
+    <path d="M8 8.2l2.4-2.4" strokeLinecap="round" />
+    <circle cx="8" cy="11.6" r="0.9" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 export default function WatchPage() {
   // 使用useParams获取路由参数
   const params = useParams();
@@ -1398,7 +1423,7 @@ export default function WatchPage() {
               </div>
 
               {/* Layer 3: 播放控制栏（桌面端） */}
-              <div className="hidden h-14 items-center justify-between border-t border-gray-100 px-6 text-xs text-gray-600 lg:flex">
+              <div className="hidden h-16 items-center justify-between border-t border-gray-100 px-8 text-sm text-gray-700 lg:flex">
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500">
                     {currentTimeLabel} / {totalTimeLabel}
@@ -1407,32 +1432,32 @@ export default function WatchPage() {
                 <div className="flex items-center gap-4">
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 hover:bg-gray-200"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-[#FF2442]"
                     onClick={handlePrevSentence}
                     disabled={isTrial && trialEnded}
                   >
                     <IconPrev className="h-3.5 w-3.5" />
-                    <span>上一句</span>
+                    
                   </button>
                   <button
                     type="button"
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FF2442] text-white shadow-md shadow-[#FF2442]/40"
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-[#FF2442] text-white shadow-lg shadow-[#FF2442]/50"
                     onClick={handleTogglePlay}
                     disabled={isTrial && trialEnded}
                   >
                     {isPlaying ? (
-                      <IconPause className="h-4 w-4" />
+                      <IconPause className="h-5 w-5" />
                     ) : (
-                      <IconPlay className="h-4 w-4" />
+                      <IconPlay className="h-5 w-5" />
                     )}
                   </button>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 hover:bg-gray-200"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-[#FF2442]"
                     onClick={handleNextSentence}
                     disabled={isTrial && trialEnded}
                   >
-                    <span>下一句</span>
+                    
                     <IconNext className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -1454,7 +1479,7 @@ export default function WatchPage() {
                   </div>
                   <button
                     type="button"
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${
+                    className={`flex h-10 w-10 items-center justify-center rounded-full ${
                       sentenceLoop
                         ? 'bg-[#FF2442]/10 text-[#FF2442]'
                         : 'bg-gray-100 text-gray-600'
@@ -1462,8 +1487,8 @@ export default function WatchPage() {
                     onClick={toggleSentenceLoop}
                     disabled={isTrial && trialEnded}
                   >
-                    <span className="text-sm leading-none">🔂</span>
-                    <span>{sentenceLoop ? '单句循环' : '连续播放'}</span>
+                    <IconLoop className="h-5 w-5" />
+                    
                   </button>
                 </div>
               </div>
@@ -1473,7 +1498,7 @@ export default function WatchPage() {
               <div className="hidden min-h-[6rem] flex-col justify-center gap-2 border-t border-gray-100 bg-gray-50/80 px-8 py-3 lg:flex">
                 {activeSubtitle ? (
                   <>
-                    <div className="text-[15px] font-semibold text-gray-900">
+                    <div className="text-[17px] font-semibold text-gray-900">
                       {buildHighlightSegments(
                         activeSubtitle.text_en,
                         videoData.cards ?? []
@@ -1609,41 +1634,41 @@ export default function WatchPage() {
                 </div>
                 <div className="ml-3 flex items-center gap-2">
                   <button
-                      type="button"
-                      className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] text-gray-400 hover:border-[#FF2442]/50"
-                      onClick={() =>
-                          setScriptMode(prev =>
-                              prev === 'both' ? 'en' : prev === 'en' ? 'cn' : 'both'
-                          )
-                      }
-                      aria-label="切换脚本显示语言"
+                    type="button"
+                    className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] text-gray-400 hover:border-[#FF2442]/50"
+                    onClick={() =>
+                      setScriptMode(prev =>
+                        prev === 'both' ? 'en' : prev === 'en' ? 'cn' : 'both'
+                      )
+                    }
+                    aria-label="切换脚本显示语言"
                   >
                     <span
-                        className={`px-0.5 ${
-                            scriptMode === 'cn'
-                                ? 'text-[#FF2442] font-medium'
-                                : 'text-gray-400'
-                        }`}
+                      className={`px-0.5 ${
+                        scriptMode === 'cn'
+                          ? 'font-medium text-[#FF2442]'
+                          : 'text-gray-400'
+                      }`}
                     >
                       中
                     </span>
                     <span className="px-0.5 text-gray-300">|</span>
                     <span
-                        className={`px-0.5 ${
-                            scriptMode === 'en'
-                                ? 'text-[#FF2442] font-medium'
-                                : 'text-gray-400'
-                        }`}
+                      className={`px-0.5 ${
+                        scriptMode === 'en'
+                          ? 'font-medium text-[#FF2442]'
+                          : 'text-gray-400'
+                      }`}
                     >
                       英
                     </span>
                     <span className="px-0.5 text-gray-300">|</span>
                     <span
-                        className={`px-0.5 ${
-                            scriptMode === 'both'
-                                ? 'text-[#FF2442] font-medium'
-                                : 'text-gray-400'
-                        }`}
+                      className={`px-0.5 ${
+                        scriptMode === 'both'
+                          ? 'font-medium text-[#FF2442]'
+                          : 'text-gray-400'
+                      }`}
                     >
                       中/英
                     </span>
@@ -1702,7 +1727,7 @@ export default function WatchPage() {
 
                       {/* 英文行：根据 scriptMode 控制显示 */}
                       {(scriptMode === 'both' || scriptMode === 'en') && (
-                        <div className="mt-0.5 text-[13px] font-medium text-gray-800">
+                        <div className="mt-0.5 text-[14px] font-medium text-gray-800">
                           {buildHighlightSegments(
                             subtitle.text_en,
                             videoData.cards ?? []
@@ -1992,183 +2017,181 @@ export default function WatchPage() {
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white px-4 py-2.5 text-xs text-gray-600 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] lg:hidden">
         <div className="mb-1 flex items-center justify-between">
           <span className="text-[11px] text-gray-400">
-            句子 {currentSubtitleIndex + 1}/{videoData.subtitles.length} ·{' '}
-            {sentenceLoop ? '单句循环' : '连续播放'}
+            句子 {currentSubtitleIndex + 1}/{videoData.subtitles.length}
           </span>
           <span className="text-[11px] text-gray-400">
-            {currentTimeLabel} / {totalTimeLabel}
+            {currentTimeLabel} / {totalTimeLabel} ·{' '}
+            {playbackRate.toString().replace(/\.0$/, '')}x
           </span>
         </div>
-        {/* 顶部：字幕相关操作（重听 / 跟读 / 循环 / 收藏） */}
+
+        {/* 顶部：字幕相关操作（重听 / 跟读 / 收藏） - 仅图标，无文字描述 */}
         {videoData.subtitles.length > 0 && (
-          <div className="mb-2 flex items-center justify-between text-[11px] text-gray-500">
+          <div className="mb-2 flex items-center justify-center gap-3.5">
+            {/* 重听：冷灰底色 */}
             <button
               type="button"
-              className="inline-flex flex-1 flex-col items-center justify-center"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-[#FF2442]"
               onClick={() => handleRowReplay(currentSubtitleIndex)}
               disabled={isTrial && trialEnded}
+              aria-label="重听当前句子"
             >
-              <IconReplay className="h-4 w-4 text-gray-500" />
-              <span className="mt-0.5 text-[10px] text-gray-500">重听</span>
+              <IconReplay className="h-6 w-6" />
             </button>
+
+            {/* 跟读：高亮蓝绿色，录音中改为红色提示 */}
             <button
               type="button"
-              className="inline-flex flex-1 flex-col items-center justify-center"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-50 text-cyan-700 hover:bg-cyan-100 hover:text-[#FF2442]"
               onClick={() => handleRowMic(currentSubtitleIndex)}
               disabled={isTrial && trialEnded}
+              aria-label="开启影子跟读"
             >
               {shadowSubtitleIndex === currentSubtitleIndex &&
               shadowMode === 'reviewing' ? (
-                <IconReplay className="h-4 w-4 text-gray-500" />
+                <IconReplay className="h-6 w-6" />
               ) : (
                 <IconMic
-                  className={`h-4 w-4 ${
+                  className={`h-6 w-6 ${
                     shadowSubtitleIndex === currentSubtitleIndex &&
                     shadowMode === 'recording'
                       ? 'text-[#FF2442]'
-                      : 'text-gray-500'
+                      : ''
                   }`}
                 />
               )}
-              <span className="mt-0.5 text-[10px] text-gray-500">跟读</span>
             </button>
+
+            {/* 收藏：暖色底色，已收藏高亮红色 */}
             <button
               type="button"
-              className="inline-flex flex-1 flex-col items-center justify-center"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-[#FF2442]"
               onClick={() => handleToggleLike(currentSubtitleIndex)}
+              aria-label="收藏当前句子"
             >
               <IconLike
-                className={`h-4 w-4 ${
-                  likedSubtitles.has(currentSubtitleIndex)
-                    ? 'text-[#FF2442]'
-                    : 'text-gray-400'
+                className={`h-6 w-6 ${
+                  likedSubtitles.has(currentSubtitleIndex) ? 'text-[#FF2442]' : ''
                 }`}
               />
-              <span
-                className={`mt-0.5 text-[10px] ${
-                  likedSubtitles.has(currentSubtitleIndex)
-                    ? 'text-[#FF2442]'
-                    : 'text-gray-500'
-                }`}
-              >
-                收藏
-              </span>
             </button>
           </div>
         )}
 
-        {/* 底部：播放控制区域（移动端） */}
-        <div className="flex items-center justify-between gap-3">
+        {/* 底部：播放控制区域（移动端） - 所有按钮统一尺寸，仅使用图标，通过底色区分功能 */}
+        <div className="flex items-center justify-between gap-2.5">
           {/* 回到当前句列表位置 */}
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-[#FF2442]"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-[#FF2442]"
             onClick={scrollToCurrentSubtitle}
             aria-label="回到当前句列表位置"
           >
-            <IconList className="h-4 w-4" />
+            <IconList className="h-6 w-6" />
           </button>
 
           {/* 倍速：自定义下拉菜单，浮在按钮上方 */}
-          <div className="relative flex h-8 min-w-[60px] items-center justify-center text-[11px] text-gray-600">
+          <div className="relative flex h-10 w-10 items-center justify-center">
             {isSpeedMenuOpen && !isTrial && !trialEnded && (
-                <div className="absolute bottom-10 z-30 w-[72px] rounded-xl border border-gray-100 bg-white py-1 text-[11px] text-gray-700 shadow-lg shadow-black/10">
-                  {speedOptions.map(speed => {
-                    const label = `${speed.toString().replace(/\.0$/, '')}x`;
-                    const active = playbackRate === speed;
-                    return (
-                        <button
-                            key={speed}
-                            type="button"
-                            className={`flex w-full items-center justify-center px-2 py-1 ${
-                                active ? 'bg-[#FF2442]/5 text-[#FF2442]' : 'hover:bg-gray-50'
-                            }`}
-                            onClick={() => {
-                              setPlaybackRate(speed);
-                              setIsSpeedMenuOpen(false);
-                            }}
-                        >
-                          {label}
-                        </button>
-                    );
-                  })}
-                </div>
+              <div className="absolute bottom-10 z-30 w-[72px] rounded-xl border border-gray-100 bg-white py-1 text-[11px] text-gray-700 shadow-lg shadow-black/10">
+                {speedOptions.map(speed => {
+                  const label = `${speed.toString().replace(/\.0$/, '')}x`;
+                  const active = playbackRate === speed;
+                  return (
+                    <button
+                      key={speed}
+                      type="button"
+                      className={`flex w-full items-center justify-center px-2 py-1 ${
+                        active ? 'bg-[#FF2442]/5 text-[#FF2442]' : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => {
+                        setPlaybackRate(speed);
+                        setIsSpeedMenuOpen(false);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             )}
             <button
-                type="button"
-                className="flex h-8 min-w-[60px] items-center justify-center rounded-full bg-gray-50 px-2 text-xs font-medium text-gray-800 hover:bg-gray-100 hover:text-[#FF2442]"
-                onClick={() => {
-                  if (isTrial && trialEnded) return;
-                  setIsSpeedMenuOpen(v => !v);
-                }}
-                aria-label="选择播放速度"
+              type="button"
+              className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                isSpeedMenuOpen
+                  ? 'bg-violet-100 text-violet-700'
+                  : 'bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800'
+              }`}
+              onClick={() => {
+                if (isTrial && trialEnded) return;
+                setIsSpeedMenuOpen(v => !v);
+              }}
+              aria-label="选择播放速度"
             >
-              {playbackRate.toString().replace(/\.0$/, '')}x
+              <IconSpeed className="h-6 w-6" />
             </button>
           </div>
 
           {/* 上一句 */}
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
             onClick={handlePrevSentence}
             disabled={isTrial && trialEnded}
             aria-label="上一句"
           >
-            <IconPrev className="h-4 w-4" />
+            <IconPrev className="h-6 w-6" />
           </button>
 
           {/* 播放 / 暂停 */}
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FF2442] text-white shadow-md shadow-[#FF2442]/40"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FF2442] text-white shadow-lg shadow-[#FF2442]/50"
             onClick={handleTogglePlay}
             disabled={isTrial && trialEnded}
             aria-label={isPlaying ? '暂停' : '播放'}
           >
             {isPlaying ? (
-              <IconPause className="h-4 w-4" />
+              <IconPause className="h-6 w-6" />
             ) : (
-              <IconPlay className="h-4 w-4" />
+              <IconPlay className="h-6 w-6" />
             )}
           </button>
 
           {/* 下一句 */}
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
             onClick={handleNextSentence}
             disabled={isTrial && trialEnded}
             aria-label="下一句"
           >
-            <IconNext className="h-4 w-4" />
+            <IconNext className="h-6 w-6" />
           </button>
 
           {/* 单句循环开关 */}
           <button
-              type="button"
-              className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                  sentenceLoop
-                      ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                      : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-[#FF2442]'
-              }`}
-              onClick={() => handleRowLoop(currentSubtitleIndex)}
-              disabled={isTrial && trialEnded}
-              aria-label="单句循环"
+            type="button"
+            className={`flex h-10 w-10 items-center justify-center rounded-full ${
+              sentenceLoop
+                ? 'bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700'
+                : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-[#FF2442]'
+            }`}
+            onClick={() => handleRowLoop(currentSubtitleIndex)}
+            disabled={isTrial && trialEnded}
+            aria-label="单句循环"
           >
-            <IconLoop className="h-4 w-4" />
+            <IconLoop className="h-6 w-6" />
           </button>
 
           {/* 中 / 英 / 中英 切换按钮：仅显示当前状态，点击循环切换 */}
           <button
             type="button"
-            className="flex h-8 w-[56px] items-center justify-center rounded-full bg-gray-50 px-3 text-[11px] text-gray-600 hover:bg-gray-100 hover:text-[#FF2442]"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800"
             onClick={cycleScriptMode}
             aria-label="切换字幕语言"
           >
-            {scriptMode === 'cn' && '中'}
-            {scriptMode === 'en' && '英'}
-            {scriptMode === 'both' && '中/英'}
+            <IconLang className="h-6 w-6" />
           </button>
         </div>
       </div>
