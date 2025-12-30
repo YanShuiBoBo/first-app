@@ -107,46 +107,35 @@ const getCardTypeLabel = (
   }
 };
 
-// 不同类型卡片在字幕中的高亮样式（Xiaohongshu 风格）
+// 不同类型卡片在字幕中的高亮样式（Creamy 荧光笔风格，对齐 HTML demo 的 .hl / .hl-p / .hl-y）
 const getHighlightClassNames = (
   type: KnowledgeCard['data']['type'] | undefined
 ): string => {
   switch (type) {
-    // 1. 单词：深蓝色 + 加粗
     case 'word':
-      return 'cursor-pointer font-semibold text-[#1D4ED8] hover:text-[#1E40AF]';
-    // 2. 短语：浅蓝色背景
+    case 'proper_noun':
+      // 单词/专有名词：紫色荧光标记
+      return 'hl hl-p';
     case 'phrase':
-      return 'cursor-pointer rounded bg-blue-50 px-1 text-[#1D4ED8] hover:bg-blue-100';
-    // 3. 短语动词：绿色 + 下划线
     case 'phrasal_verb':
-      return 'cursor-pointer text-[#16A34A] underline underline-offset-2 hover:text-[#15803D]';
-    // 4. 惯用表达：橙色边框 / 背景
+      // 短语/动词短语：粉色荧光标记
+      return 'hl hl-y';
     case 'expression':
-      return 'cursor-pointer rounded border border-orange-300 bg-orange-50 px-1 text-[#C05621] hover:bg-orange-100';
-    // 5. 口语句式：紫色斜体
     case 'spoken_pattern':
-      return 'cursor-pointer text-[#7C3AED] hover:text-[#6D28D9]';
-    // 6. 习语 / 俚语：红色 + 波浪下划线（使用 inline style 做波浪）
     case 'idiom':
     case 'slang':
-      return 'cursor-pointer text-[#FF2442]';
-    // 7. 专有名词：灰色背景
-    case 'proper_noun':
-      return 'cursor-pointer rounded bg-gray-100 px-1 text-gray-800 hover:bg-gray-200';
-    // 默认：红色下划线（兼容旧数据）
+      // 惯用表达/口语句式/习语：默认使用粉色荧光
+      return 'hl hl-y';
+    // 默认：紫色荧光
     default:
-      return 'cursor-pointer text-[#FF2442] underline-offset-2 hover:underline';
+      return 'hl hl-p';
   }
 };
 
-// 部分类型需要额外的 inline style（例如习语的波浪下划线）
+// 高亮不再使用额外的 inline style，下划线等效果全部交给 CSS 控制，保持和 HTML demo 一致
 const getHighlightInlineStyle = (
   type: KnowledgeCard['data']['type'] | undefined
 ): React.CSSProperties | undefined => {
-  if (type === 'idiom' || type === 'slang') {
-    return { textDecoration: 'underline wavy #FF2442' };
-  }
   return undefined;
 };
 
@@ -272,9 +261,21 @@ const IconMic: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   </svg>
 );
 
+// 单句循环图标（桌面端和部分位置使用）：细线条风格
 const IconLoop: React.FC<React.SVGProps<SVGSVGElement>> = props => (
-  <svg viewBox="0 0 1024 1024" fill="currentColor" {...props}>
-    <path d="M935.005091 459.752727a34.909091 34.909091 0 1 1 49.361454 49.361455l-78.382545 78.382545a34.816 34.816 0 0 1-49.338182 0l-78.405818-78.382545a34.909091 34.909091 0 1 1 49.361455-49.361455l14.801454 14.824728C818.525091 311.738182 678.330182 186.181818 508.928 186.181818c-130.466909 0-250.484364 76.706909-305.710545 195.397818a34.932364 34.932364 0 0 1-63.301819-29.463272C206.522182 208.896 351.418182 116.363636 508.904727 116.363636c210.152727 0 383.534545 159.953455 404.992 364.474182l21.085091-21.085091z m-73.960727 189.021091a34.932364 34.932364 0 0 1 16.965818 46.382546C811.310545 838.353455 666.461091 930.909091 508.951273 930.909091c-210.106182 0-383.534545-159.953455-404.968728-364.497455l-21.108363 21.108364a34.909091 34.909091 0 1 1-49.384727-49.361455l78.42909-78.42909a34.909091 34.909091 0 0 1 49.338182 0l78.382546 78.42909a34.909091 34.909091 0 1 1-49.338182 49.338182l-14.824727-14.801454C199.354182 735.534545 339.549091 861.090909 508.951273 861.090909c130.490182 0 250.507636-76.706909 305.710545-195.397818a34.909091 34.909091 0 0 1 46.382546-16.919273z" />
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.5}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M17 1l4 4-4 4" />
+    <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+    <path d="M7 23l-4-4 4-4" />
+    <path d="M21 13v2a4 4 0 0 1-4 4H3" />
   </svg>
 );
 
@@ -367,6 +368,44 @@ const IconVocab: React.FC<React.SVGProps<SVGSVGElement>> = props => (
     <path d="M5.2 6.1h4.1" strokeLinecap="round" />
     <path d="M5.2 7.9h2.6" strokeLinecap="round" />
     <path d="M11.5 3.2 13 2.5v7.3" />
+  </svg>
+);
+
+// 底部悬浮岛专用图标：完全按 HTML demo 的 SVG 结构实现
+const IslandLoopIcon: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M17 1l4 4-4 4" />
+    <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+    <path d="M7 23l-4-4 4-4" />
+    <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+  </svg>
+);
+
+const IslandMicIcon: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" y1="19" x2="12" y2="23" />
+    <line x1="8" y1="23" x2="16" y2="23" />
+  </svg>
+);
+
+const IslandNotebookIcon: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+  </svg>
+);
+
+const IslandPlayIcon: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M8 5v14l11-7z" />
+  </svg>
+);
+
+const IslandPauseIcon: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
   </svg>
 );
 
@@ -1667,9 +1706,9 @@ export default function WatchPage() {
     resumeSeconds !== null ? formatDuration(resumeSeconds) : '';
 
   return (
-    <div className="relative flex h-screen min-h-screen flex-col bg-[var(--bg-body)] text-gray-900 overflow-hidden lg:h-auto lg:overflow-visible">
-      {/* 顶部导航栏：返回 / 标题 / 更多 */}
-      <header className="fixed inset-x-0 top-0 z-30 flex h-11 items-center justify-between bg-white/95 px-3 text-xs text-gray-700 shadow-sm shadow-black/5 lg:px-6">
+    <div className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[var(--bg-shell)] text-gray-900 lg:h-auto lg:overflow-visible lg:bg-[var(--bg-body)]">
+      {/* 桌面端顶部导航栏：移动端在视频上方单独实现 */}
+      <header className="hidden h-11 items-center justify-between bg-white/95 px-6 text-xs text-gray-700 shadow-sm shadow-black/5 lg:fixed lg:inset-x-0 lg:top-0 lg:z-30 lg:flex">
         <button
           type="button"
           className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
@@ -1694,7 +1733,7 @@ export default function WatchPage() {
         </button>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col px-4 pb-24 pt-16 lg:pb-10 lg:pt-20">
+      <main className="mx-auto flex w-full max-w-[414px] flex-1 flex-col px-0 pb-24 pt-0 lg:max-w-[1600px] lg:px-4 lg:pb-10 lg:pt-20">
         <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
           {/* 左侧：全能学习台 THE STATION */}
           <section className="flex w-full flex-col lg:w-[70%] lg:max-w-[960px]">
@@ -1735,15 +1774,40 @@ export default function WatchPage() {
               </div>
 
               {/* Layer 2: 视频区域 */}
-              {/* 移动端：视频使用 fixed 固定在视口顶部；桌面端：保持卡片内部吸顶体验 */}
+              {/* 移动端：视频固定在视口顶部并覆盖导航；桌面端：保持卡片内部吸顶体验 */}
               <div className="relative w-full">
                 {/* 占位：在移动端预留 16:9 高度，避免下面内容被固定视频遮挡 */}
                 <div className="aspect-video w-full lg:hidden" />
 
-                {/* 真正的视频容器：小屏 fixed 顶部，大屏正常随内容滚动 */}
-                <div className="fixed inset-x-0 top-16 z-20 lg:static lg:inset-auto lg:top-auto lg:z-auto">
-                  <div className="mx-auto w-full max-w-[1600px] px-4 lg:px-0">
-                    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-lg shadow-black/25">
+                {/* 真正的视频容器：小屏 fixed 顶部并占满宽度，大屏正常随内容滚动 */}
+                <div className="fixed inset-x-0 top-0 z-20 lg:static lg:inset-auto lg:top-auto lg:z-auto">
+                  <div className="mx-auto w-full max-w-[414px] px-0 lg:max-w-[1600px] lg:px-0">
+                    <div className="relative aspect-video w-full overflow-hidden bg-black lg:rounded-2xl lg:shadow-lg lg:shadow-black/25">
+                      {/* 移动端顶部导航：覆盖在视频之上，避免占用额外垂直空间 */}
+                      <div className="absolute inset-x-0 top-0 z-20 flex h-11 items-center justify-between px-4 text-xs text-white lg:hidden">
+                        <button
+                          type="button"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/40"
+                          onClick={() => router.back()}
+                          aria-label="返回上一页"
+                        >
+                          <IconArrowLeft className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="mx-2 flex-1 truncate text-center text-[13px] font-semibold">
+                          {videoData.title}
+                        </div>
+                        <button
+                          type="button"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/40"
+                          aria-label="更多操作"
+                          onClick={() => {
+                            // 预留：后续接入打印脚本 / 查看完整简介 / 举报等
+                          }}
+                        >
+                          <IconMore className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
                       {!isPlayerReady && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black">
                           <div className="flex flex-col items-center gap-3 text-xs text-gray-300">
@@ -1969,7 +2033,7 @@ export default function WatchPage() {
 
           {/* 右侧：交互式课本 THE LIST */}
           <aside className="mt-4 flex w-full flex-col lg:mt-0 lg:w-[30%]">
-            <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm lg:max-h-[calc(100vh-180px)]">
+            <div className="flex h-full flex-col overflow-hidden bg-[var(--bg-shell)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:shadow-sm lg:max-h-[calc(100vh-180px)]">
               {/* 顶部工具栏（Sticky，移动端隐藏以释放字幕空间） */}
               <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-gray-100 bg-white px-4 py-3 text-xs text-gray-500 lg:flex">
                 <div className="flex flex-col">
@@ -2043,24 +2107,21 @@ export default function WatchPage() {
                 </div>
               </div>
 
-              {/* 字幕列表：独立滚动区域 */}
+              {/* 字幕列表：独立滚动区域（移动端样式完全对齐 HTML demo 的 feed-list + card） */}
               <div className="relative flex-1">
                 <div
                   ref={subtitlesContainerRef}
-                  className="h-full space-y-3 overflow-y-auto px-4 py-3 text-sm"
+                  className="feed-list"
                 >
                   {videoData.subtitles.map((subtitle, index) => {
                     const isActive = currentSubtitleIndex === index;
 
-                    const baseCardClasses =
-                      'relative cursor-pointer rounded-2xl border px-4 py-3 transition-colors duration-200 ease-out';
-                    const stateClasses = isActive
-                      ? 'border-transparent bg-[var(--bg-card)] shadow-[var(--shadow-card)]'
-                      : 'border-transparent bg-white/90 text-[color:var(--text-sub)] hover:border-gray-200 hover:bg-gray-50 hover:text-gray-700';
-
                     const toolbarDesktopClasses =
                       'mt-2 hidden flex-nowrap items-center gap-2 text-[11px] text-gray-500 lg:flex';
                     const toolbarMobileClasses = 'hidden lg:hidden';
+
+                    const showEn = scriptMode === 'both' || scriptMode === 'en';
+                    const showCn = scriptMode === 'both' || scriptMode === 'cn';
 
                     return (
                       <div
@@ -2068,12 +2129,13 @@ export default function WatchPage() {
                         ref={el => {
                           subtitleItemRefs.current[index] = el;
                         }}
-                        className={`${baseCardClasses} ${stateClasses} ${
-                          isActive ? 'scale-[1.01]' : ''
+                        className={`card relative cursor-pointer ${
+                          isActive ? 'active' : ''
                         }`}
                         onClick={() => handleSubtitleClick(index)}
                       >
-                        <div className="flex items-center justify-between text-[11px] text-gray-400">
+                        {/* 时间 + 收藏：桌面端辅助信息，移动端隐藏以还原 demo 的纯字幕卡片 */}
+                        <div className="hidden items-center justify-between text-[11px] text-gray-400 lg:flex">
                           <span>{formatDuration(subtitle.start)}</span>
                           <button
                             type="button"
@@ -2093,14 +2155,8 @@ export default function WatchPage() {
                         </div>
 
                         {/* 英文行：根据 scriptMode 控制显示 */}
-                        {(scriptMode === 'both' || scriptMode === 'en') && (
-                          <div
-                            className={
-                              isActive
-                                ? 'mt-1 text-[17px] leading-snug font-semibold text-[color:var(--text-main)]'
-                                : 'mt-0.5 text-[15px] leading-snug font-medium text-gray-500'
-                            }
-                          >
+                        {showEn && (
+                          <div className="en">
                             {buildHighlightSegments(
                               subtitle.text_en,
                               videoData.cards ?? []
@@ -2133,14 +2189,8 @@ export default function WatchPage() {
                         )}
 
                         {/* 中文行：根据 scriptMode 控制显示 */}
-                        {(scriptMode === 'both' || scriptMode === 'cn') && (
-                          <div
-                            className={
-                              isActive
-                                ? 'mt-1 text-[13px] text-[color:var(--text-sub)]'
-                                : 'mt-0.5 text-[13px] text-gray-400'
-                            }
-                          >
+                        {showCn && (
+                          <div className="cn">
                             {subtitle.text_cn}
                           </div>
                         )}
@@ -2386,21 +2436,36 @@ export default function WatchPage() {
         />
       )}
 
-      {/* 移动端：底部“小红书奶油风”双层控制台 */}
-      <footer className="fixed inset-x-0 bottom-0 z-30 rounded-t-3xl border-t border-gray-50 bg-white/95 pb-[env(safe-area-inset-bottom,16px)] text-xs text-gray-600 shadow-[0_-5px_20px_rgba(0,0,0,0.03)] backdrop-blur-md lg:hidden">
-        {/* 顶部小抓手 */}
-        <div className="flex w-full justify-center pt-2 pb-1">
-          <div className="h-1 w-10 rounded-full bg-gray-200" />
-        </div>
-
-        {/* 上层：工具栏 - 倍速 / 中英 / 循环 / 单词本 */}
-        <div className="flex items-center justify-between px-6 py-2">
-          {/* 左侧：倍速 + 中英胶囊 */}
-          <div className="flex items-center gap-3">
-            {/* 倍速：淡雅灰胶囊 + 浮层菜单 */}
-            <div className="relative">
-              {isSpeedMenuOpen && !isTrial && !trialEnded && (
-                <div className="absolute bottom-9 z-30 w-[80px] rounded-xl border border-gray-100 bg-white py-1 text-[11px] text-gray-700 shadow-lg shadow-black/10">
+      {/* 移动端：底部“奶油风”悬浮岛控制台（5 点对称布局） */}
+      {videoData.subtitles.length > 0 && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center pb-[env(safe-area-inset-bottom,16px)] lg:hidden">
+          <div className="relative w-full max-w-[414px] px-5 pb-4">
+            {/* 设置 Popover：倍速 + 字幕模式，中英折叠在 1.0x 里 */}
+            {isSpeedMenuOpen && !isTrial && !trialEnded && (
+              <div className="settings-popover pointer-events-auto">
+                <span className="pop-label">
+                  倍速：{playbackRate.toString().replace(/\.0$/, '')}x
+                </span>
+                <div className="slider-track">
+                  <div
+                    className="slider-fill"
+                    style={{
+                      width: (() => {
+                        if (speedOptions.length <= 1) return '0%';
+                        const idx = speedOptions.indexOf(playbackRate);
+                        const ratio =
+                          idx >= 0
+                            ? idx / (speedOptions.length - 1)
+                            : 0.5;
+                        return `${ratio * 100}%`;
+                      })()
+                    }}
+                  >
+                    <div className="slider-knob" />
+                  </div>
+                </div>
+                {/* 用离散按钮切换倍速，兼顾可用性 */}
+                <div className="mb-3 flex flex-wrap gap-1">
                   {speedOptions.map(speed => {
                     const label = `${speed.toString().replace(/\.0$/, '')}x`;
                     const active = playbackRate === speed;
@@ -2408,14 +2473,13 @@ export default function WatchPage() {
                       <button
                         key={speed}
                         type="button"
-                        className={`flex w-full items-center justify-center px-2 py-1 ${
+                        className={`rounded-full px-2 py-0.5 text-[11px] ${
                           active
-                            ? 'bg-[#FF2442]/5 text-[#FF2442]'
-                            : 'hover:bg-gray-50'
+                            ? 'bg-black text-white'
+                            : 'bg-gray-100 text-gray-600'
                         }`}
                         onClick={() => {
                           setPlaybackRate(speed);
-                          setIsSpeedMenuOpen(false);
                         }}
                       >
                         {label}
@@ -2423,147 +2487,119 @@ export default function WatchPage() {
                     );
                   })}
                 </div>
-              )}
 
-              <button
-                type="button"
-                className="rounded-full bg-[#F5F5F7] px-3 py-1.5 text-[11px] font-semibold text-[#666] transition-transform active:scale-95"
-                onClick={() => {
-                  if (isTrial && trialEnded) return;
-                  setIsSpeedMenuOpen(v => !v);
-                }}
-                aria-label="选择播放速度"
-              >
-                {playbackRate.toString().replace(/\.0$/, '')}x
-              </button>
+                <span className="pop-label">字幕显示</span>
+                <div className="toggle-group">
+                  <button
+                    type="button"
+                    className={`toggle-item ${scriptMode === 'cn' ? 'active' : ''}`}
+                    onClick={() => setScriptMode('cn')}
+                  >
+                    中
+                  </button>
+                  <button
+                    type="button"
+                    className={`toggle-item ${
+                      scriptMode === 'both' ? 'active' : ''
+                    }`}
+                    onClick={() => setScriptMode('both')}
+                  >
+                    中英
+                  </button>
+                  <button
+                    type="button"
+                    className={`toggle-item ${scriptMode === 'en' ? 'active' : ''}`}
+                    onClick={() => setScriptMode('en')}
+                  >
+                    英
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 悬浮玻璃岛本体 */}
+            <div className="island-container pointer-events-auto">
+              <div className="island-body">
+                {/* 1. 左侧：1.0x 设置入口（点击弹出上方 Popover） */}
+                <button
+                  type="button"
+                  className="icon-btn text-btn"
+                  onClick={() => {
+                    if (isTrial && trialEnded) return;
+                    setIsSpeedMenuOpen(v => !v);
+                  }}
+                  aria-label="播放设置"
+                >
+                  {playbackRate.toString().replace(/\.0$/, '')}x
+                </button>
+
+                {/* 2. 左中：单句循环（线型 Loop 图标） */}
+                <button
+                  type="button"
+                  className={`icon-btn ${sentenceLoop ? 'loop-active' : ''}`}
+                  onClick={() => handleRowLoop(currentSubtitleIndex)}
+                  disabled={isTrial && trialEnded}
+                  aria-label="单句循环"
+                >
+                  <IslandLoopIcon />
+                </button>
+
+                {/* 3. 中间：播放主键（视觉重心） */}
+                <button
+                  type="button"
+                  className="play-btn"
+                  onClick={handleTogglePlay}
+                  disabled={isTrial && trialEnded}
+                  aria-label={isPlaying ? '暂停' : '播放'}
+                >
+                  {isPlaying ? (
+                    <IslandPauseIcon />
+                  ) : (
+                    <IslandPlayIcon />
+                  )}
+                </button>
+
+                {/* 4. 右中：跟读（麦克风） */}
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => handleRowMic(currentSubtitleIndex)}
+                  disabled={isTrial && trialEnded}
+                  aria-label="影子跟读"
+                >
+                  {shadowSubtitleIndex === currentSubtitleIndex &&
+                  shadowMode === 'reviewing' ? (
+                    <IconReplay className="h-5 w-5" />
+                  ) : (
+                    <IslandMicIcon
+                      className={
+                        shadowSubtitleIndex === currentSubtitleIndex &&
+                        shadowMode === 'recording'
+                          ? 'text-[#FF2442]'
+                          : undefined
+                      }
+                    />
+                  )}
+                </button>
+
+                {/* 5. 右侧：单词本入口（保留原有逻辑） */}
+                {user && vocabItems.length > 0 ? (
+                  <button
+                    type="button"
+                    className="icon-btn badge"
+                    onClick={() => setIsVocabOpen(true)}
+                    aria-label="打开单词本"
+                  >
+                    <IslandNotebookIcon />
+                  </button>
+                ) : (
+                  <div className="icon-btn" />
+                )}
+              </div>
             </div>
-
-            {/* 中/英 切换：淡灰胶囊 */}
-            <button
-              type="button"
-              className="flex items-center gap-1 rounded-full bg-[#F5F5F7] px-3 py-1.5 text-[11px] font-semibold text-[#666] transition-transform active:scale-95"
-              onClick={() =>
-                setScriptMode(prev =>
-                  prev === 'both' ? 'en' : prev === 'en' ? 'cn' : 'both'
-                )
-              }
-              aria-label="切换字幕语言"
-            >
-              <span>
-                {scriptMode === 'cn'
-                  ? '中文'
-                  : scriptMode === 'en'
-                  ? '英文'
-                  : '中/英'}
-              </span>
-            </button>
           </div>
-
-          {/* 中间：单句循环（细线条） */}
-          <button
-            type="button"
-            className={`p-2 text-lg transition-transform ${
-              sentenceLoop ? 'text-[#FF2442]' : 'text-gray-400'
-            } active:scale-90`}
-            onClick={() => handleRowLoop(currentSubtitleIndex)}
-            disabled={isTrial && trialEnded}
-            aria-label="单句循环"
-          >
-            <IconLoop className="h-5 w-5" />
-          </button>
-
-          {/* 右侧：单词本（透气胶囊标签） */}
-          {user && vocabItems.length > 0 ? (
-            <button
-              type="button"
-              className="flex items-center gap-1 rounded-full border border-red-100 bg-white px-4 py-1.5 text-[11px] font-bold text-[#FF2442] shadow-sm transition-transform active:scale-95"
-              onClick={() => setIsVocabOpen(true)}
-              aria-label="查看单词本"
-            >
-              <IconVocab className="h-4 w-4" />
-              <span>单词本</span>
-            </button>
-          ) : (
-            <div className="h-6" />
-          )}
         </div>
-
-        {/* 下层：播放驾驶舱 */}
-        {videoData.subtitles.length > 0 && (
-          <div className="flex items-center justify-between px-8 pt-1 pb-4">
-            {/* 上一句：细线条箭头 */}
-            <button
-              type="button"
-              className="p-2 text-gray-300 transition-transform hover:text-gray-600 active:scale-90"
-              onClick={handlePrevSentence}
-              disabled={isTrial && trialEnded}
-              aria-label="上一句"
-            >
-              <IconPrev className="h-6 w-6" />
-            </button>
-
-            {/* 重听：奶油圆底 */}
-            <button
-              type="button"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F5F5F7] text-[#555] transition-colors active:bg-gray-200"
-              onClick={() => handleRowReplay(currentSubtitleIndex)}
-              disabled={isTrial && trialEnded}
-              aria-label="重听当前句子"
-            >
-              <IconReplay className="h-6 w-6" />
-            </button>
-
-            {/* 播放键：小红书红 + 弥散光影 */}
-            <button
-              type="button"
-              className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#FF2442] text-white shadow-[0_10px_30px_-10px_rgba(255,36,66,0.5)] transition-transform hover:brightness-110 active:scale-95"
-              onClick={handleTogglePlay}
-              disabled={isTrial && trialEnded}
-              aria-label={isPlaying ? '暂停' : '播放'}
-            >
-              {isPlaying ? (
-                <IconPause className="h-7 w-7" />
-              ) : (
-                <IconPlay className="ml-[2px] h-7 w-7" />
-              )}
-            </button>
-
-            {/* 跟读：奶油圆底 */}
-            <button
-              type="button"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F5F5F7] text-[#555] transition-colors active:bg-gray-200"
-              onClick={() => handleRowMic(currentSubtitleIndex)}
-              disabled={isTrial && trialEnded}
-              aria-label="开启影子跟读"
-            >
-              {shadowSubtitleIndex === currentSubtitleIndex &&
-              shadowMode === 'reviewing' ? (
-                <IconReplay className="h-6 w-6" />
-              ) : (
-                <IconMic
-                  className={`h-6 w-6 ${
-                    shadowSubtitleIndex === currentSubtitleIndex &&
-                    shadowMode === 'recording'
-                      ? 'text-[#FF2442]'
-                      : ''
-                  }`}
-                />
-              )}
-            </button>
-
-            {/* 下一句：细线条箭头 */}
-            <button
-              type="button"
-              className="p-2 text-gray-300 transition-transform hover:text-gray-600 active:scale-90"
-              onClick={handleNextSentence}
-              disabled={isTrial && trialEnded}
-              aria-label="下一句"
-            >
-              <IconNext className="h-6 w-6" />
-            </button>
-          </div>
-        )}
-      </footer>
+      )}
 
       {/* 断点续播 Toast：上次看到 xx:xx [恢复] [x] */}
       {showResumeToast && resumeSeconds !== null && (
