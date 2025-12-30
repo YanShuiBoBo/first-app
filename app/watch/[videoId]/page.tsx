@@ -126,7 +126,7 @@ const getHighlightClassNames = (
       return 'cursor-pointer rounded border border-orange-300 bg-orange-50 px-1 text-[#C05621] hover:bg-orange-100';
     // 5. 口语句式：紫色斜体
     case 'spoken_pattern':
-      return 'cursor-pointer italic text-[#7C3AED] hover:text-[#6D28D9]';
+      return 'cursor-pointer text-[#7C3AED] hover:text-[#6D28D9]';
     // 6. 习语 / 俚语：红色 + 波浪下划线（使用 inline style 做波浪）
     case 'idiom':
     case 'slang':
@@ -367,21 +367,6 @@ const IconVocab: React.FC<React.SVGProps<SVGSVGElement>> = props => (
     <path d="M5.2 6.1h4.1" strokeLinecap="round" />
     <path d="M5.2 7.9h2.6" strokeLinecap="round" />
     <path d="M11.5 3.2 13 2.5v7.3" />
-  </svg>
-);
-
-// 倍速图标：简单的仪表盘指针，表示“变速 / 快慢”
-const IconSpeed: React.FC<React.SVGProps<SVGSVGElement>> = props => (
-  <svg
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.4"
-    {...props}
-  >
-    <path d="M3.2 11.6a5 5 0 0 1 9.6 0" strokeLinecap="round" />
-    <path d="M8 8.2l2.4-2.4" strokeLinecap="round" />
-    <circle cx="8" cy="11.6" r="0.9" fill="currentColor" stroke="none" />
   </svg>
 );
 
@@ -2158,8 +2143,8 @@ export default function WatchPage() {
                         <div
                           className={
                             isActive
-                              ? 'mt-1 text-[22px] leading-snug font-extrabold text-gray-900'
-                              : 'mt-0.5 text-[16px] leading-snug font-medium text-gray-500'
+                              ? 'mt-1 text-[18px] leading-snug font-extrabold text-gray-900'
+                              : 'mt-0.5 text-[15px] leading-snug font-medium text-gray-500'
                           }
                         >
                           {buildHighlightSegments(
@@ -2511,74 +2496,85 @@ export default function WatchPage() {
         />
       )}
 
-      {/* 移动端：底部双层控制台（工具层 + 驾驶层） */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white/95 px-4 py-2.5 text-xs text-gray-600 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] lg:hidden">
-        <div className="mb-1 flex items-center justify-between">
-          <span className="text-[11px] text-gray-400">
-            句子 {currentSubtitleIndex + 1}/{videoData.subtitles.length}
-          </span>
-          <span className="text-[11px] text-gray-400">
-            {currentTimeLabel} / {totalTimeLabel} ·{' '}
-            {playbackRate.toString().replace(/\.0$/, '')}x
-          </span>
+      {/* 移动端：底部“小红书奶油风”双层控制台 */}
+      <footer className="fixed inset-x-0 bottom-0 z-30 rounded-t-3xl border-t border-gray-50 bg-white/95 pb-[env(safe-area-inset-bottom,16px)] text-xs text-gray-600 shadow-[0_-5px_20px_rgba(0,0,0,0.03)] backdrop-blur-md lg:hidden">
+        {/* 顶部小抓手 */}
+        <div className="flex w-full justify-center pt-2 pb-1">
+          <div className="h-1 w-10 rounded-full bg-gray-200" />
         </div>
 
-        {/* 工具层：倍速 / 单句循环 / 单词本 */}
-        <div className="mb-2 flex items-center justify-between">
-          {/* 倍速：左侧胶囊按钮 + 浮层菜单 */}
-          <div className="relative">
-            {isSpeedMenuOpen && !isTrial && !trialEnded && (
-              <div className="absolute bottom-9 z-30 w-[80px] rounded-xl border border-gray-100 bg-white py-1 text-[11px] text-gray-700 shadow-lg shadow-black/10">
-                {speedOptions.map(speed => {
-                  const label = `${speed.toString().replace(/\.0$/, '')}x`;
-                  const active = playbackRate === speed;
-                  return (
-                    <button
-                      key={speed}
-                      type="button"
-                      className={`flex w-full items-center justify-center px-2 py-1 ${
-                        active ? 'bg-[#FF2442]/5 text-[#FF2442]' : 'hover:bg-gray-50'
-                      }`}
-                      onClick={() => {
-                        setPlaybackRate(speed);
-                        setIsSpeedMenuOpen(false);
-                      }}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+        {/* 上层：工具栏 - 倍速 / 中英 / 循环 / 单词本 */}
+        <div className="flex items-center justify-between px-6 py-2">
+          {/* 左侧：倍速 + 中英胶囊 */}
+          <div className="flex items-center gap-3">
+            {/* 倍速：淡雅灰胶囊 + 浮层菜单 */}
+            <div className="relative">
+              {isSpeedMenuOpen && !isTrial && !trialEnded && (
+                <div className="absolute bottom-9 z-30 w-[80px] rounded-xl border border-gray-100 bg-white py-1 text-[11px] text-gray-700 shadow-lg shadow-black/10">
+                  {speedOptions.map(speed => {
+                    const label = `${speed.toString().replace(/\.0$/, '')}x`;
+                    const active = playbackRate === speed;
+                    return (
+                      <button
+                        key={speed}
+                        type="button"
+                        className={`flex w-full items-center justify-center px-2 py-1 ${
+                          active
+                            ? 'bg-[#FF2442]/5 text-[#FF2442]'
+                            : 'hover:bg-gray-50'
+                        }`}
+                        onClick={() => {
+                          setPlaybackRate(speed);
+                          setIsSpeedMenuOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <button
+                type="button"
+                className="rounded-full bg-[#F5F5F7] px-3 py-1.5 text-[11px] font-semibold text-[#666] transition-transform active:scale-95"
+                onClick={() => {
+                  if (isTrial && trialEnded) return;
+                  setIsSpeedMenuOpen(v => !v);
+                }}
+                aria-label="选择播放速度"
+              >
+                {playbackRate.toString().replace(/\.0$/, '')}x
+              </button>
+            </div>
+
+            {/* 中/英 切换：淡灰胶囊 */}
             <button
               type="button"
-              className={`inline-flex items-center rounded-full px-3 py-1.5 text-[11px] ${
-                isSpeedMenuOpen
-                  ? 'bg-violet-100 text-violet-700'
-                  : 'bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800'
-              }`}
-              onClick={() => {
-                if (isTrial && trialEnded) return;
-                setIsSpeedMenuOpen(v => !v);
-              }}
-              aria-label="选择播放速度"
+              className="flex items-center gap-1 rounded-full bg-[#F5F5F7] px-3 py-1.5 text-[11px] font-semibold text-[#666] transition-transform active:scale-95"
+              onClick={() =>
+                setScriptMode(prev =>
+                  prev === 'both' ? 'en' : prev === 'en' ? 'cn' : 'both'
+                )
+              }
+              aria-label="切换字幕语言"
             >
-              <IconSpeed className="mr-1 h-4 w-4" />
-              <span className="mr-0.5 text-[11px] text-gray-500">倍速</span>
-              <span className="text-[12px] font-semibold text-gray-900">
-                {playbackRate.toString().replace(/\.0$/, '')}x
+              <span>
+                {scriptMode === 'cn'
+                  ? '中文'
+                  : scriptMode === 'en'
+                  ? '英文'
+                  : '中/英'}
               </span>
             </button>
           </div>
 
-          {/* 单句循环 */}
+          {/* 中间：单句循环（细线条） */}
           <button
             type="button"
-            className={`flex h-9 w-9 items-center justify-center rounded-full ${
-              sentenceLoop
-                ? 'bg-orange-100 text-orange-600'
-                : 'bg-gray-100 text-gray-500'
-            }`}
+            className={`p-2 text-lg transition-transform ${
+              sentenceLoop ? 'text-[#FF2442]' : 'text-gray-400'
+            } active:scale-90`}
             onClick={() => handleRowLoop(currentSubtitleIndex)}
             disabled={isTrial && trialEnded}
             aria-label="单句循环"
@@ -2586,40 +2582,40 @@ export default function WatchPage() {
             <IconLoop className="h-5 w-5" />
           </button>
 
-          {/* 单词本入口：右侧按钮（仅登录用户） */}
+          {/* 右侧：单词本（透气胶囊标签） */}
           {user && vocabItems.length > 0 ? (
             <button
               type="button"
-              className="inline-flex items-center rounded-full bg-neutral-900 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm shadow-black/30"
+              className="flex items-center gap-1 rounded-full border border-red-100 bg-white px-4 py-1.5 text-[11px] font-bold text-[#FF2442] shadow-sm transition-transform active:scale-95"
               onClick={() => setIsVocabOpen(true)}
-              aria-label="查看词汇清单"
+              aria-label="查看单词本"
             >
-              <IconVocab className="mr-1.5 h-4 w-4" />
-              <span>单词</span>
+              <IconVocab className="h-4 w-4" />
+              <span>单词本</span>
             </button>
           ) : (
-            <div className="h-3" />
+            <div className="h-6" />
           )}
         </div>
 
-        {/* 驾驶层：上一句 / 重听 / 播放 / 跟读 / 下一句 */}
+        {/* 下层：播放驾驶舱 */}
         {videoData.subtitles.length > 0 && (
-          <div className="flex items-center justify-between gap-4 pt-1">
-            {/* 上一句 */}
+          <div className="flex items-center justify-between px-8 pt-1 pb-4">
+            {/* 上一句：细线条箭头 */}
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
+              className="p-2 text-gray-300 transition-transform hover:text-gray-600 active:scale-90"
               onClick={handlePrevSentence}
               disabled={isTrial && trialEnded}
               aria-label="上一句"
             >
-              <IconPrev className="h-5 w-5" />
+              <IconPrev className="h-6 w-6" />
             </button>
 
-            {/* 重听当前句 */}
+            {/* 重听：奶油圆底 */}
             <button
               type="button"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-[#FF2442]"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F5F5F7] text-[#555] transition-colors active:bg-gray-200"
               onClick={() => handleRowReplay(currentSubtitleIndex)}
               disabled={isTrial && trialEnded}
               aria-label="重听当前句子"
@@ -2627,10 +2623,10 @@ export default function WatchPage() {
               <IconReplay className="h-6 w-6" />
             </button>
 
-            {/* 播放 / 暂停：居中放大 */}
+            {/* 播放键：小红书红 + 弥散光影 */}
             <button
               type="button"
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FF2442] text-white shadow-lg shadow-[#FF2442]/60"
+              className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#FF2442] text-white shadow-[0_10px_30px_-10px_rgba(255,36,66,0.5)] transition-transform hover:brightness-110 active:scale-95"
               onClick={handleTogglePlay}
               disabled={isTrial && trialEnded}
               aria-label={isPlaying ? '暂停' : '播放'}
@@ -2638,14 +2634,14 @@ export default function WatchPage() {
               {isPlaying ? (
                 <IconPause className="h-7 w-7" />
               ) : (
-                <IconPlay className="h-7 w-7" />
+                <IconPlay className="ml-[2px] h-7 w-7" />
               )}
             </button>
 
-            {/* 跟读：麦克风 */}
+            {/* 跟读：奶油圆底 */}
             <button
               type="button"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-cyan-50 text-cyan-700 hover:bg-cyan-100 hover:text-[#FF2442]"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F5F5F7] text-[#555] transition-colors active:bg-gray-200"
               onClick={() => handleRowMic(currentSubtitleIndex)}
               disabled={isTrial && trialEnded}
               aria-label="开启影子跟读"
@@ -2665,25 +2661,19 @@ export default function WatchPage() {
               )}
             </button>
 
-            {/* 下一句 */}
+            {/* 下一句：细线条箭头 */}
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
+              className="p-2 text-gray-300 transition-transform hover:text-gray-600 active:scale-90"
               onClick={handleNextSentence}
               disabled={isTrial && trialEnded}
               aria-label="下一句"
             >
-              <IconNext className="h-5 w-5" />
+              <IconNext className="h-6 w-6" />
             </button>
           </div>
         )}
-
-        {/*
-          原来的「回到当前句」以及「中/英/中英」切换按钮，为了减少底部拥挤暂时隐藏：
-          - 自动居中逻辑已经保证当前句始终在视图中间；
-          - 语言切换在右侧课本头部依然可用，后续可根据需要再添加浮动入口。
-        */}
-      </div>
+      </footer>
 
       {/* 断点续播 Toast：上次看到 xx:xx [恢复] [x] */}
       {showResumeToast && resumeSeconds !== null && (
