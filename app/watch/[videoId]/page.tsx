@@ -2440,167 +2440,179 @@ export default function WatchPage() {
 
       {/* 移动端：底部“奶油风”悬浮岛控制台（5 点对称布局） */}
       {videoData.subtitles.length > 0 && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center pb-[env(safe-area-inset-bottom,16px)] lg:hidden">
-          <div className="relative w-full max-w-[414px] px-5 pb-4">
-            {/* 设置 Popover：倍速 + 字幕模式，中英折叠在 1.0x 里 */}
-            {isSpeedMenuOpen && !isTrial && !trialEnded && (
-              <div className="settings-popover pointer-events-auto">
-                <span className="pop-label">
-                  倍速：{playbackRate.toString().replace(/\.0$/, '')}x
-                </span>
-                <div className="slider-track">
-                  <div
-                    className="slider-fill"
-                    style={{
-                      width: (() => {
-                        if (speedOptions.length <= 1) return '0%';
-                        const idx = speedOptions.indexOf(playbackRate);
-                        const ratio =
-                          idx >= 0
-                            ? idx / (speedOptions.length - 1)
-                            : 0.5;
-                        return `${ratio * 100}%`;
-                      })()
-                    }}
-                  >
-                    <div className="slider-knob" />
+          // 1. 外层定位容器：完全保持原样，确保位置不动
+          <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center pb-[env(safe-area-inset-bottom,16px)] lg:hidden">
+            <div className="relative w-full max-w-[414px] px-5 pb-4">
+
+              {/* 设置 Popover：位置微调以匹配新的岛屿高度 */}
+              {isSpeedMenuOpen && !isTrial && !trialEnded && (
+                  <div className="pointer-events-auto absolute bottom-[88px] left-1/2 w-[280px] -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-200">
+                    <div className="flex flex-col gap-4 rounded-[24px] border border-white/60 bg-white/90 p-5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] backdrop-blur-xl">
+                      {/* ... Popover 内容保持逻辑不变，仅优化样式 ... */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-xs font-medium text-gray-500">
+                          <span>倍速</span>
+                          <span className="font-bold text-gray-900">{playbackRate}x</span>
+                        </div>
+                        <div className="flex justify-between gap-1">
+                          {[0.75, 1, 1.25, 1.5, 2].map(speed => (
+                              <button
+                                  key={speed}
+                                  onClick={() => setPlaybackRate(speed)}
+                                  className={`h-8 w-8 rounded-full text-[11px] font-medium transition-all ${
+                                      playbackRate === speed
+                                          ? 'bg-[#1a1a1a] text-white scale-110 shadow-md'
+                                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                  }`}
+                              >
+                                {speed}
+                              </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="h-px w-full bg-gray-100/80" />
+                      <div className="flex rounded-full bg-gray-100 p-1">
+                        {['cn', 'both', 'en'].map((mode) => (
+                            <button
+                                key={mode}
+                                onClick={() => setScriptMode(mode as any)}
+                                className={`flex-1 rounded-full py-1.5 text-[11px] font-medium transition-all ${
+                                    scriptMode === mode ? 'bg-white text-black shadow-sm' : 'text-gray-400'
+                                }`}
+                            >
+                              {mode === 'cn' ? '中' : mode === 'en' ? '英' : '双语'}
+                            </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                {/* 用离散按钮切换倍速，兼顾可用性 */}
-                <div className="mb-3 flex flex-wrap gap-1">
-                  {speedOptions.map(speed => {
-                    const label = `${speed.toString().replace(/\.0$/, '')}x`;
-                    const active = playbackRate === speed;
-                    return (
-                      <button
-                        key={speed}
-                        type="button"
-                        className={`rounded-full px-2 py-0.5 text-[11px] ${
-                          active
-                            ? 'bg-black text-white'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
-                        onClick={() => {
-                          setPlaybackRate(speed);
-                        }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
+              )}
 
-                <span className="pop-label">字幕显示</span>
-                <div className="toggle-group">
-                  <button
-                    type="button"
-                    className={`toggle-item ${scriptMode === 'cn' ? 'active' : ''}`}
-                    onClick={() => setScriptMode('cn')}
-                  >
-                    中
-                  </button>
-                  <button
-                    type="button"
-                    className={`toggle-item ${
-                      scriptMode === 'both' ? 'active' : ''
-                    }`}
-                    onClick={() => setScriptMode('both')}
-                  >
-                    中英
-                  </button>
-                  <button
-                    type="button"
-                    className={`toggle-item ${scriptMode === 'en' ? 'active' : ''}`}
-                    onClick={() => setScriptMode('en')}
-                  >
-                    英
-                  </button>
-                </div>
-              </div>
-            )}
+              {/* 2. 悬浮玻璃岛本体：
+               - 替换了原有的 island-container/island-body class
+               - 使用 Flex 布局实现 5 点对称
+               - 增加 height 到 68px，圆角 full，磨砂背景
+            */}
+              <div className="pointer-events-auto flex h-[68px] w-full items-center justify-between rounded-full border border-white/60 bg-white/85 px-2 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-all">
 
-            {/* 悬浮玻璃岛本体 */}
-            <div className="island-container pointer-events-auto">
-              <div className="island-body">
-                {/* 1. 左侧：1.0x 设置入口（点击弹出上方 Popover） */}
+                {/* Button 1: 左侧 - 倍速 */}
                 <button
-                  type="button"
-                  className="icon-btn text-btn"
-                  onClick={() => {
-                    if (isTrial && trialEnded) return;
-                    setIsSpeedMenuOpen(v => !v);
-                  }}
-                  aria-label="播放设置"
+                    type="button"
+                    className="group flex flex-1 flex-col items-center justify-center active:scale-95 transition-transform"
+                    onClick={() => {
+                      if (isTrial && trialEnded) return;
+                      setIsSpeedMenuOpen(v => !v);
+                    }}
+                    aria-label="播放设置"
                 >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full text-[13px] font-bold text-gray-600 group-active:bg-black/5">
                   {playbackRate.toString().replace(/\.0$/, '')}x
+                </span>
                 </button>
 
-                {/* 2. 左中：单句循环（线型 Loop 图标） */}
+                {/* Button 2: 左中 - 单句循环 */}
                 <button
-                  type="button"
-                  className={`icon-btn ${sentenceLoop ? 'loop-active' : ''}`}
-                  onClick={() => handleRowLoop(currentSubtitleIndex)}
-                  disabled={isTrial && trialEnded}
-                  aria-label="单句循环"
-                >
-                  <IslandLoopIcon />
-                </button>
-
-                {/* 3. 中间：播放主键（视觉重心） */}
-                <button
-                  type="button"
-                  className="play-btn"
-                  onClick={handleTogglePlay}
-                  disabled={isTrial && trialEnded}
-                  aria-label={isPlaying ? '暂停' : '播放'}
-                >
-                  {isPlaying ? (
-                    <IslandPauseIcon />
-                  ) : (
-                    <IslandPlayIcon />
-                  )}
-                </button>
-
-                {/* 4. 右中：跟读（麦克风） */}
-                <button
-                  type="button"
-                  className="icon-btn"
-                  onClick={() => handleRowMic(currentSubtitleIndex)}
-                  disabled={isTrial && trialEnded}
-                  aria-label="影子跟读"
-                >
-                  {shadowSubtitleIndex === currentSubtitleIndex &&
-                  shadowMode === 'reviewing' ? (
-                    <IconReplay className="h-5 w-5" />
-                  ) : (
-                    <IslandMicIcon
-                      className={
-                        shadowSubtitleIndex === currentSubtitleIndex &&
-                        shadowMode === 'recording'
-                          ? 'text-[#FF2442]'
-                          : undefined
-                      }
-                    />
-                  )}
-                </button>
-
-                {/* 5. 右侧：单词本入口（保留原有逻辑） */}
-                {user && vocabItems.length > 0 ? (
-                  <button
                     type="button"
-                    className="icon-btn badge"
-                    onClick={() => setIsVocabOpen(true)}
-                    aria-label="打开单词本"
+                    className="group flex flex-1 items-center justify-center active:scale-95 transition-transform"
+                    onClick={() => handleRowLoop(currentSubtitleIndex)}
+                    disabled={isTrial && trialEnded}
+                    aria-label="单句循环"
+                >
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                      sentenceLoop
+                          ? 'bg-black/5 text-gray-900'
+                          : 'text-gray-400 group-active:bg-black/5'
+                  }`}>
+                    {/* 使用更精致的 SVG 线条 */}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
+                      <path d="M17 2l4 4-4 4" />
+                      <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                      <path d="M7 22l-4-4 4-4" />
+                      <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                    </svg>
+                  </div>
+                </button>
+
+                {/* Button 3: 中间 - 播放主键 (视觉重心) */}
+                {/* 这里的容器 flex-1 确保它占据中间位置，但按钮本身有固定大尺寸 */}
+                <div className="flex flex-1 items-center justify-center">
+                  <button
+                      type="button"
+                      className="flex h-[56px] w-[56px] items-center justify-center rounded-full bg-[#1a1a1a] text-white shadow-[0_6px_20px_rgba(0,0,0,0.25)] transition-transform active:scale-90 active:shadow-none"
+                      onClick={handleTogglePlay}
+                      disabled={isTrial && trialEnded}
+                      aria-label={isPlaying ? '暂停' : '播放'}
                   >
-                    <IslandNotebookIcon />
+                    {isPlaying ? (
+                        <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
+                          <rect x="6" y="5" width="4" height="14" rx="1"/>
+                          <rect x="14" y="5" width="4" height="14" rx="1"/>
+                        </svg>
+                    ) : (
+                        <svg viewBox="0 0 24 24" fill="currentColor" className="ml-1 h-7 w-7">
+                          <path d="M5.5 3.5v17l15-8.5-15-8.5z"/>
+                        </svg>
+                    )}
                   </button>
-                ) : (
-                  <div className="icon-btn" />
-                )}
+                </div>
+
+                {/* Button 4: 右中 - 跟读 */}
+                <button
+                    type="button"
+                    className="group flex flex-1 items-center justify-center active:scale-95 transition-transform"
+                    onClick={() => handleRowMic(currentSubtitleIndex)}
+                    disabled={isTrial && trialEnded}
+                    aria-label="影子跟读"
+                >
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                      shadowSubtitleIndex === currentSubtitleIndex && shadowMode === 'recording'
+                          ? 'text-[#FF2442] bg-[#FF2442]/5'
+                          : 'text-gray-400 group-active:bg-black/5'
+                  }`}>
+                    {shadowSubtitleIndex === currentSubtitleIndex &&
+                    shadowMode === 'reviewing' ? (
+                        <IconReplay className="h-[22px] w-[22px] text-blue-500" />
+                    ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                             className={`h-[22px] w-[22px] ${
+                                 shadowSubtitleIndex === currentSubtitleIndex && shadowMode === 'recording' ? 'animate-pulse' : ''
+                             }`}
+                        >
+                          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                          <line x1="12" y1="19" x2="12" y2="22"/>
+                        </svg>
+                    )}
+                  </div>
+                </button>
+
+                {/* Button 5: 右侧 - 单词本 */}
+                <button
+                    type="button"
+                    className="group relative flex flex-1 items-center justify-center active:scale-95 transition-transform"
+                    onClick={() => {
+                      if(user && vocabItems.length > 0) setIsVocabOpen(true)
+                    }}
+                    aria-label="打开单词本"
+                >
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full text-gray-400 group-active:bg-black/5`}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
+                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    </svg>
+                  </div>
+                  {/* 只有在有单词时显示图标颜色或 Badge */}
+                  {user && vocabItems.length > 0 ? (
+                      <span className="absolute right-3 top-2 h-2 w-2 rounded-full bg-[#FF2442] ring-2 ring-white" />
+                  ) : (
+                      // 空状态占位，保持对称
+                      null
+                  )}
+                </button>
+
               </div>
             </div>
           </div>
-        </div>
       )}
 
       {/* 断点续播 Toast：上次看到 xx:xx [恢复] [x] */}
