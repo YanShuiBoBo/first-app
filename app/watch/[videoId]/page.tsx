@@ -1712,7 +1712,7 @@ export default function WatchPage() {
         <button
           type="button"
           className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
-          onClick={() => router.back()}
+          onClick={() => router.push('/')}
           aria-label="返回上一页"
         >
           <IconArrowLeft className="h-3.5 w-3.5" />
@@ -2158,7 +2158,7 @@ export default function WatchPage() {
 
                         {/* 英文行：根据 scriptMode 控制显示 */}
                         {showEn && (
-                          <div className="en text-[16px]">
+                          <div className="en text-[16px] lg:text-[10px]">
                             {buildHighlightSegments(
                               subtitle.text_en,
                               videoData.cards ?? []
