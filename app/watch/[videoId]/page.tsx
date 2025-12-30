@@ -2109,11 +2109,11 @@ export default function WatchPage() {
                 </div>
               </div>
 
-              {/* 字幕列表：独立滚动区域（移动端样式完全对齐 HTML demo 的 feed-list + card） */}
-              <div className="relative flex-1">
+              {/* 字幕列表：独立滚动区域（移动端样完式全对齐 HTML demo 的 feed-list + card） */}
+              <div className="relative flex-1 overflow-hidden">
                 <div
                   ref={subtitlesContainerRef}
-                  className="feed-list"
+                  className="absolute inset-0 overflow-y-auto pb-32 lg:static lg:h-full lg:pb-0 scroll-smooth"
                 >
                   {videoData.subtitles.map((subtitle, index) => {
                     const isActive = currentSubtitleIndex === index;
