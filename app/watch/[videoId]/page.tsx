@@ -2031,9 +2031,11 @@ export default function WatchPage() {
             </div>
           </section>
 
-          {/* 右侧：交互式课本 THE LIST */}
-          <aside className="mt-4 flex w-full flex-col lg:mt-0 lg:w-[30%]">
-            <div className="flex h-full flex-col overflow-hidden bg-[var(--bg-shell)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:shadow-sm lg:max-h-[calc(100vh-180px)]">
+          {/* 右侧：交互式课本 THE LIST
+              移动端：占用视频下方剩余高度，内部字幕区域滚动
+              桌面端：固定宽度的侧边栏 */}
+          <aside className="mt-4 flex w-full flex-1 flex-col lg:mt-0 lg:w-[30%] lg:flex-none">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--bg-shell)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:shadow-sm lg:max-h-[calc(100vh-180px)]">
               {/* 顶部工具栏（Sticky，移动端隐藏以释放字幕空间） */}
               <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-gray-100 bg-white px-4 py-3 text-xs text-gray-500 lg:flex">
                 <div className="flex flex-col">
