@@ -1667,7 +1667,7 @@ export default function WatchPage() {
     resumeSeconds !== null ? formatDuration(resumeSeconds) : '';
 
   return (
-    <div className="relative flex h-screen min-h-screen flex-col bg-[#F8F8F8] text-gray-900 overflow-hidden lg:h-auto lg:overflow-visible">
+    <div className="relative flex h-screen min-h-screen flex-col bg-[var(--bg-body)] text-gray-900 overflow-hidden lg:h-auto lg:overflow-visible">
       {/* 顶部导航栏：返回 / 标题 / 更多 */}
       <header className="fixed inset-x-0 top-0 z-30 flex h-11 items-center justify-between bg-white/95 px-3 text-xs text-gray-700 shadow-sm shadow-black/5 lg:px-6">
         <button
@@ -1701,7 +1701,7 @@ export default function WatchPage() {
             <div
               ref={videoRef}
               // 注意：这里不要再加 overflow-hidden，否则会导致内部使用 position: sticky 的视频区域在移动端失效
-              className="flex h-full flex-col rounded-2xl bg-white shadow-sm"
+              className="flex h-full flex-col rounded-2xl bg-[var(--bg-shell)] shadow-sm"
             >
               {/* Layer 1: Header（桌面端显示） */}
               <div className="hidden h-14 items-center justify-between border-b border-gray-100 px-6 sm:flex">
@@ -2043,294 +2043,184 @@ export default function WatchPage() {
                 </div>
               </div>
 
-              {/* 字幕列表区域 + 悬浮语言切换（移动端） */}
+              {/* 字幕列表：独立滚动区域 */}
               <div className="relative flex-1">
-                {/* 悬浮语言切换：仅移动端显示，中 / 英 / 中英 胶囊按钮 */}
-                <button
-                  type="button"
-                  className="absolute right-4 top-2 z-20 inline-flex items-center rounded-full bg-black/70 px-2.5 py-1 text-[11px] text-white shadow-sm shadow-black/40 lg:hidden"
-                  onClick={() =>
-                    setScriptMode(prev =>
-                      prev === 'both' ? 'en' : prev === 'en' ? 'cn' : 'both'
-                    )
-                  }
-                  aria-label="切换字幕语言"
-                >
-                  <span
-                    className={
-                      scriptMode === 'cn'
-                        ? 'font-semibold text-white'
-                        : 'text-white/60'
-                    }
-                  >
-                    中
-                  </span>
-                  <span className="px-1 text-white/40">/</span>
-                  <span
-                    className={
-                      scriptMode === 'en'
-                        ? 'font-semibold text-white'
-                        : 'text-white/60'
-                    }
-                  >
-                    英
-                  </span>
-                  <span className="px-1 text-white/40">/</span>
-                  <span
-                    className={
-                      scriptMode === 'both'
-                        ? 'font-semibold text-white'
-                        : 'text-white/60'
-                    }
-                  >
-                    中英
-                  </span>
-                </button>
-
-                {/* 字幕列表：独立滚动区域 */}
                 <div
                   ref={subtitlesContainerRef}
                   className="h-full space-y-3 overflow-y-auto px-4 py-3 text-sm"
                 >
                   {videoData.subtitles.map((subtitle, index) => {
-                  const isActive = currentSubtitleIndex === index;
+                    const isActive = currentSubtitleIndex === index;
 
-                  const baseCardClasses =
-                    'relative cursor-pointer rounded-2xl border px-3 py-2 transition-colors duration-200 ease-out';
-                  const stateClasses = isActive
-                    ? 'border-transparent bg-[#FEF2F2] shadow-sm shadow-rose-200'
-                    : 'border-transparent bg-white/80 text-gray-500 hover:border-gray-200 hover:bg-gray-50 hover:text-gray-700';
+                    const baseCardClasses =
+                      'relative cursor-pointer rounded-2xl border px-4 py-3 transition-colors duration-200 ease-out';
+                    const stateClasses = isActive
+                      ? 'border-transparent bg-[var(--bg-card)] shadow-[var(--shadow-card)]'
+                      : 'border-transparent bg-white/90 text-[color:var(--text-sub)] hover:border-gray-200 hover:bg-gray-50 hover:text-gray-700';
 
-                  const toolbarDesktopClasses =
-                    'mt-2 hidden flex-nowrap items-center gap-2 text-[11px] text-gray-500 lg:flex';
-                  // 移动端不再在每行下方展示工具栏，统一放到底部控制条
-                  const toolbarMobileClasses = 'hidden lg:hidden';
+                    const toolbarDesktopClasses =
+                      'mt-2 hidden flex-nowrap items-center gap-2 text-[11px] text-gray-500 lg:flex';
+                    const toolbarMobileClasses = 'hidden lg:hidden';
 
-                  return (
-                    <div
-                      key={index}
-                      ref={el => {
-                        subtitleItemRefs.current[index] = el;
-                      }}
-                      className={`${baseCardClasses} ${stateClasses}`}
-                      onClick={() => handleSubtitleClick(index)}
-                    >
-                      {isActive && (
-                        <div className="absolute inset-y-2 left-0 w-1 rounded-full bg-[#FF2442]" />
-                      )}
+                    return (
+                      <div
+                        key={index}
+                        ref={el => {
+                          subtitleItemRefs.current[index] = el;
+                        }}
+                        className={`${baseCardClasses} ${stateClasses} ${
+                          isActive ? 'scale-[1.01]' : ''
+                        }`}
+                        onClick={() => handleSubtitleClick(index)}
+                      >
+                        <div className="flex items-center justify-between text-[11px] text-gray-400">
+                          <span>{formatDuration(subtitle.start)}</span>
+                          <button
+                            type="button"
+                            className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${
+                              likedSubtitles.has(index)
+                                ? 'text-[#FF2442]'
+                                : 'text-gray-300 hover:text-[#FF2442]'
+                            }`}
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleToggleLike(index);
+                            }}
+                            aria-label="收藏该句子"
+                          >
+                            <IconLike className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-gray-400">
-                        <span>{formatDuration(subtitle.start)}</span>
-                        <button
-                          type="button"
-                          className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${
-                            likedSubtitles.has(index)
-                              ? 'text-[#FF2442]'
-                              : 'text-gray-300 hover:text-[#FF2442]'
-                          }`}
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleToggleLike(index);
-                          }}
-                          aria-label="收藏该句子"
-                        >
-                          <IconLike className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-
-                      {/* 英文行：根据 scriptMode 控制显示 */}
-                      {(scriptMode === 'both' || scriptMode === 'en') && (
-                        <div
-                          className={
-                            isActive
-                              ? 'mt-1 text-[18px] leading-snug font-extrabold text-gray-900'
-                              : 'mt-0.5 text-[15px] leading-snug font-medium text-gray-500'
-                          }
-                        >
-                          {buildHighlightSegments(
-                            subtitle.text_en,
-                            videoData.cards ?? []
-                          ).map((segment, segIndex) => {
-                            if (!segment.card) {
-                              return (
-                                <span key={segIndex}>{segment.text}</span>
-                              );
+                        {/* 英文行：根据 scriptMode 控制显示 */}
+                        {(scriptMode === 'both' || scriptMode === 'en') && (
+                          <div
+                            className={
+                              isActive
+                                ? 'mt-1 text-[17px] leading-snug font-semibold text-[color:var(--text-main)]'
+                                : 'mt-0.5 text-[15px] leading-snug font-medium text-gray-500'
                             }
+                          >
+                            {buildHighlightSegments(
+                              subtitle.text_en,
+                              videoData.cards ?? []
+                            ).map((segment, segIndex) => {
+                              if (!segment.card) {
+                                return (
+                                  <span key={segIndex}>{segment.text}</span>
+                                );
+                              }
 
-                            const type = segment.card.data.type;
-                            return (
-                              <span
-                                key={segIndex}
-                                className={getHighlightClassNames(type)}
-                                style={getHighlightInlineStyle(type)}
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  handleWordClick(
-                                    segment.card!.trigger_word,
-                                    e.currentTarget as HTMLElement
-                                  );
-                                }}
-                              >
-                                {segment.text}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
+                              const type = segment.card.data.type;
+                              return (
+                                <span
+                                  key={segIndex}
+                                  className={getHighlightClassNames(type)}
+                                  style={getHighlightInlineStyle(type)}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleWordClick(
+                                      segment.card!.trigger_word,
+                                      e.currentTarget as HTMLElement
+                                    );
+                                  }}
+                                >
+                                  {segment.text}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
 
-                      {/* 中文行：根据 scriptMode 控制显示 */}
-                      {(scriptMode === 'both' || scriptMode === 'cn') && (
-                        <div
-                          className={
-                            isActive
-                              ? 'mt-1 text-[12px] text-gray-700'
-                              : 'mt-0.5 text-[12px] text-gray-400'
-                          }
-                        >
-                          {subtitle.text_cn}
-                        </div>
-                      )}
+                        {/* 中文行：根据 scriptMode 控制显示 */}
+                        {(scriptMode === 'both' || scriptMode === 'cn') && (
+                          <div
+                            className={
+                              isActive
+                                ? 'mt-1 text-[13px] text-[color:var(--text-sub)]'
+                                : 'mt-0.5 text-[13px] text-gray-400'
+                            }
+                          >
+                            {subtitle.text_cn}
+                          </div>
+                        )}
 
-                      {/* 工具栏：桌面端所有行显示（仅图标，弱化存在感） */}
-                      <div className={toolbarDesktopClasses}>
-                        <button
-                          type="button"
-                          className="inline-flex h-5 w-5 items-center justify-center text-[13px] text-gray-400 hover:text-gray-600"
-                          title="重听"
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleRowReplay(index);
-                          }}
-                          disabled={isTrial && trialEnded}
-                        >
-                          <IconReplay className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
-                            shadowSubtitleIndex === index &&
-                            shadowMode === 'recording'
-                              ? 'text-[#FF2442]'
-                              : 'text-gray-400 hover:text-gray-600'
-                          }`}
-                          title="跟读"
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleRowMic(index);
-                          }}
-                          disabled={isTrial && trialEnded}
-                        >
-                          {shadowSubtitleIndex === index &&
-                          shadowMode === 'reviewing' ? (
+                        {/* 工具栏：桌面端所有行显示（仅图标，弱化存在感） */}
+                        <div className={toolbarDesktopClasses}>
+                          <button
+                            type="button"
+                            className="inline-flex h-5 w-5 items-center justify-center text-[13px] text-gray-400 hover:text-gray-600"
+                            title="重听"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleRowReplay(index);
+                            }}
+                            disabled={isTrial && trialEnded}
+                          >
                             <IconReplay className="h-4 w-4" />
-                          ) : (
-                            <IconMic className="h-4 w-4" />
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
-                            sentenceLoop && isActive
-                              ? 'text-[#FF2442]'
-                              : 'text-gray-400 hover:text-gray-600'
-                          }`}
-                          title="单句循环"
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleRowLoop(index);
-                          }}
-                          disabled={isTrial && trialEnded}
-                        >
-                          <IconLoop className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
-                            likedSubtitles.has(index)
-                              ? 'text-[#FF2442]'
-                              : 'text-gray-300 hover:text-gray-500'
-                          }`}
-                          title="收藏"
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleToggleLike(index);
-                          }}
-                        >
-                          <IconLike className="h-4 w-4" />
-                        </button>
-                      </div>
+                          </button>
+                          <button
+                            type="button"
+                            className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
+                              shadowSubtitleIndex === index &&
+                              shadowMode === 'recording'
+                                ? 'text-[#FF2442]'
+                                : 'text-gray-400 hover:text-gray-600'
+                            }`}
+                            title="跟读"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleRowMic(index);
+                            }}
+                            disabled={isTrial && trialEnded}
+                          >
+                            {shadowSubtitleIndex === index &&
+                            shadowMode === 'reviewing' ? (
+                              <IconReplay className="h-4 w-4" />
+                            ) : (
+                              <IconMic className="h-4 w-4" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
+                              sentenceLoop && isActive
+                                ? 'text-[#FF2442]'
+                                : 'text-gray-400 hover:text-gray-600'
+                            }`}
+                            title="单句循环"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleRowLoop(index);
+                            }}
+                            disabled={isTrial && trialEnded}
+                          >
+                            <IconLoop className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
+                              likedSubtitles.has(index)
+                                ? 'text-[#FF2442]'
+                                : 'text-gray-300 hover:text-gray-500'
+                            }`}
+                            title="收藏"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleToggleLike(index);
+                            }}
+                          >
+                            <IconLike className="h-4 w-4" />
+                          </button>
+                        </div>
 
-                      {/* 工具栏：移动端仅当前行展开（仅图标） */}
-                      <div className={toolbarMobileClasses}>
-                        <button
-                          type="button"
-                          className="inline-flex h-5 w-5 items-center justify-center text-[13px] text-gray-400 hover:text-gray-600"
-                          title="重听"
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleRowReplay(index);
-                          }}
-                          disabled={isTrial && trialEnded}
-                        >
-                          <IconReplay className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
-                            shadowSubtitleIndex === index &&
-                            shadowMode === 'recording'
-                              ? 'text-[#FF2442]'
-                              : 'text-gray-400 hover:text-gray-600'
-                          }`}
-                          title="跟读"
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleRowMic(index);
-                          }}
-                          disabled={isTrial && trialEnded}
-                        >
-                          {shadowSubtitleIndex === index &&
-                          shadowMode === 'reviewing' ? (
-                            <IconReplay className="h-4 w-4" />
-                          ) : (
-                            <IconMic className="h-4 w-4" />
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
-                            sentenceLoop && isActive
-                              ? 'text-[#FF2442]'
-                              : 'text-gray-400 hover:text-gray-600'
-                          }`}
-                          title="单句循环"
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleRowLoop(index);
-                          }}
-                          disabled={isTrial && trialEnded}
-                        >
-                          <IconLoop className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
-                            likedSubtitles.has(index)
-                              ? 'text-[#FF2442]'
-                              : 'text-gray-300 hover:text-gray-500'
-                          }`}
-                          title="收藏"
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleToggleLike(index);
-                          }}
-                        >
-                          <IconLike className="h-4 w-4" />
-                        </button>
+                        {/* 工具栏：移动端仅当前行展开（仅图标） */}
+                        <div className={toolbarMobileClasses}>
+                          {/* 预留：如需要在移动端每行展开操作，可以在这里补充 */}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
                 </div>
               </div>
 
