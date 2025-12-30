@@ -1,12 +1,17 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { Stream, type StreamPlayerApi } from '@cloudflare/stream-react';
 import { usePlayerStore } from '@/lib/store/player-store';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { createBrowserClient } from '@/lib/supabase/client';
+import VocabPanel, {
+  type VocabItem,
+  type VocabKind,
+  type VocabStatus
+} from '@/components/watch/VocabPanel';
 
 // 定义视频数据类型
 interface VideoData {
@@ -37,9 +42,26 @@ interface SubtitleItem {
 interface KnowledgeCard {
   trigger_word: string;
   data: {
+    // 统一 headword（原形），如果缺失则前端回退到 trigger_word
+    headword?: string;
     ipa?: string;
     def: string;
     sentence?: string;
+    pos?: string;
+    collocations?: string[];
+    synonyms?: string[];
+    difficulty_level?: string;
+    structure?: string;
+    register?: string;
+    paraphrase?: string;
+    function_label?: string;
+    scenario?: string;
+    source?: {
+      sentence_en?: string;
+      sentence_cn?: string;
+      timestamp_start?: number;
+      timestamp_end?: number;
+    };
     // 卡片类型与后端保持一致
     // word           单词
     // phrase         短语
@@ -342,6 +364,23 @@ const IconLang: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   </svg>
 );
 
+// 词汇清单图标：小书本 + 书签
+const IconVocab: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.3"
+    {...props}
+  >
+    <rect x="3" y="2.5" width="8.5" height="11" rx="1.2" />
+    <path d="M5.2 4.3h4.1" strokeLinecap="round" />
+    <path d="M5.2 6.1h4.1" strokeLinecap="round" />
+    <path d="M5.2 7.9h2.6" strokeLinecap="round" />
+    <path d="M11.5 3.2 13 2.5v7.3" />
+  </svg>
+);
+
 // 倍速图标：简单的仪表盘指针，表示“变速 / 快慢”
 const IconSpeed: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   <svg
@@ -403,6 +442,13 @@ export default function WatchPage() {
   const ttsVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
 
+  // 词汇面板状态
+  const [isVocabOpen, setIsVocabOpen] = useState(false);
+  const [vocabKind, setVocabKind] = useState<VocabKind>('word');
+  const [vocabStatusMap, setVocabStatusMap] = useState<
+    Record<string, VocabStatus>
+  >({});
+
   // 影子跟读（Shadowing）相关状态
   // mode:
   // - idle：当前无跟读任务
@@ -417,6 +463,19 @@ export default function WatchPage() {
   const [shadowAudioUrl, setShadowAudioUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<BlobPart[]>([]);
+
+  // 响应式：用于在 VocabPanel 中切换 sheet / panel 布局
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => {
+      mq.removeEventListener('change', update);
+    };
+  }, []);
 
   // 初始化登录状态（Phase 1 先不做强门禁，只同步一下本地登录信息）
   useEffect(() => {
@@ -600,6 +659,146 @@ export default function WatchPage() {
 
     fetchVideoData();
   }, [videoId, supabase]);
+
+  // 计算当前视频真正用到的知识卡片 key（基于字幕高亮结果）
+  const usedVocabKeys = useMemo(() => {
+    if (!videoData?.subtitles || !videoData.cards) {
+      return new Set<string>();
+    }
+
+    const used = new Set<string>();
+
+    for (const subtitle of videoData.subtitles) {
+      const segments = buildHighlightSegments(
+        subtitle.text_en,
+        videoData.cards
+      );
+      for (const seg of segments) {
+        if (!seg.card) continue;
+        const hw =
+          seg.card.data.headword?.trim() ||
+          seg.card.trigger_word?.trim() ||
+          '';
+        if (!hw) continue;
+        used.add(hw.toLowerCase());
+      }
+    }
+
+    return used;
+  }, [videoData?.subtitles, videoData?.cards]);
+
+  // 打开词汇面板时批量获取当前视频词汇的全局状态
+  useEffect(() => {
+    const fetchVocabStatus = async () => {
+      if (!isVocabOpen || !videoData?.cards || !user?.email) return;
+
+      const words = Array.from(usedVocabKeys);
+      if (words.length === 0) return;
+
+      try {
+        const res = await fetch('/api/vocab/status/check', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ words })
+        });
+
+        if (!res.ok) {
+          // 静默失败，不阻塞 UI
+          return;
+        }
+
+        const data = (await res.json()) as Record<
+          string,
+          'known' | 'unknown'
+        >;
+
+        setVocabStatusMap(prev => {
+          const next = { ...prev };
+          for (const w of words) {
+            const status = data[w];
+            if (status === 'known' || status === 'unknown') {
+              next[w] = status;
+            } else if (!next[w]) {
+              next[w] = 'unmarked';
+            }
+          }
+          return next;
+        });
+      } catch (err) {
+        console.error('获取词汇状态失败:', err);
+      }
+    };
+
+    void fetchVocabStatus();
+  }, [isVocabOpen, usedVocabKeys, videoData?.cards, user?.email]);
+
+  // 根据当前视频的 knowledge_cards 构建词汇项列表，并与全局状态合并
+  const vocabItems: VocabItem[] = useMemo(() => {
+    if (!videoData?.cards || videoData.cards.length === 0) return [];
+
+    const items: VocabItem[] = [];
+    const seen = new Set<string>();
+
+    for (const card of videoData.cards) {
+      const kind: VocabKind =
+        card.data.type === 'phrase'
+          ? 'phrase'
+          : card.data.type === 'expression'
+          ? 'expression'
+          : 'word';
+
+      const headword =
+        card.data.headword?.trim() ||
+        card.trigger_word?.trim() ||
+        '';
+      if (!headword) continue;
+
+      const key = headword.toLowerCase();
+      // 只保留本视频字幕中真正高亮过的词汇
+      if (!usedVocabKeys.has(key)) continue;
+      // 同一个 key 只保留一条，避免重复和 React key 冲突
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const status = vocabStatusMap[key] || 'unmarked';
+
+      const source = card.data.source
+        ? {
+            sentence_en: card.data.source.sentence_en,
+            sentence_cn: card.data.source.sentence_cn,
+            timestamp_start: card.data.source.timestamp_start,
+            timestamp_end: card.data.source.timestamp_end
+          }
+        : {
+            sentence_en: card.data.sentence,
+            sentence_cn: undefined
+          };
+
+      const item: VocabItem = {
+        key,
+        kind,
+        headword,
+        ipa: card.data.ipa,
+        pos: card.data.pos,
+        definition: card.data.def,
+        collocations: card.data.collocations,
+        synonyms: card.data.synonyms,
+        structure: card.data.structure,
+        register: card.data.register,
+        paraphrase: card.data.paraphrase,
+        scenario: card.data.scenario,
+        functionLabel: card.data.function_label,
+        source,
+        status
+      };
+
+      items.push(item);
+    }
+
+    return items;
+  }, [videoData?.cards, usedVocabKeys, vocabStatusMap]);
 
   // 工具函数：把当前本地时间格式化为 YYYY-MM-DD，避免使用 UTC 导致日期偏移
   const getLocalDateString = () => {
@@ -973,6 +1172,68 @@ export default function WatchPage() {
     );
     if (nextIndex === currentSubtitleIndex) return;
     handleSubtitleClick(nextIndex);
+  };
+
+  // 词汇卡播放音频：
+  // - 单词卡：优先使用 TTS 播放单词本身；
+  // - 短语 / 表达：优先播放视频中的片段，缺失时间戳时回退到 TTS。
+  const handlePlayVocabClip = (item: VocabItem) => {
+    // 先在当前知识卡集合中找到对应词条
+    const card = videoData?.cards.find(c => {
+      const headword =
+        c.data.headword?.trim() || c.trigger_word?.trim() || '';
+      return headword.toLowerCase() === item.key;
+    });
+
+    // 单词卡：直接用 TTS 播放单词（或触发词）
+    if (item.kind === 'word') {
+      if (card) {
+        playCardAudio(card);
+      }
+      return;
+    }
+
+    // 短语 / 表达：若有时间戳，优先播放视频片段
+    if (!streamRef.current) {
+      if (card) {
+        playCardAudio(card);
+      }
+      return;
+    }
+
+    const start = item.source?.timestamp_start;
+    const end = item.source?.timestamp_end;
+
+    if (
+      typeof start === 'number' &&
+      Number.isFinite(start) &&
+      typeof end === 'number' &&
+      Number.isFinite(end) &&
+      end > start
+    ) {
+      const player = streamRef.current;
+
+      player.currentTime = start;
+      void player.play();
+
+      const check = () => {
+        if (!streamRef.current) return;
+        const now = streamRef.current.currentTime;
+        if (now >= end) {
+          streamRef.current.pause();
+        } else {
+          requestAnimationFrame(check);
+        }
+      };
+
+      requestAnimationFrame(check);
+      return;
+    }
+
+    // 没有时间戳时，退回到知识卡 TTS 播放
+    if (card) {
+      playCardAudio(card);
+    }
   };
 
   // 行内工具栏：重听当前句（播放原声）
@@ -1437,7 +1698,7 @@ export default function WatchPage() {
                     disabled={isTrial && trialEnded}
                   >
                     <IconPrev className="h-3.5 w-3.5" />
-                    
+
                   </button>
                   <button
                     type="button"
@@ -1457,7 +1718,7 @@ export default function WatchPage() {
                     onClick={handleNextSentence}
                     disabled={isTrial && trialEnded}
                   >
-                    
+
                     <IconNext className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -1488,7 +1749,7 @@ export default function WatchPage() {
                     disabled={isTrial && trialEnded}
                   >
                     <IconLoop className="h-5 w-5" />
-                    
+
                   </button>
                 </div>
               </div>
@@ -1633,6 +1894,15 @@ export default function WatchPage() {
                   </span>
                 </div>
                 <div className="ml-3 flex items-center gap-2">
+                  {user && vocabItems.length > 0 && (
+                    <button
+                      type="button"
+                      className="hidden items-center rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] text-gray-500 hover:border-[#FF2442]/50 hover:text-[#FF2442] lg:inline-flex"
+                      onClick={() => setIsVocabOpen(true)}
+                    >
+                      单词本
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] text-gray-400 hover:border-[#FF2442]/50"
@@ -2013,6 +2283,63 @@ export default function WatchPage() {
         </div>
       )}
 
+      {/* 词汇管理器：移动端 Bottom Sheet / 桌面端侧边抽屉 */}
+      {user && vocabItems.length > 0 && (
+        <VocabPanel
+          open={isVocabOpen}
+          variant={isDesktop ? 'panel' : 'sheet'}
+          activeKind={vocabKind}
+          items={vocabItems}
+          onClose={() => setIsVocabOpen(false)}
+          onKindChange={setVocabKind}
+          onUpdateStatus={(key, status) => {
+            setVocabStatusMap(prev => ({
+              ...prev,
+              [key]: status
+            }));
+            // 乐观更新后异步同步到后端
+            void fetch('/api/vocab/status/update', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                word: key,
+                status
+              })
+            }).catch(err => {
+              console.error('更新词汇状态失败:', err);
+            });
+          }}
+          onMarkRestKnown={() => {
+            const unmarkedKeys = vocabItems
+              .filter(
+                item =>
+                  item.status === 'unmarked' &&
+                  (vocabKind ? item.kind === vocabKind : true)
+              )
+              .map(item => item.key);
+
+            if (unmarkedKeys.length === 0) return;
+
+            setVocabStatusMap(prev => {
+              const next = { ...prev };
+              for (const key of unmarkedKeys) {
+                next[key] = 'known';
+              }
+              return next;
+            });
+
+            void fetch('/api/vocab/status/batch-known', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ words: unmarkedKeys })
+            }).catch(err => {
+              console.error('批量标记词汇状态失败:', err);
+            });
+          }}
+          onPlayClip={handlePlayVocabClip}
+        />
+      )}
+
       {/* 移动端：底部播放器控制条 */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white px-4 py-2.5 text-xs text-gray-600 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] lg:hidden">
         <div className="mb-1 flex items-center justify-between">
@@ -2075,6 +2402,17 @@ export default function WatchPage() {
                 }`}
               />
             </button>
+            {/* 词汇清单入口：仅登录用户显示 */}
+            {user && vocabItems.length > 0 && (
+                <button
+                    type="button"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-black hover:bg-black"
+                    onClick={() => setIsVocabOpen(true)}
+                    aria-label="查看词汇清单"
+                >
+                  <IconVocab className="h-6 w-6" />
+                </button>
+            )}
           </div>
         )}
 
