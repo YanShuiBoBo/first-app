@@ -2158,7 +2158,7 @@ export default function WatchPage() {
 
                         {/* 英文行：根据 scriptMode 控制显示 */}
                         {showEn && (
-                          <div className="en">
+                          <div className="en text-[16px]">
                             {buildHighlightSegments(
                               subtitle.text_en,
                               videoData.cards ?? []
