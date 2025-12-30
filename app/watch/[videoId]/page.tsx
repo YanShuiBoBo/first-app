@@ -2113,7 +2113,7 @@ export default function WatchPage() {
               <div className="relative flex-1 overflow-hidden">
                 <div
                   ref={subtitlesContainerRef}
-                  className="absolute inset-0 overflow-y-auto pb-32 lg:static lg:h-full lg:pb-0 scroll-smooth"
+                  className="overflow-x-hidden absolute inset-0 overflow-y-auto pb-32 lg:static lg:h-full lg:pb-0 scroll-smooth w-full"
                 >
                   {videoData.subtitles.map((subtitle, index) => {
                     const isActive = currentSubtitleIndex === index;
