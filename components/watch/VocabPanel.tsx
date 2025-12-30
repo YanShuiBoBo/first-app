@@ -405,33 +405,35 @@ const VocabCard: React.FC<VocabCardProps> = ({
               />
             </svg>
           </button>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${
-                isKnown
-                  ? 'bg-green-500 text-white'
-                  : 'bg-green-50 text-green-600 hover:bg-green-100'
-              }`}
-              onClick={() => onUpdateStatus(item.key, 'known')}
-              title="标记为认识"
-            >
-              ✓
-            </button>
-            <button
-              type="button"
-              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${
-                isUnknown
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
-              }`}
-              onClick={() => onUpdateStatus(item.key, 'unknown')}
-              title="标记为不认识"
-            >
-              ✗
-            </button>
-          </div>
         </div>
+      </div>
+
+      {/* 状态操作：放到底部，按钮更大，避免误触 */}
+      <div className="mt-2 flex gap-2">
+        <button
+          type="button"
+          className={`flex-1 rounded-full border px-2 py-1 text-[11px] font-medium ${
+            isUnknown
+              ? 'border-orange-500 bg-orange-500 text-white'
+              : 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
+          }`}
+          onClick={() => onUpdateStatus(item.key, 'unknown')}
+          title="标记为不认识"
+        >
+          ✗ 不认识
+        </button>
+        <button
+          type="button"
+          className={`flex-1 rounded-full border px-2 py-1 text-[11px] font-medium ${
+            isKnown
+              ? 'border-green-500 bg-green-500 text-white'
+              : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
+          }`}
+          onClick={() => onUpdateStatus(item.key, 'known')}
+          title="标记为认识"
+        >
+          ✓ 认识
+        </button>
       </div>
     </div>
   );
