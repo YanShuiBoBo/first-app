@@ -1733,8 +1733,8 @@ export default function WatchPage() {
         </button>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[414px] flex-1 flex-col px-0 pb-24 pt-0 lg:max-w-[1600px] lg:px-4 lg:pb-10 lg:pt-20">
-        <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
+      <main className="mx-auto flex w-full max-w-[414px] flex-1 flex-col px-0 pt-0 lg:max-w-[1600px] lg:px-4 lg:pb-10 lg:pt-20">
+        <div className="flex flex-1 flex-col lg:gap-6 lg:flex-row lg:items-start">
           {/* 左侧：全能学习台 THE STATION */}
           <section className="flex w-full flex-col lg:w-[70%] lg:max-w-[960px]">
             <div
@@ -2034,7 +2034,7 @@ export default function WatchPage() {
           {/* 右侧：交互式课本 THE LIST
               移动端：占用视频下方剩余高度，内部字幕区域滚动
               桌面端：固定宽度的侧边栏 */}
-          <aside className="mt-4 flex w-full flex-1 flex-col lg:mt-0 lg:w-[30%] lg:flex-none">
+          <aside className="h-full flex w-full flex-1 flex-col lg:mt-0 lg:w-[30%] lg:flex-none">
             <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--bg-shell)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:shadow-sm lg:max-h-[calc(100vh-180px)]">
               {/* 顶部工具栏（Sticky，移动端隐藏以释放字幕空间） */}
               <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-gray-100 bg-white px-4 py-3 text-xs text-gray-500 lg:flex">
@@ -2113,7 +2113,7 @@ export default function WatchPage() {
               <div className="relative flex-1 overflow-hidden">
                 <div
                   ref={subtitlesContainerRef}
-                  className="overflow-x-hidden absolute inset-0 overflow-y-auto pb-32 lg:static lg:h-full lg:pb-0 scroll-smooth w-full"
+                  className="absolute inset-0 overflow-y-auto overflow-x-hidden pb-[100px] lg:static lg:h-full lg:pb-0 scroll-smooth"
                 >
                   {videoData.subtitles.map((subtitle, index) => {
                     const isActive = currentSubtitleIndex === index;
