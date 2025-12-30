@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import { Stream, type StreamPlayerApi } from '@cloudflare/stream-react';
 import { usePlayerStore } from '@/lib/store/player-store';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -326,12 +325,12 @@ const IconArrowLeft: React.FC<React.SVGProps<SVGSVGElement>> = props => (
   </svg>
 );
 
-// 列表 / 回到当前句按钮图标
-const IconList: React.FC<React.SVGProps<SVGSVGElement>> = props => (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
-    <path d="M3 4h10" strokeLinecap="round" />
-    <path d="M3 8h10" strokeLinecap="round" />
-    <path d="M3 12h10" strokeLinecap="round" />
+// 顶部更多菜单图标（三个水平圆点）
+const IconMore: React.FC<React.SVGProps<SVGSVGElement>> = props => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+    <circle cx="3.5" cy="8" r="0.9" />
+    <circle cx="8" cy="8" r="0.9" />
+    <circle cx="12.5" cy="8" r="0.9" />
   </svg>
 );
 
@@ -351,16 +350,6 @@ const IconSound: React.FC<React.SVGProps<SVGSVGElement>> = props => (
       d="M11.1 3.8C12.1 4.7 12.7 6 12.7 7.3s-.6 2.6-1.6 3.5"
       strokeLinecap="round"
     />
-  </svg>
-);
-
-// 语言切换图标：双层方块 + 底部横线
-const IconLang: React.FC<React.SVGProps<SVGSVGElement>> = props => (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" {...props}>
-    <rect x="2.7" y="3" width="5.3" height="5.3" rx="1.1" />
-    <path d="M4.35 4.4h2.3M5.5 4.4v2.5M4.3 6.9h2.4" strokeLinecap="round" />
-    <rect x="8" y="7.3" width="5.3" height="5.3" rx="1.1" />
-    <path d="M9.2 9h2.8M10.6 9v2.4M9.3 11.4h2.6" strokeLinecap="round" />
   </svg>
 );
 
@@ -441,6 +430,10 @@ export default function WatchPage() {
   const TRIAL_LIMIT_SECONDS = 6 * 60;
   const ttsVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
+
+  // 断点续播提示（本地缓存的上次观看时间）
+  const [resumeSeconds, setResumeSeconds] = useState<number | null>(null);
+  const [showResumeToast, setShowResumeToast] = useState(false);
 
   // 词汇面板状态
   const [isVocabOpen, setIsVocabOpen] = useState(false);
@@ -809,6 +802,10 @@ export default function WatchPage() {
     return `${year}-${month}-${day}`;
   };
 
+  // 本地进度存储 key，按「用户 + 视频」区分
+  const getProgressStorageKey = (videoIdValue: string, email?: string | null) =>
+    `immersive:video-progress:${email || 'guest'}:${videoIdValue}`;
+
   // 记录学习进度与学习日历
   useEffect(() => {
     const userEmail = user?.email;
@@ -862,6 +859,33 @@ export default function WatchPage() {
     void recordStudyDay();
   }, [supabase, user?.email, videoData]);
 
+  // 断点续播：组件挂载时读取本地缓存的观看进度
+  useEffect(() => {
+    if (!videoData || typeof window === 'undefined') return;
+    const storageKey = getProgressStorageKey(videoData.id, user?.email ?? null);
+
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as { position?: number };
+      const pos = typeof parsed.position === 'number' ? parsed.position : NaN;
+
+      if (!Number.isFinite(pos)) return;
+
+      // 过短的进度或接近结尾的进度都不提示
+      const duration = videoData.duration ?? 0;
+      if (pos <= 3 || (duration > 0 && pos >= duration - 3)) {
+        return;
+      }
+
+      setResumeSeconds(pos);
+      setShowResumeToast(true);
+    } catch (err) {
+      console.error('读取本地进度失败:', err);
+    }
+  }, [videoData, user?.email]);
+
   // 记录视频点击量（不依赖登录，只要进入精读页就算一次点击）
   useEffect(() => {
     if (!supabase || !videoId) return;
@@ -897,6 +921,25 @@ export default function WatchPage() {
     setPlaybackRate,
     toggleSentenceLoop
   } = usePlayerStore();
+
+  // 每秒将当前播放进度写入 localStorage（L1 缓存）
+  useEffect(() => {
+    if (!videoData || typeof window === 'undefined') return;
+    const storageKey = getProgressStorageKey(videoData.id, user?.email ?? null);
+
+    const seconds = Math.floor(currentTime);
+    if (!Number.isFinite(seconds) || seconds < 0) return;
+
+    try {
+      const payload = {
+        position: seconds,
+        updated_at: Date.now()
+      };
+      window.localStorage.setItem(storageKey, JSON.stringify(payload));
+    } catch (err) {
+      console.error('写入本地进度失败:', err);
+    }
+  }, [currentTime, videoData, user?.email]);
 
   // 视频时间更新回调：同步到全局播放器状态，并根据时间计算当前字幕行
   const handleTimeUpdate = () => {
@@ -985,56 +1028,12 @@ export default function WatchPage() {
     setPlaybackRate(value);
   };
 
-  // App 底部控制条：中 / 英 / 中英 切换（循环切换 scriptMode）
-  const cycleScriptMode = () => {
-    setScriptMode(prev => {
-      if (prev === 'cn') return 'en';
-      if (prev === 'en') return 'both';
-      return 'cn'; // both -> cn
-    });
-  };
-
   // 播放速度变化时同步到 Cloudflare 播放器
   useEffect(() => {
     if (streamRef.current) {
       streamRef.current.playbackRate = playbackRate;
     }
   }, [playbackRate]);
-
-  // 将当前高亮句滚动到可视区域中间（手动触发：底部列表按钮）
-  const scrollToCurrentSubtitle = () => {
-    if (!subtitlesContainerRef.current) return;
-    const container = subtitlesContainerRef.current;
-    const activeEl = subtitleItemRefs.current[currentSubtitleIndex];
-    if (!activeEl) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const elRect = activeEl.getBoundingClientRect();
-    const offset = elRect.top - containerRect.top;
-
-    // 计算“有效可视高度”用于视觉居中：桌面直接用容器高度，移动端考虑底部控制条等遮挡
-    let visibleHeight = containerRect.height;
-
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      const viewportHeight = window.innerHeight;
-      const overlaysHeight = 140; // 底部控制条高度
-      visibleHeight = Math.max(
-        viewportHeight - containerRect.top - overlaysHeight,
-        1
-      );
-    }
-
-    const target =
-      container.scrollTop +
-      offset -
-      visibleHeight / 2 +
-      elRect.height / 2;
-
-    container.scrollTo({
-      top: target,
-      behavior: 'smooth'
-    });
-  };
 
   // 字幕点击事件
   const handleSubtitleClick = (index: number) => {
@@ -1118,36 +1117,116 @@ export default function WatchPage() {
     });
   };
 
-  // 播放知识卡片的单词 / 触发词（浏览器自带 TTS）
-  const playCardAudio = (card: KnowledgeCard) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
-      return;
+  // 尝试使用视频原声播放知识卡对应的片段（作为 TTS 的兜底方案，尤其适配 App 内嵌浏览器）
+  const playCardSnippet = (card: KnowledgeCard): boolean => {
+    if (!streamRef.current || !videoData || !videoData.subtitles) {
+      return false;
     }
 
-    const text = card.trigger_word || card.data.sentence || '';
-    if (!text) return;
+    let start =
+      card.data.source?.timestamp_start !== undefined
+        ? card.data.source.timestamp_start
+        : undefined;
+    let end =
+      card.data.source?.timestamp_end !== undefined
+        ? card.data.source.timestamp_end
+        : undefined;
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    // 如果卡片数据里没有时间戳，则在字幕里尝试找到第一次出现该单词/短语的句子
+    if (
+      (typeof start !== 'number' ||
+        !Number.isFinite(start) ||
+        typeof end !== 'number' ||
+        !Number.isFinite(end) ||
+        end <= start) &&
+      videoData.subtitles.length > 0
+    ) {
+      const keyword =
+        card.data.headword?.trim().toLowerCase() ||
+        card.trigger_word.trim().toLowerCase();
 
-    // 尝试复用之前选择的英文语音
-    if (ttsVoiceRef.current) {
-      utterance.voice = ttsVoiceRef.current;
-    } else {
-      const voices = window.speechSynthesis.getVoices();
-      const enVoice =
-        voices.find(v => v.lang.startsWith('en')) ||
-        voices.find(v => v.lang.toLowerCase().includes('en'));
-      if (enVoice) {
-        ttsVoiceRef.current = enVoice;
-        utterance.voice = enVoice;
+      if (keyword) {
+        const hit = videoData.subtitles.find(sub =>
+          sub.text_en.toLowerCase().includes(keyword)
+        );
+        if (hit) {
+          start = hit.start;
+          end = hit.end;
+        }
       }
     }
 
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
+    if (
+      typeof start !== 'number' ||
+      !Number.isFinite(start) ||
+      typeof end !== 'number' ||
+      !Number.isFinite(end) ||
+      end <= start
+    ) {
+      return false;
+    }
 
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+    const player = streamRef.current;
+    player.currentTime = start;
+    void player.play();
+
+    const check = () => {
+      if (!streamRef.current) return;
+      const now = streamRef.current.currentTime;
+      if (now >= end) {
+        streamRef.current.pause();
+      } else {
+        requestAnimationFrame(check);
+      }
+    };
+
+    requestAnimationFrame(check);
+    return true;
+  };
+
+  // 播放知识卡片的单词 / 触发词
+  // 优先使用浏览器自带 TTS；在不支持或失败时回退到视频原声片段，保证 App 内嵌浏览器也能发声
+  const playCardAudio = (card: KnowledgeCard): boolean => {
+    if (typeof window === 'undefined') {
+      return playCardSnippet(card);
+    }
+
+    const hasSpeech =
+      typeof window.speechSynthesis !== 'undefined' &&
+      typeof window.SpeechSynthesisUtterance !== 'undefined';
+
+    const text = card.trigger_word || card.data.sentence || '';
+    if (!hasSpeech || !text) {
+      return playCardSnippet(card);
+    }
+
+    try {
+      const utterance = new SpeechSynthesisUtterance(text);
+
+      // 尝试复用之前选择的英文语音
+      if (ttsVoiceRef.current) {
+        utterance.voice = ttsVoiceRef.current;
+      } else {
+        const voices = window.speechSynthesis.getVoices();
+        const enVoice =
+          voices.find(v => v.lang.startsWith('en')) ||
+          voices.find(v => v.lang.toLowerCase().includes('en'));
+        if (enVoice) {
+          ttsVoiceRef.current = enVoice;
+          utterance.voice = enVoice;
+        }
+      }
+
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+      return true;
+    } catch (err) {
+      console.warn('调用浏览器 TTS 失败，回退到视频原声片段:', err);
+      return playCardSnippet(card);
+    }
   };
 
   const formatDuration = (seconds: number): string => {
@@ -1174,9 +1253,27 @@ export default function WatchPage() {
     handleSubtitleClick(nextIndex);
   };
 
+  // 从 Toast 中恢复到上次观看进度（不自动播放，只跳转进度和高亮句子）
+  const handleResumeFromToast = () => {
+    if (resumeSeconds === null) return;
+
+    const position = resumeSeconds;
+
+    if (streamRef.current) {
+      streamRef.current.currentTime = position;
+    }
+
+    if (videoData?.subtitles) {
+      setCurrentTime(position);
+      setCurrentSubtitle(videoData.subtitles, position);
+    }
+
+    setShowResumeToast(false);
+  };
+
   // 词汇卡播放音频：
-  // - 单词卡：优先使用 TTS 播放单词本身；
-  // - 短语 / 表达：优先播放视频中的片段，缺失时间戳时回退到 TTS。
+  // - 单词卡：优先使用 TTS 播放单词本身；若不支持 TTS，则回退到视频原声片段；
+  // - 短语 / 表达：优先播放视频中的片段，缺失时间戳时回退到 TTS/原声兜底。
   const handlePlayVocabClip = (item: VocabItem) => {
     // 先在当前知识卡集合中找到对应词条
     const card = videoData?.cards.find(c => {
@@ -1185,53 +1282,17 @@ export default function WatchPage() {
       return headword.toLowerCase() === item.key;
     });
 
-    // 单词卡：直接用 TTS 播放单词（或触发词）
+    if (!card) return;
+
     if (item.kind === 'word') {
-      if (card) {
-        playCardAudio(card);
-      }
+      // 单词卡：优先尝试 TTS，失败时在 playCardAudio 内部自动回退到视频片段
+      playCardAudio(card);
       return;
     }
 
-    // 短语 / 表达：若有时间戳，优先播放视频片段
-    if (!streamRef.current) {
-      if (card) {
-        playCardAudio(card);
-      }
-      return;
-    }
-
-    const start = item.source?.timestamp_start;
-    const end = item.source?.timestamp_end;
-
-    if (
-      typeof start === 'number' &&
-      Number.isFinite(start) &&
-      typeof end === 'number' &&
-      Number.isFinite(end) &&
-      end > start
-    ) {
-      const player = streamRef.current;
-
-      player.currentTime = start;
-      void player.play();
-
-      const check = () => {
-        if (!streamRef.current) return;
-        const now = streamRef.current.currentTime;
-        if (now >= end) {
-          streamRef.current.pause();
-        } else {
-          requestAnimationFrame(check);
-        }
-      };
-
-      requestAnimationFrame(check);
-      return;
-    }
-
-    // 没有时间戳时，退回到知识卡 TTS 播放
-    if (card) {
+    // 短语 / 表达：优先播放视频片段，无法定位片段时退回到 TTS/原声兜底
+    const played = playCardSnippet(card);
+    if (!played) {
       playCardAudio(card);
     }
   };
@@ -1530,42 +1591,64 @@ export default function WatchPage() {
   }, []);
 
   // 当前字幕自动跟随滚动到视图中间
-  // 移动端：基于视口高度计算真正“可见区域”，扣掉底部精读控制条和知识卡片 bottom sheet 的遮挡
+  // - 使用 block: 'center'，但行为为 'auto'，避免平滑动画带来的“二次跳动感”
+  // - 若当前句本来就接近中心，则不滚动，减少不必要的 DOM 操作和浏览器扩展的副作用
   useEffect(() => {
-    if (!subtitlesContainerRef.current) return;
     const container = subtitlesContainerRef.current;
     const activeEl = subtitleItemRefs.current[currentSubtitleIndex];
-    if (!activeEl) return;
+    if (!container || !activeEl) return;
 
-    const containerRect = container.getBoundingClientRect();
-    const elRect = activeEl.getBoundingClientRect();
-    const offset = elRect.top - containerRect.top;
+    try {
+      const containerRect = container.getBoundingClientRect();
+      const elRect = activeEl.getBoundingClientRect();
+      const elCenter = elRect.top + elRect.height / 2;
+      const containerCenter = containerRect.top + containerRect.height / 2;
+      const delta = Math.abs(elCenter - containerCenter);
 
-    let visibleHeight = containerRect.height;
+      // 若已经基本在可视区域中间（误差在 16px 内），就不再滚动，避免频繁跳动
+      if (delta <= 16) {
+        return;
+      }
 
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      // 视口高度 - 字幕容器到顶部的距离 - 底部悬浮区域高度 = 实际可见高度
-      const viewportHeight = window.innerHeight;
-      // 底部包含：固定播放器控制条 (~70px)，这里不再根据知识卡片状态改变高度，
-      // 避免点击高亮词弹出卡片时强制滚动回当前播放句
-      const overlaysHeight = 140;
-      visibleHeight = Math.max(
-        viewportHeight - containerRect.top - overlaysHeight,
-        1
-      );
+      activeEl.scrollIntoView({
+        block: 'center',
+        behavior: 'auto'
+      });
+    } catch {
+      // 老浏览器兜底：简单居中到容器中间
+      try {
+        const containerRect = container.getBoundingClientRect();
+        const elRect = activeEl.getBoundingClientRect();
+        const offset = elRect.top - containerRect.top;
+        const target =
+          container.scrollTop +
+          offset -
+          containerRect.height / 2 +
+          elRect.height / 2;
+
+        container.scrollTo({
+          top: target,
+          behavior: 'auto'
+        });
+      } catch {
+        // 忽略兜底过程中的错误，避免影响主流程
+      }
     }
-
-    const target =
-      container.scrollTop +
-      offset -
-      visibleHeight / 2 +
-      elRect.height / 2;
-
-    container.scrollTo({
-      top: target,
-      behavior: 'smooth'
-    });
   }, [currentSubtitleIndex]);
+
+  // 断点续播提示：自动在 5 秒后淡出
+  useEffect(() => {
+    if (!showResumeToast) return;
+    if (typeof window === 'undefined') return;
+
+    const timer = window.setTimeout(() => {
+      setShowResumeToast(false);
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [showResumeToast]);
 
   // 页面渲染
   if (isLoading) {
@@ -1595,17 +1678,36 @@ export default function WatchPage() {
 
   const currentTimeLabel = formatDuration(currentTime);
   const totalTimeLabel = formatDuration(videoData.duration ?? 0);
+  const resumeLabel =
+    resumeSeconds !== null ? formatDuration(resumeSeconds) : '';
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-[#F8F8F8] text-gray-900">
-      {/* 左上角返回首页 */}
-      <Link
-        href="/"
-        className="fixed left-4 top-4 z-30 inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs text-gray-700 shadow-sm hover:border-gray-300 hover:bg-white"
-      >
-        <IconArrowLeft className="h-3.5 w-3.5" />
-        <span>返回首页</span>
-      </Link>
+    <div className="relative flex h-screen min-h-screen flex-col bg-[#F8F8F8] text-gray-900 overflow-hidden lg:h-auto lg:overflow-visible">
+      {/* 顶部导航栏：返回 / 标题 / 更多 */}
+      <header className="fixed inset-x-0 top-0 z-30 flex h-11 items-center justify-between bg-white/95 px-3 text-xs text-gray-700 shadow-sm shadow-black/5 lg:px-6">
+        <button
+          type="button"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+          onClick={() => router.back()}
+          aria-label="返回上一页"
+        >
+          <IconArrowLeft className="h-3.5 w-3.5" />
+        </button>
+        <div className="mx-2 flex-1 truncate text-center text-[13px] font-semibold text-gray-900">
+          {videoData.title}
+        </div>
+        <button
+          type="button"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+          aria-label="更多操作"
+          // 预留：后续可接入打印脚本 / 查看完整简介 / 举报等功能
+          onClick={() => {
+            // 当前版本暂不弹出菜单，保持界面简洁
+          }}
+        >
+          <IconMore className="h-3.5 w-3.5" />
+        </button>
+      </header>
 
       <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col px-4 pb-24 pt-16 lg:pb-10 lg:pt-20">
         <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
@@ -1862,9 +1964,9 @@ export default function WatchPage() {
               </div>
             </div>
 
-            {/* 移动端：视频下方的基础信息 */}
-            <div className="mt-3 flex flex-col gap-2 text-xs text-gray-500 lg:hidden">
-              <div className="flex flex-wrap items-center gap-2">
+            {/* 移动端：视频下方的基础信息（V1.2 收紧首屏信息量，暂时隐藏） */}
+            <div className="hidden">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                 <span className="inline-flex items-center rounded-full bg-white px-2 py-1">
                   时长 {formatDuration(videoData.duration)}
                 </span>
@@ -1873,7 +1975,7 @@ export default function WatchPage() {
                 </span>
               </div>
               {videoData.description && (
-                <p className="text-[12px] leading-relaxed text-gray-600">
+                <p className="mt-2 text-[12px] leading-relaxed text-gray-600">
                   {videoData.description}
                 </p>
               )}
@@ -1883,8 +1985,8 @@ export default function WatchPage() {
           {/* 右侧：交互式课本 THE LIST */}
           <aside className="mt-4 flex w-full flex-col lg:mt-0 lg:w-[30%]">
             <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm lg:max-h-[calc(100vh-180px)]">
-              {/* 顶部工具栏（Sticky） */}
-              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 text-xs text-gray-500">
+              {/* 顶部工具栏（Sticky，移动端隐藏以释放字幕空间） */}
+              <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-gray-100 bg-white px-4 py-3 text-xs text-gray-500 lg:flex">
                 <div className="flex flex-col">
                   <span className="text-[13px] font-medium text-gray-900">
                     交互式课本
@@ -1956,19 +2058,63 @@ export default function WatchPage() {
                 </div>
               </div>
 
-              {/* 字幕列表 */}
-              <div
-                ref={subtitlesContainerRef}
-                className="flex-1 max-h-[60vh] space-y-3 overflow-y-auto px-4 py-3 text-sm"
-              >
-                {videoData.subtitles.map((subtitle, index) => {
+              {/* 字幕列表区域 + 悬浮语言切换（移动端） */}
+              <div className="relative flex-1">
+                {/* 悬浮语言切换：仅移动端显示，中 / 英 / 中英 胶囊按钮 */}
+                <button
+                  type="button"
+                  className="absolute right-4 top-2 z-20 inline-flex items-center rounded-full bg-black/70 px-2.5 py-1 text-[11px] text-white shadow-sm shadow-black/40 lg:hidden"
+                  onClick={() =>
+                    setScriptMode(prev =>
+                      prev === 'both' ? 'en' : prev === 'en' ? 'cn' : 'both'
+                    )
+                  }
+                  aria-label="切换字幕语言"
+                >
+                  <span
+                    className={
+                      scriptMode === 'cn'
+                        ? 'font-semibold text-white'
+                        : 'text-white/60'
+                    }
+                  >
+                    中
+                  </span>
+                  <span className="px-1 text-white/40">/</span>
+                  <span
+                    className={
+                      scriptMode === 'en'
+                        ? 'font-semibold text-white'
+                        : 'text-white/60'
+                    }
+                  >
+                    英
+                  </span>
+                  <span className="px-1 text-white/40">/</span>
+                  <span
+                    className={
+                      scriptMode === 'both'
+                        ? 'font-semibold text-white'
+                        : 'text-white/60'
+                    }
+                  >
+                    中英
+                  </span>
+                </button>
+
+                {/* 字幕列表：独立滚动区域 */}
+                <div
+                  ref={subtitlesContainerRef}
+                  className="h-full space-y-3 overflow-y-auto px-4 py-3 text-sm"
+                >
+                  {videoData.subtitles.map((subtitle, index) => {
                   const isActive = currentSubtitleIndex === index;
 
                   const baseCardClasses =
-                    'relative cursor-pointer rounded-xl border px-3 py-2 transition-all';
+                    'relative cursor-pointer rounded-2xl border px-3 py-2 transition-colors duration-200 ease-out';
                   const stateClasses = isActive
-                    ? 'border-[#FF2442] bg-red-50'
-                    : 'border-transparent bg-white hover:border-gray-200 hover:bg-gray-50';
+                    ? 'border-transparent bg-[#FEF2F2] shadow-sm shadow-rose-200'
+                    : 'border-transparent bg-white/80 text-gray-500 hover:border-gray-200 hover:bg-gray-50 hover:text-gray-700';
 
                   const toolbarDesktopClasses =
                     'mt-2 hidden flex-nowrap items-center gap-2 text-[11px] text-gray-500 lg:flex';
@@ -1990,14 +2136,32 @@ export default function WatchPage() {
 
                       <div className="flex items-center justify-between text-[11px] text-gray-400">
                         <span>{formatDuration(subtitle.start)}</span>
-                        {likedSubtitles.has(index) && (
-                          <IconLike className="h-3.5 w-3.5 text-[#FF2442]" />
-                        )}
+                        <button
+                          type="button"
+                          className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${
+                            likedSubtitles.has(index)
+                              ? 'text-[#FF2442]'
+                              : 'text-gray-300 hover:text-[#FF2442]'
+                          }`}
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleToggleLike(index);
+                          }}
+                          aria-label="收藏该句子"
+                        >
+                          <IconLike className="h-3.5 w-3.5" />
+                        </button>
                       </div>
 
                       {/* 英文行：根据 scriptMode 控制显示 */}
                       {(scriptMode === 'both' || scriptMode === 'en') && (
-                        <div className="mt-0.5 text-[14px] font-medium text-gray-800">
+                        <div
+                          className={
+                            isActive
+                              ? 'mt-1 text-[22px] leading-snug font-extrabold text-gray-900'
+                              : 'mt-0.5 text-[16px] leading-snug font-medium text-gray-500'
+                          }
+                        >
                           {buildHighlightSegments(
                             subtitle.text_en,
                             videoData.cards ?? []
@@ -2031,7 +2195,13 @@ export default function WatchPage() {
 
                       {/* 中文行：根据 scriptMode 控制显示 */}
                       {(scriptMode === 'both' || scriptMode === 'cn') && (
-                        <div className="mt-0.5 text-[12px] text-gray-500">
+                        <div
+                          className={
+                            isActive
+                              ? 'mt-1 text-[12px] text-gray-700'
+                              : 'mt-0.5 text-[12px] text-gray-400'
+                          }
+                        >
                           {subtitle.text_cn}
                         </div>
                       )}
@@ -2176,6 +2346,7 @@ export default function WatchPage() {
                     </div>
                   );
                 })}
+                </div>
               </div>
 
             </div>
@@ -2340,8 +2511,8 @@ export default function WatchPage() {
         />
       )}
 
-      {/* 移动端：底部播放器控制条 */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white px-4 py-2.5 text-xs text-gray-600 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] lg:hidden">
+      {/* 移动端：底部双层控制台（工具层 + 驾驶层） */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white/95 px-4 py-2.5 text-xs text-gray-600 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] lg:hidden">
         <div className="mb-1 flex items-center justify-between">
           <span className="text-[11px] text-gray-400">
             句子 {currentSubtitleIndex + 1}/{videoData.subtitles.length}
@@ -2352,86 +2523,12 @@ export default function WatchPage() {
           </span>
         </div>
 
-        {/* 顶部：字幕相关操作（重听 / 跟读 / 收藏） - 仅图标，无文字描述 */}
-        {videoData.subtitles.length > 0 && (
-          <div className="mb-2 flex items-center justify-center gap-3.5">
-            {/* 重听：冷灰底色 */}
-            <button
-              type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-[#FF2442]"
-              onClick={() => handleRowReplay(currentSubtitleIndex)}
-              disabled={isTrial && trialEnded}
-              aria-label="重听当前句子"
-            >
-              <IconReplay className="h-6 w-6" />
-            </button>
-
-            {/* 跟读：高亮蓝绿色，录音中改为红色提示 */}
-            <button
-              type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-50 text-cyan-700 hover:bg-cyan-100 hover:text-[#FF2442]"
-              onClick={() => handleRowMic(currentSubtitleIndex)}
-              disabled={isTrial && trialEnded}
-              aria-label="开启影子跟读"
-            >
-              {shadowSubtitleIndex === currentSubtitleIndex &&
-              shadowMode === 'reviewing' ? (
-                <IconReplay className="h-6 w-6" />
-              ) : (
-                <IconMic
-                  className={`h-6 w-6 ${
-                    shadowSubtitleIndex === currentSubtitleIndex &&
-                    shadowMode === 'recording'
-                      ? 'text-[#FF2442]'
-                      : ''
-                  }`}
-                />
-              )}
-            </button>
-
-            {/* 收藏：暖色底色，已收藏高亮红色 */}
-            <button
-              type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-[#FF2442]"
-              onClick={() => handleToggleLike(currentSubtitleIndex)}
-              aria-label="收藏当前句子"
-            >
-              <IconLike
-                className={`h-6 w-6 ${
-                  likedSubtitles.has(currentSubtitleIndex) ? 'text-[#FF2442]' : ''
-                }`}
-              />
-            </button>
-            {/* 词汇清单入口：仅登录用户显示 */}
-            {user && vocabItems.length > 0 && (
-                <button
-                    type="button"
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-black hover:bg-black"
-                    onClick={() => setIsVocabOpen(true)}
-                    aria-label="查看词汇清单"
-                >
-                  <IconVocab className="h-6 w-6" />
-                </button>
-            )}
-          </div>
-        )}
-
-        {/* 底部：播放控制区域（移动端） - 所有按钮统一尺寸，仅使用图标，通过底色区分功能 */}
-        <div className="flex items-center justify-between gap-2.5">
-          {/* 回到当前句列表位置 */}
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-[#FF2442]"
-            onClick={scrollToCurrentSubtitle}
-            aria-label="回到当前句列表位置"
-          >
-            <IconList className="h-6 w-6" />
-          </button>
-
-          {/* 倍速：自定义下拉菜单，浮在按钮上方 */}
-          <div className="relative flex h-10 w-10 items-center justify-center">
+        {/* 工具层：倍速 / 单句循环 / 单词本 */}
+        <div className="mb-2 flex items-center justify-between">
+          {/* 倍速：左侧胶囊按钮 + 浮层菜单 */}
+          <div className="relative">
             {isSpeedMenuOpen && !isTrial && !trialEnded && (
-              <div className="absolute bottom-10 z-30 w-[72px] rounded-xl border border-gray-100 bg-white py-1 text-[11px] text-gray-700 shadow-lg shadow-black/10">
+              <div className="absolute bottom-9 z-30 w-[80px] rounded-xl border border-gray-100 bg-white py-1 text-[11px] text-gray-700 shadow-lg shadow-black/10">
                 {speedOptions.map(speed => {
                   const label = `${speed.toString().replace(/\.0$/, '')}x`;
                   const active = playbackRate === speed;
@@ -2455,7 +2552,7 @@ export default function WatchPage() {
             )}
             <button
               type="button"
-              className={`flex h-10 w-10 items-center justify-center rounded-full ${
+              className={`inline-flex items-center rounded-full px-3 py-1.5 text-[11px] ${
                 isSpeedMenuOpen
                   ? 'bg-violet-100 text-violet-700'
                   : 'bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800'
@@ -2466,73 +2563,155 @@ export default function WatchPage() {
               }}
               aria-label="选择播放速度"
             >
-              <IconSpeed className="h-6 w-6" />
+              <IconSpeed className="mr-1 h-4 w-4" />
+              <span className="mr-0.5 text-[11px] text-gray-500">倍速</span>
+              <span className="text-[12px] font-semibold text-gray-900">
+                {playbackRate.toString().replace(/\.0$/, '')}x
+              </span>
             </button>
           </div>
 
-          {/* 上一句 */}
+          {/* 单句循环 */}
           <button
             type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
-            onClick={handlePrevSentence}
-            disabled={isTrial && trialEnded}
-            aria-label="上一句"
-          >
-            <IconPrev className="h-6 w-6" />
-          </button>
-
-          {/* 播放 / 暂停 */}
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FF2442] text-white shadow-lg shadow-[#FF2442]/50"
-            onClick={handleTogglePlay}
-            disabled={isTrial && trialEnded}
-            aria-label={isPlaying ? '暂停' : '播放'}
-          >
-            {isPlaying ? (
-              <IconPause className="h-6 w-6" />
-            ) : (
-              <IconPlay className="h-6 w-6" />
-            )}
-          </button>
-
-          {/* 下一句 */}
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
-            onClick={handleNextSentence}
-            disabled={isTrial && trialEnded}
-            aria-label="下一句"
-          >
-            <IconNext className="h-6 w-6" />
-          </button>
-
-          {/* 单句循环开关 */}
-          <button
-            type="button"
-            className={`flex h-10 w-10 items-center justify-center rounded-full ${
+            className={`flex h-9 w-9 items-center justify-center rounded-full ${
               sentenceLoop
-                ? 'bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700'
-                : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-[#FF2442]'
+                ? 'bg-orange-100 text-orange-600'
+                : 'bg-gray-100 text-gray-500'
             }`}
             onClick={() => handleRowLoop(currentSubtitleIndex)}
             disabled={isTrial && trialEnded}
             aria-label="单句循环"
           >
-            <IconLoop className="h-6 w-6" />
+            <IconLoop className="h-5 w-5" />
           </button>
 
-          {/* 中 / 英 / 中英 切换按钮：仅显示当前状态，点击循环切换 */}
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800"
-            onClick={cycleScriptMode}
-            aria-label="切换字幕语言"
-          >
-            <IconLang className="h-6 w-6" />
-          </button>
+          {/* 单词本入口：右侧按钮（仅登录用户） */}
+          {user && vocabItems.length > 0 ? (
+            <button
+              type="button"
+              className="inline-flex items-center rounded-full bg-neutral-900 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm shadow-black/30"
+              onClick={() => setIsVocabOpen(true)}
+              aria-label="查看词汇清单"
+            >
+              <IconVocab className="mr-1.5 h-4 w-4" />
+              <span>单词</span>
+            </button>
+          ) : (
+            <div className="h-3" />
+          )}
         </div>
+
+        {/* 驾驶层：上一句 / 重听 / 播放 / 跟读 / 下一句 */}
+        {videoData.subtitles.length > 0 && (
+          <div className="flex items-center justify-between gap-4 pt-1">
+            {/* 上一句 */}
+            <button
+              type="button"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
+              onClick={handlePrevSentence}
+              disabled={isTrial && trialEnded}
+              aria-label="上一句"
+            >
+              <IconPrev className="h-5 w-5" />
+            </button>
+
+            {/* 重听当前句 */}
+            <button
+              type="button"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-[#FF2442]"
+              onClick={() => handleRowReplay(currentSubtitleIndex)}
+              disabled={isTrial && trialEnded}
+              aria-label="重听当前句子"
+            >
+              <IconReplay className="h-6 w-6" />
+            </button>
+
+            {/* 播放 / 暂停：居中放大 */}
+            <button
+              type="button"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FF2442] text-white shadow-lg shadow-[#FF2442]/60"
+              onClick={handleTogglePlay}
+              disabled={isTrial && trialEnded}
+              aria-label={isPlaying ? '暂停' : '播放'}
+            >
+              {isPlaying ? (
+                <IconPause className="h-7 w-7" />
+              ) : (
+                <IconPlay className="h-7 w-7" />
+              )}
+            </button>
+
+            {/* 跟读：麦克风 */}
+            <button
+              type="button"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-cyan-50 text-cyan-700 hover:bg-cyan-100 hover:text-[#FF2442]"
+              onClick={() => handleRowMic(currentSubtitleIndex)}
+              disabled={isTrial && trialEnded}
+              aria-label="开启影子跟读"
+            >
+              {shadowSubtitleIndex === currentSubtitleIndex &&
+              shadowMode === 'reviewing' ? (
+                <IconReplay className="h-6 w-6" />
+              ) : (
+                <IconMic
+                  className={`h-6 w-6 ${
+                    shadowSubtitleIndex === currentSubtitleIndex &&
+                    shadowMode === 'recording'
+                      ? 'text-[#FF2442]'
+                      : ''
+                  }`}
+                />
+              )}
+            </button>
+
+            {/* 下一句 */}
+            <button
+              type="button"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
+              onClick={handleNextSentence}
+              disabled={isTrial && trialEnded}
+              aria-label="下一句"
+            >
+              <IconNext className="h-5 w-5" />
+            </button>
+          </div>
+        )}
+
+        {/*
+          原来的「回到当前句」以及「中/英/中英」切换按钮，为了减少底部拥挤暂时隐藏：
+          - 自动居中逻辑已经保证当前句始终在视图中间；
+          - 语言切换在右侧课本头部依然可用，后续可根据需要再添加浮动入口。
+        */}
       </div>
+
+      {/* 断点续播 Toast：上次看到 xx:xx [恢复] [x] */}
+      {showResumeToast && resumeSeconds !== null && (
+        <div className="fixed inset-x-0 bottom-16 z-40 flex justify-center px-4 lg:bottom-6">
+          <div className="flex max-w-sm flex-1 items-center justify-between rounded-full bg-black/85 px-3 py-2 text-xs text-white shadow-lg shadow-black/40">
+            <span className="mr-2 truncate">
+              上次看到 {resumeLabel}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="rounded-full bg-white/10 px-2 py-1 text-[11px] font-medium hover:bg-white/20"
+                onClick={handleResumeFromToast}
+              >
+                恢复
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/0 text-white/70 hover:bg-white/10 hover:text-white"
+                onClick={() => setShowResumeToast(false)}
+                aria-label="关闭提示"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 试看结束提示遮罩 */}
       {isTrial && trialEnded && (
