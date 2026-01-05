@@ -45,6 +45,24 @@ function IconClock() {
   );
 }
 
+function IconSearch() {
+  return (
+    <svg
+      className="h-4 w-4 text-slate-400"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="5" />
+      <path d="m16 16 4 4" />
+    </svg>
+  );
+}
+
 function IconFilter() {
   return (
     <svg
@@ -67,7 +85,7 @@ function IconFilter() {
 function IconHeart() {
   return (
     <svg
-      className="h-3.5 w-3.5"
+      className="h-3 w-3"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -97,7 +115,8 @@ interface VideoCard {
   view_count?: number | null;
 }
 
-type CategoryValue = 'all' | 'vlog' | 'work' | 'tech' | 'movie' | 'speech';
+// 类目值：'all' 表示全部，其余直接使用数据库中的真实 tag 文本
+type CategoryValue = 'all' | string;
 type DifficultyFilter = 'all' | 'easy' | 'medium' | 'hard';
 type SortOrder = 'hottest' | 'latest';
 type StatusFilter = 'all' | 'unlearned' | 'completed';
@@ -110,7 +129,8 @@ export default function Home() {
   const [studyDates, setStudyDates] = useState<string[]>([]);
   const [completedVideoIds, setCompletedVideoIds] = useState<string[]>([]);
 
-  const [activeCategory] = useState<CategoryValue>('all');
+  const [activeCategory, setActiveCategory] =
+    useState<CategoryValue>('all');
   const [difficultyFilter, setDifficultyFilter] =
     useState<DifficultyFilter>('all');
   const [authorFilter, setAuthorFilter] = useState<string>('all');
@@ -266,13 +286,14 @@ export default function Home() {
       return 'border border-rose-300/40 bg-rose-400/20 text-rose-100';
     }
 
+    // 卡片难度标签：更柔和的“马卡龙 + 毛玻璃”效果
     if (level === 'easy') {
-      return 'bg-emerald-50 text-emerald-600';
+      return 'bg-emerald-50/90 text-emerald-600 border border-emerald-100/70 backdrop-blur';
     }
     if (level === 'medium') {
-      return 'bg-amber-50 text-amber-700';
+      return 'bg-amber-50/90 text-amber-700 border border-amber-100/70 backdrop-blur';
     }
-    return 'bg-rose-50 text-rose-600';
+    return 'bg-rose-50/90 text-rose-700 border border-rose-100/70 backdrop-blur';
   };
 
   const completedSet = new Set(completedVideoIds);
@@ -281,28 +302,8 @@ export default function Home() {
   const matchCategory = (video: VideoCard) => {
     if (activeCategory === 'all') return true;
     if (!video.tags || video.tags.length === 0) return false;
-
-    const tags = video.tags.map((t) => t.toLowerCase());
-
-    if (activeCategory === 'vlog') {
-      return tags.some((t) => t.includes('vlog'));
-    }
-    if (activeCategory === 'work') {
-      return tags.some((t) => t.includes('work') || t.includes('职场'));
-    }
-    if (activeCategory === 'tech') {
-      return tags.some((t) => t.includes('tech') || t.includes('科技'));
-    }
-    if (activeCategory === 'movie') {
-      return tags.some((t) => t.includes('movie') || t.includes('电影'));
-    }
-    if (activeCategory === 'speech') {
-      return tags.some(
-        (t) => t.includes('speech') || t.includes('演讲') || t.includes('ted')
-      );
-    }
-
-    return true;
+    // 类目直接使用真实 tag 文本，点击哪个 tag 就筛哪个
+    return video.tags.includes(activeCategory);
   };
 
   // 作者选项：从当前视频列表中提取
@@ -314,6 +315,7 @@ export default function Home() {
     )
   );
 
+  // 主题标签只用于卡片内部展示，不再在顶部堆叠成标签云，避免视觉噪音
   const themeTags: string[] = Array.from(
     new Set(
       videos
@@ -321,6 +323,9 @@ export default function Home() {
         .filter((tag): tag is string => !!tag && tag.trim().length > 0)
     )
   );
+
+  // 取前若干个 tag 作为首页类目 Tabs 的候选，避免一次性展示过多标签
+  const primaryTags: string[] = themeTags
 
   // 过滤视频
   const filteredVideos = videos
@@ -424,67 +429,150 @@ export default function Home() {
       : null;
 
   return (
-    <div className="min-h-screen bg-neutral-50 text-neutral-900">
-      <Header
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-      />
+    <div className="min-h-screen bg-[#FAFAFA] text-neutral-900">
+      {/* 桌面端导航栏 */}
+      <div className="hidden md:block">
+        <Header
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
+      </div>
 
-      <main className="mx-auto max-w-6xl px-4 pb-12 pt-24">
-        {/* 顶部标题区域 */}
-        <section className="space-y-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-neutral-400">
-            Immersive · English
-          </p>
-          <h1 className="font-serif text-2xl font-semibold leading-tight text-neutral-900 md:text-3xl">
-            精读学习大厅
-          </h1>
-          <p className="max-w-xl text-sm text-neutral-600">
-            像一本铺在书桌上的精美杂志，精选短视频 + 双语脚本 + 知识卡片，帮你轻松沉浸学英语。
-          </p>
-        </section>
-
-        {/* Hero + 右侧控制台（统一大 Banner + 右侧玻璃卡片） */}
-        <section className="mt-6">
-          {heroVideo ? (
-            <Link
-              href={`/watch/${heroVideo.cf_video_id}`}
-              className="relative block overflow-hidden rounded-2xl bg-neutral-900 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-            >
-              {/* 背景图 + 深色遮罩 */}
-              <div className="absolute inset-0">
-                <Image
-                  unoptimized
-                  src={getCoverSrc(
-                    heroVideo,
-                    '/images/hero-placeholder-960x540.png'
-                  )}
-                  alt={heroVideo.title}
-                  fill
-                  className="object-cover"
+          {/* 移动端顶部导航 + 搜索 + 分类 Tabs（使用数据库真实标签） */}
+      <header className="sticky top-0 z-40 border-b border-slate-100/60 bg-white/95 backdrop-blur-md md:hidden">
+        <div className="space-y-2 px-4 pb-3 pt-3">
+          {/* Row 1: Logo + Search + Bell */}
+          <div className="mb-1 flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FF2442] text-xs font-semibold text-white">
+              IE
+            </div>
+            <div className="flex-1">
+              <div className="relative flex h-10 items-center rounded-full bg-slate-100 px-3">
+                <div className="mr-2 text-slate-400">
+                  <IconSearch />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search vlogs..."
+                  className="h-full w-full bg-transparent text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30" />
               </div>
+            </div>
+            {/* 通知铃铛 */}
+            <button
+              type="button"
+              className="relative flex h-8 w-8 items-center justify-center"
+              aria-label="查看通知"
+            >
+              <svg
+                className="h-6 w-6 text-slate-800"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.8}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 4a4 4 0 0 0-4 4v2.8c0 .5-.2 1-.6 1.3L6 14h12l-1.4-1.9a2 2 0 0 1-.6-1.3V8a4 4 0 0 0-4-4Z" />
+                <path d="M10 18a2 2 0 0 0 4 0" />
+              </svg>
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full border border-white bg-[#FF2442]" />
+            </button>
+          </div>
 
-              {/* 前景内容 */}
-              <div className="relative z-10 px-6 py-6 md:px-8 md:py-8">
-                <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-                  {/* 左侧：文案区 */}
-                  <div className="max-w-xl space-y-3 text-white">
-                    <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-0.5 text-[11px] font-medium">
+          {/* Row 2: 横向滚动 Tabs（All + 前几个真实标签） */}
+          <div className="no-scrollbar -mx-4 overflow-x-auto px-4 pb-1 mt-4">
+            <div className="flex items-center gap-2 text-xs">
+              {(
+                [
+                  { value: 'all' as CategoryValue, label: '全部' },
+                  ...(
+                    primaryTags.length > 0
+                      ? primaryTags
+                      : ['Vlog', 'Business', 'Travel', 'Movie']
+                    // 这里作为兜底，保证即使没有 tag 数据也有几个可点的类目
+                  ).map((tag) => ({
+                    value: tag as CategoryValue,
+                    label: tag
+                  }))
+                ] satisfies { value: CategoryValue; label: string }[]
+              ).map((tab) => {
+                const isActive = activeCategory === tab.value;
+                return (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    className={`whitespace-nowrap rounded-full px-4 py-1.5 ${
+                      isActive
+                        ? 'bg-slate-900 text-white font-bold shadow-md'
+                        : 'bg-slate-50 text-slate-600 font-medium'
+                    }`}
+                    onClick={() => setActiveCategory(tab.value)}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-4 pb-16 pt-4 md:pb-12 md:pt-24">
+        {/* 顶部标题区域 */}
+        {/*<section className="space-y-3">*/}
+        {/*  <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-neutral-400">*/}
+        {/*    Immersive · English*/}
+        {/*  </p>*/}
+        {/*  <h1 className="font-serif text-2xl font-semibold leading-tight text-neutral-900 md:text-3xl">*/}
+        {/*    精读学习大厅*/}
+        {/*  </h1>*/}
+        {/*  <p className="max-w-xl text-sm text-neutral-600">*/}
+        {/*    像一本铺在书桌上的精美杂志，精选短视频 + 双语脚本 + 知识卡片，帮你轻松沉浸学英语。*/}
+        {/*  </p>*/}
+        {/*</section>*/}
+
+        {/* Hero + 右侧控制台 */}
+        <section className="mt-4 md:mt-6">
+          {heroVideo ? (
+            <>
+              {/* 桌面端：左图右文杂志风布局 */}
+              <div className="hidden items-start gap-8 md:flex">
+                {/* 左侧大图 */}
+                <Link
+                  href={`/watch/${heroVideo.cf_video_id}`}
+                  className="group relative flex-[3] overflow-hidden rounded-2xl bg-neutral-900 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)]"
+                >
+                  <div className="relative aspect-video w-full">
+                    <Image
+                      unoptimized
+                      src={getCoverSrc(
+                        heroVideo,
+                        '/images/hero-placeholder-960x540.png'
+                      )}
+                      alt={heroVideo.title}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                  </div>
+
+                  {/* 覆盖文字信息 */}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4 md:p-6">
+                    <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-0.5 text-[11px] font-medium text-white">
                       今日精选
                     </span>
-                    <h2 className="font-serif text-xl font-semibold leading-tight md:text-2xl">
+                    <h2 className="mt-2 line-clamp-2 font-serif text-xl font-semibold leading-snug text-white md:text-2xl">
                       {heroVideo.title}
                     </h2>
                     {heroVideo.description && (
-                      <p className="line-clamp-2 text-sm text-white/80">
+                      <p className="mt-1 line-clamp-2 text-xs text-white/80">
                         {heroVideo.description}
                       </p>
                     )}
-
-                    {/* 下方：Meta 信息 */}
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-white/80">
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/80">
                       {heroVideo.author && (
                         <span className="inline-flex items-center gap-1">
                           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-[10px] font-medium">
@@ -516,38 +604,54 @@ export default function Home() {
                         </span>
                       )}
                     </div>
-
-                    {/* 预习概览区：从标签或描述中提炼 */}
-                    <div className="mt-4 border-t border-white/10 pt-3">
-                    </div>
-
-                    {/* 底部：时长 / 热度 + 播放按钮 */}
-                    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-white/80">
-                      <div className="inline-flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
-                          <IconClock />
-                          <span>{formatDuration(heroVideo.duration)}</span>
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
-                          <IconFlame />
-                          <span>已学习 {heroVideo.view_count ?? 0} 次</span>
-                        </span>
-                      </div>
-                      <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-[11px] font-medium text-neutral-900 shadow-sm">
-                        <span>▶</span>
-                        <span>开始精读</span>
+                    <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-white/80">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
+                        <IconClock />
+                        <span>{formatDuration(heroVideo.duration)}</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
+                        <IconFlame />
+                        <span>已学习 {heroVideo.view_count ?? 0} 次</span>
                       </span>
                     </div>
                   </div>
 
-                  {/* 右侧：毛玻璃学习卡片 */}
-                  <div className="w-full max-w-xs rounded-2xl border border-white/15 bg-white/10 p-4 text-xs text-white backdrop-blur-md md:w-auto">
+                  {/* Hover 播放按钮 */}
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/30 backdrop-blur">
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-7 w-7 translate-x-0.5 fill-white"
+                      >
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                </Link>
+
+                {/* 右侧：学习快照信息卡 */}
+                <div className="flex-[2] space-y-4">
+                  <div>
+                    <span className="inline-flex items-center rounded-full bg-[#FF2442]/10 px-3 py-1 text-[11px] font-medium text-[#FF2442]">
+                      Vlog 精读推荐
+                    </span>
+                    <h2 className="mt-3 font-serif text-3xl font-semibold leading-snug text-[#1F1F1F]">
+                      {heroVideo.title}
+                    </h2>
+                    {heroVideo.description && (
+                      <p className="mt-2 text-sm text-neutral-600 line-clamp-3">
+                        {heroVideo.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl bg-white/90 p-4 text-xs text-neutral-800 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] backdrop-blur-md">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-400">
                           Study snapshot
                         </p>
-                        <p className="mt-1 text-sm font-medium text-white">
+                        <p className="mt-1 text-sm font-medium text-neutral-900">
                           {greetingLabel}, {displayName}
                         </p>
                       </div>
@@ -555,32 +659,70 @@ export default function Home() {
 
                     <div className="mt-4 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-white/70">本月打卡天数</span>
+                        <span className="text-neutral-500">本月打卡天数</span>
                         <span className="text-sm font-semibold">
                           {studyDates.length} 天
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-white/70">素材总数</span>
+                        <span className="text-neutral-500">素材总数</span>
                         <span className="text-sm font-semibold">
                           {videos.length} 期
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-white/70">已学期数</span>
+                        <span className="text-neutral-500">已学期数</span>
                         <span className="text-sm font-semibold">
                           {learnedCount} 期
                         </span>
                       </div>
                     </div>
 
-                    <div className="mt-4 text-[11px] text-white/60">
+                    <div className="mt-4 text-[11px] text-neutral-500">
                       小目标：本周再打卡 3 天，让英语出现在每一个碎片时间里。
                     </div>
                   </div>
                 </div>
               </div>
-            </Link>
+
+              {/* 移动端：单张 Hero 卡片 */}
+              <Link
+                href={`/watch/${heroVideo.cf_video_id}`}
+                className="relative block overflow-hidden rounded-2xl bg-neutral-900 shadow-sm md:hidden"
+              >
+                <div className="relative aspect-[16/9] w-full">
+                  <Image
+                    unoptimized
+                    src={getCoverSrc(
+                      heroVideo,
+                      '/images/hero-placeholder-960x540.png'
+                    )}
+                    alt={heroVideo.title}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                </div>
+                <div className="absolute inset-x-0 bottom-0 p-4">
+                  <span className="inline-flex items-center rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-medium text-white">
+                    今日精选
+                  </span>
+                  <h2 className="mt-2 line-clamp-2 font-serif text-lg font-semibold leading-snug text-white">
+                    {heroVideo.title}
+                  </h2>
+                  <div className="mt-2 flex items-center gap-2 text-[10px] text-white/80">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
+                      <IconClock />
+                      <span>{formatDuration(heroVideo.duration)}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
+                      <IconFlame />
+                      <span>{heroVideo.view_count ?? 0}</span>
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            </>
           ) : (
             <div className="h-56 animate-pulse rounded-2xl bg-neutral-200" />
           )}
@@ -591,38 +733,76 @@ export default function Home() {
 
         {/* 分类 Tabs + 筛选条 */}
         <section className="space-y-4">
+          {/* 桌面端：双层分离过滤条（类目来自数据库真实标签） */}
+          <div className="hidden flex-col gap-3 rounded-2xl bg-white/95 px-5 py-4 text-[11px] text-neutral-600 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] md:sticky md:top-20 md:z-30 md:flex md:border md:border-neutral-100 md:backdrop-blur">
+            {/* Row 1: 类目 Tabs + 排序 / 未学开关 */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                {(
+                  [
+                    { value: 'all' as CategoryValue, label: '全部' },
+                    ...(
+                      primaryTags.length > 0
+                        ? primaryTags
+                        : ['Vlog', '职场', '旅游', '电影']
+                    ).map((tag) => ({
+                      value: tag as CategoryValue,
+                      label: tag
+                    }))
+                  ] satisfies { value: CategoryValue; label: string }[]
+                ).map((tab) => {
+                  const isActive = activeCategory === tab.value;
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      className={`whitespace-nowrap rounded-full px-4 py-1.5 text-[11px] ${
+                        isActive
+                          ? 'bg-slate-900 text-white font-semibold shadow-md'
+                          : 'bg-white text-slate-600 border border-slate-200 hover:border-[#FF2442] hover:text-[#FF2442]'
+                      }`}
+                      onClick={() => setActiveCategory(tab.value)}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
 
-
-          {/* 主题：从视频 tags 动态生成 */}
-          {themeTags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-neutral-600">
-              <span className="text-neutral-400">主题:</span>
-              {themeTags.map((tag) => {
-                const isActive = activeThemeTag === tag;
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    className={`rounded-full px-3 py-1 ${
-                      isActive
-                        ? 'bg-neutral-900 text-white'
-                        : 'bg-white text-neutral-600 shadow-sm hover:bg-neutral-100'
-                    }`}
-                    onClick={() =>
-                      setActiveThemeTag(isActive ? null : tag)
+              <div className="flex items-center gap-4 border-l border-slate-100 pl-4">
+                {/* 排序 */}
+                <div className="flex items-center gap-1">
+                  <span className="text-neutral-500">排序:</span>
+                  <select
+                    className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] text-neutral-700 focus:border-[#FF2442] focus:outline-none focus:ring-1 focus:ring-[#FF2442]/20"
+                    value={sortOrder}
+                    onChange={(e) =>
+                      setSortOrder(e.target.value as SortOrder)
                     }
                   >
-                    {tag}
-                  </button>
-                );
-              })}
+                    <option value="hottest">最热</option>
+                    <option value="latest">最新</option>
+                  </select>
+                </div>
+                {/* 仅看未学 */}
+                <label className="flex cursor-pointer items-center gap-2 text-[11px] text-neutral-500 hover:text-[#FF2442]">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded border-neutral-300 text-[#FF2442] focus:ring-[#FF2442]"
+                    checked={statusFilter === 'unlearned'}
+                    onChange={() =>
+                      setStatusFilter(
+                        statusFilter === 'unlearned' ? 'all' : 'unlearned'
+                      )
+                    }
+                  />
+                  <span>仅看未学</span>
+                </label>
+              </div>
             </div>
-          )}
 
-          {/* 二级筛选栏 - 桌面端 */}
-          <div className="hidden items-center gap-4 rounded-full bg-neutral-100/80 px-4 py-2 text-[11px] text-neutral-600 md:flex">
-            {/* 难度筛选 */}
-            <div className="flex items-center gap-2">
+            {/* Row 2: 难度 Chips（次级筛选） */}
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-neutral-500">难度:</span>
               {(['all', 'easy', 'medium', 'hard'] as DifficultyFilter[]).map(
                 (level) => {
@@ -632,12 +812,6 @@ export default function Home() {
                     medium: '进阶',
                     hard: '大师'
                   };
-                  const colorMap: Record<DifficultyFilter, string> = {
-                    all: 'bg-white text-neutral-600',
-                    easy: 'bg-emerald-50 text-emerald-600',
-                    medium: 'bg-amber-50 text-amber-700',
-                    hard: 'bg-rose-50 text-rose-600'
-                  };
                   const isActive = difficultyFilter === level;
                   return (
                     <button
@@ -645,8 +819,8 @@ export default function Home() {
                       type="button"
                       className={`rounded-full px-3 py-1 ${
                         isActive
-                          ? colorMap[level]
-                          : 'bg-white text-neutral-500 hover:bg-neutral-50'
+                          ? 'bg-slate-900 text-white'
+                          : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                       }`}
                       onClick={() => setDifficultyFilter(level)}
                     >
@@ -655,58 +829,6 @@ export default function Home() {
                   );
                 }
               )}
-            </div>
-
-            {/* 作者筛选 */}
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-500">作者:</span>
-              <select
-                className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] text-neutral-700 focus:border-[#FF2442] focus:outline-none focus:ring-1 focus:ring-[#FF2442]/20"
-                value={authorFilter}
-                onChange={(e) => setAuthorFilter(e.target.value)}
-              >
-                <option value="all">全部作者</option>
-                {authorOptions.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 排序 */}
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-500">排序:</span>
-              <select
-                className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] text-neutral-700 focus:border-[#FF2442] focus:outline-none focus:ring-1 focus:ring-[#FF2442]/20"
-                value={sortOrder}
-                onChange={(e) =>
-                  setSortOrder(e.target.value as SortOrder)
-                }
-              >
-                <option value="hottest">最热</option>
-                <option value="latest">最新</option>
-              </select>
-            </div>
-
-            {/* 状态 */}
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-500">状态:</span>
-              <button
-                type="button"
-                className={`rounded-full px-3 py-1 ${
-                  statusFilter === 'unlearned'
-                    ? 'bg-neutral-900 text-white'
-                    : 'bg-white text-neutral-600 hover:bg-neutral-50'
-                }`}
-                onClick={() =>
-                  setStatusFilter(
-                    statusFilter === 'unlearned' ? 'all' : 'unlearned'
-                  )
-                }
-              >
-                仅看未学
-              </button>
             </div>
           </div>
 
@@ -745,9 +867,9 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 视频卡片 Grid */}
+        {/* 视频卡片：移动端瀑布流 + PC Grid */}
         <section className="mt-4">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-5">
+          <div className="columns-2 gap-4 space-y-4 md:grid md:grid-cols-4 md:gap-6 md:space-y-0 xl:grid-cols-5">
             {isLoading ? (
               <>
                 <div className="h-48 animate-pulse rounded-xl bg-neutral-200" />
@@ -764,7 +886,7 @@ export default function Home() {
                 <Link
                   key={video.id}
                   href={`/watch/${video.cf_video_id}`}
-                  className="group flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  className="group mb-4 flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md [break-inside:avoid]"
                 >
                   <div className="relative aspect-[3/4] w-full overflow-hidden">
                     <Image
@@ -775,22 +897,57 @@ export default function Home() {
                       )}
                       alt={video.title}
                       fill
-                      className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                      className={`object-cover transition-transform duration-300 group-hover:scale-[1.03] ${
+                        completedSet.has(video.id) ? 'opacity-60' : ''
+                      }`}
                     />
-                    {completedSet.has(video.id) && (
-                      <span className="absolute left-2 top-2 rounded-full bg-neutral-900/80 px-2 py-0.5 text-[10px] font-medium text-white">
-                        已学习
+                    {/* 左上角难度 Badge */}
+                    {video.difficulty && (
+                      <span
+                        className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${getDifficultyStyle(
+                          video.difficulty,
+                          'card'
+                        )}`}
+                      >
+                        {renderDifficultyLabel(video.difficulty)}
                       </span>
+                    )}
+                    {/* 右下角时长 Badge */}
+                    <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                      {formatDuration(video.duration)}
+                    </span>
+                    {/* 已学习覆盖层：淡白遮罩 + 绿色勾 */}
+                    {completedSet.has(video.id) && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[1px]">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-5 w-5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={2.4}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      </div>
                     )}
                   </div>
                   <div className="flex flex-1 flex-col justify-between gap-2 p-3">
-                    <div className="space-y-1">
-                      <h3 className="line-clamp-2 text-[15px] font-semibold text-neutral-900">
+                    <div className="space-y-1.5">
+                      <h3 className="line-clamp-2 text-sm font-bold leading-tight text-slate-800">
                         {video.title}
                       </h3>
+                      {video.tags && video.tags.length > 0 && (
+                        <span className="inline-flex max-w-full items-center rounded bg-slate-50 px-1 text-[10px] text-slate-400">
+                          #{video.tags[0]}
+                        </span>
+                      )}
                       {video.author && (
-                        <div className="flex items-center gap-2 text-[11px] text-neutral-500">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-[11px] text-neutral-600">
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-600">
                             {(video.author || '英')
                               .charAt(0)
                               .toUpperCase()}
@@ -799,25 +956,14 @@ export default function Home() {
                         </div>
                       )}
                     </div>
-                    <div className="mt-1 flex items-center justify-between text-[11px] text-neutral-500">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1">
-                          <IconHeart />
-                          <span>{video.view_count ?? 0}</span>
-                        </span>
-                        {video.difficulty && (
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${getDifficultyStyle(
-                              video.difficulty,
-                              'card'
-                            )}`}
-                          >
-                            <span>{renderDifficultyLabel(video.difficulty)}</span>
-                          </span>
-                        )}
+                    <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500">
+                      <div className="flex items-center gap-1.5">
+                        <IconHeart />
+                        <span>{video.view_count ?? 0}</span>
                       </div>
-                      <span className="text-[10px] text-neutral-400">
-                        {formatDuration(video.duration)}
+                      {/* 右侧保留一个轻量文案，未来可扩展为收藏/进度 */}
+                      <span className="text-[10px] text-slate-400">
+                        {renderDifficultyLabel(video.difficulty)}
                       </span>
                     </div>
                   </div>
@@ -865,9 +1011,9 @@ export default function Home() {
                       };
                       const colorMap: Record<DifficultyFilter, string> = {
                         all: 'bg-white text-neutral-600',
-                        easy: 'bg-emerald-50 text-emerald-600',
-                        medium: 'bg-amber-50 text-amber-700',
-                        hard: 'bg-rose-50 text-rose-600'
+                        easy: 'bg-emerald-100 text-emerald-700',
+                        medium: 'bg-amber-100 text-amber-700',
+                        hard: 'bg-rose-100 text-rose-700'
                       };
                       const isActive = difficultyFilter === level;
                       return (
@@ -984,6 +1130,49 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* 移动端底部悬浮导航岛 */}
+      <nav className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-full border border-white/70 bg-white/90 px-6 py-2.5 text-[11px] text-slate-500 shadow-[0_16px_40px_-18px_rgba(15,23,42,0.3)] backdrop-blur-xl md:hidden">
+        <button
+          type="button"
+          className="flex items-center gap-2 text-[#FF2442]"
+          aria-label="回到首页"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.7}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3 11.5 12 4l9 7.5" />
+            <path d="M5 10.5v9h5v-5h4v5h5v-9" />
+          </svg>
+          <span className="font-medium">首页</span>
+        </button>
+        <div className="h-4 w-px bg-slate-200" />
+        <button
+          type="button"
+          className="flex items-center gap-2 text-slate-500"
+          aria-label="打开生词本（即将上线）"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.7}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+          </svg>
+          <span>笔记本</span>
+        </button>
+      </nav>
 
       {/* 移动端学习数据 Bottom Sheet */}
       {isStatsSheetOpen && (

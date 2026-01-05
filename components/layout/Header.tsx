@@ -72,6 +72,24 @@ function BellIcon() {
   );
 }
 
+function BookOpenIcon() {
+  return (
+    <svg
+      className="h-4 w-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v15H6.5A2.5 2.5 0 0 0 4 19.5V4A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  );
+}
+
 interface HeaderProps {
   searchQuery?: string;
   onSearchChange?: (value: string) => void;
@@ -116,22 +134,31 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
           </div>
         )}
 
-        {/* 右侧区域：通知 + 用户 */}
+        {/* 右侧区域：Notebook 入口 + 通知 + 用户 */}
         <div className="flex items-center gap-3 text-sm">
           {isLoggedIn && user ? (
             <>
+              {/* 生词本入口：所有登录用户可见 */}
+              <Link
+                href="/notebook"
+                className="hidden items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm shadow-neutral-100 transition-colors hover:border-[#FF2442]/70 hover:text-[#FF2442] md:inline-flex"
+              >
+                <BookOpenIcon />
+                <span>生词本</span>
+              </Link>
+
               {/* 管理员入口：仅管理员邮箱显示管理链接 */}
               {user.email === '772861967@qq.com' && (
                 <>
                   <Link
                     href="/admin/videos"
-                    className="hidden rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 shadow-sm shadow-gray-100 transition-colors hover:border-gray-300 hover:text-gray-900 lg:inline-flex"
+                    className="hidden text-[11px] text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline lg:inline-flex"
                   >
                     素材管理
                   </Link>
                   <Link
                     href="/admin/access-codes"
-                    className="hidden rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 shadow-sm shadow-gray-100 transition-colors hover:border-gray-300 hover:text-gray-900 lg:inline-flex"
+                    className="hidden text-[11px] text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline lg:inline-flex"
                   >
                     激活码管理
                   </Link>

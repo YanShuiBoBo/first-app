@@ -70,6 +70,15 @@ body {
   display: none;
 }
 
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .card {
   padding: 18px 16px;
   margin-bottom: 12px;
