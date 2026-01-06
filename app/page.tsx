@@ -145,6 +145,10 @@ export default function Home() {
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isStatsSheetOpen, setIsStatsSheetOpen] = useState(false);
 
+  // PC 端筛选区：控制“更多筛选”抽屉的展开 / 收起
+  const [isDesktopFilterExpanded, setIsDesktopFilterExpanded] =
+    useState(false);
+
   // Supabase 客户端只在浏览器端初始化
   const [supabase, setSupabase] =
     useState<ReturnType<typeof createBrowserClient> | null>(null);
@@ -326,7 +330,38 @@ export default function Home() {
   );
 
   // 取前若干个 tag 作为首页类目 Tabs 的候选，避免一次性展示过多标签
-  const primaryTags: string[] = themeTags
+  const primaryTags: string[] = themeTags.slice(0, 8);
+
+  // PC 端 Hero 使用的进度数据：素材库完成度 + 简化打卡热力图
+  const totalVideosCount = videos.length;
+  const progressPercent =
+    totalVideosCount > 0
+      ? Math.min(
+          100,
+          Math.round((learnedCount / Math.max(totalVideosCount, 1)) * 100)
+        )
+      : 0;
+
+  // 月度打卡视图所需数据：当前年月 + 当月天数 + 当月打卡日集合
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth(); // 0-based
+  const daysInMonth = new Date(currentMonth === 11 ? currentYear + 1 : currentYear, (currentMonth + 1) % 12, 0).getDate();
+
+  const activeDayNumbers = new Set(
+    studyDates
+      .map((d) => {
+        const dayStr = d.slice(8, 10);
+        const n = parseInt(dayStr, 10);
+        return Number.isNaN(n) ? null : n;
+      })
+      .filter((n): n is number => n !== null)
+  );
+
+  const calendarSlots: number[] = Array.from(
+    { length: daysInMonth },
+    (_, index) => index + 1
+  );
 
   // 过滤视频
   const filteredVideos = videos
@@ -553,14 +588,85 @@ export default function Home() {
         <section className="mt-4 md:mt-6">
           {heroVideo ? (
             <>
-              {/* 桌面端：左图右文杂志风布局 */}
-              <div className="hidden items-start gap-8 md:flex">
-                {/* 左侧大图：纯净封面 + 中央毛玻璃播放按钮 */}
+              {/* 桌面端：不对称双拼卡片（左侧进度仪表盘 + 右侧今日练习） */}
+              <div className="hidden grid-cols-12 gap-6 md:grid">
+                {/* 左侧：进度可视化卡片 */}
+                <div className="col-span-4 flex h-[320px] flex-col justify-between rounded-3xl border border-stone-100 bg-white p-6 text-[11px] text-neutral-700 shadow-sm">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+                          My progress
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-neutral-900">
+                          {greetingLabel}, {displayName}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end text-[10px] text-neutral-500">
+                        <span>本月已打卡</span>
+                          <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-neutral-800">
+                            <IconFlame />
+                            <span>{studyDates.length} 天</span>
+                          </span>
+                        </div>
+                      </div>
+
+                    {/* 月度打卡热力图：7 列 x N 行的小圆点矩阵 */}
+                    <div className="mt-4">
+                      <div className="mb-1 text-[11px] text-neutral-500">
+                        {currentYear} 年 {currentMonth + 1} 月
+                      </div>
+                      <div className="grid grid-cols-7 gap-1.5">
+                        {calendarSlots.map((day) => {
+                          const isActive = activeDayNumbers.has(day);
+                          return (
+                            <div
+                              key={day}
+                              className={`h-3 w-3 rounded-full ${
+                                isActive
+                                  ? 'bg-[#FF2442] shadow-[0_0_8px_rgba(255,36,66,0.6)]'
+                                  : 'bg-stone-200'
+                              }`}
+                            />
+                          );
+                        })}
+                      </div>
+                      <p className="mt-2 text-[11px] text-neutral-500">
+                        {studyDates.length >= 3
+                          ? '状态在线，别让打卡断掉～'
+                          : '从今天开始打卡一小集，也是一种进步。'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 素材库进度条：已学 / 总库 */}
+                  <div className="mt-6 border-t border-neutral-100 pt-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-neutral-600">
+                        素材库进度
+                      </span>
+                      <span className="text-[11px] text-neutral-500">
+                        {progressPercent}%
+                      </span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-stone-100">
+                      <div
+                        className="h-2 rounded-full bg-neutral-900"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-[11px] text-neutral-500">
+                      已学 {learnedCount} / {totalVideosCount} 期
+                    </p>
+                  </div>
+                </div>
+
+                {/* 右侧：今日练习 / 继续精读大卡片 */}
                 <Link
                   href={`/watch/${heroVideo.cf_video_id}`}
-                  className="group relative flex-[3] overflow-hidden rounded-2xl bg-neutral-900 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)]"
+                  className="col-span-8 group relative flex h-[320px] overflow-hidden rounded-3xl bg-neutral-900 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.35)]"
                 >
-                  <div className="relative aspect-video w-full">
+                  <div className="absolute inset-0">
                     <Image
                       unoptimized
                       src={getCoverSrc(
@@ -569,125 +675,62 @@ export default function Home() {
                       )}
                       alt={heroVideo.title}
                       fill
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
                     />
-                    {/* 中央毛玻璃播放按钮 */}
-                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                      <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white shadow-[0_10px_40px_rgba(0,0,0,0.25)] backdrop-blur-md transition-colors duration-300 group-hover:bg-white/30">
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="h-8 w-8 translate-x-0.5 fill-white"
-                        >
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </div>
-                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                   </div>
-                </Link>
 
-                {/* 右侧：杂志排版区 + 学习快照信息卡 */}
-                <div className="flex-[2] space-y-6">
-                  <div>
-                    {/* 眉题胶囊：浅粉 + 深粉字 */}
-                    <span className="inline-flex items-center rounded-full bg-[#FCE7F3] px-3 py-1 text-[11px] font-medium text-[#BE185D]">
-                      Vlog 精读推荐
-                    </span>
-                    {/* 大标题：加大字号，并整体用淡粉底高亮 */}
-                    <h2 className="mt-4 font-serif text-4xl font-semibold leading-snug text-[var(--color-brand-black)] md:text-5xl">
-                      <span className="inline-block rounded-md bg-[var(--color-brand-pink-bg)] px-2 py-1">
-                        {heroVideo.title}
+                  <div className="relative z-10 flex h-full w-full flex-col justify-end p-6">
+                    <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] text-white/90">
+                      {heroVideo.tags && heroVideo.tags.length > 0 && (
+                        <span className="inline-flex items-center rounded-full bg-white/20 px-3 py-1 font-medium backdrop-blur">
+                          #{heroVideo.tags[0]}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-white/80">
+                        <IconClock />
+                        <span>{formatDuration(heroVideo.duration)}</span>
                       </span>
-                    </h2>
-                    {heroVideo.description && (
-                      <p className="mt-3 line-clamp-3 text-sm text-neutral-600">
-                        {heroVideo.description}
-                      </p>
-                    )}
+                      {heroVideo.difficulty && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-white/80">
+                          <span>{renderDifficultyLabel(heroVideo.difficulty)}</span>
+                        </span>
+                      )}
+                    </div>
 
-                    {/* Meta 信息：作者 / 难度 / 标签 / 时长 / 学习次数，只在右侧展示一次 */}
-                    <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px] text-neutral-600">
+                    <h2 className="line-clamp-2 font-serif text-3xl font-semibold leading-snug text-white">
+                      {heroVideo.title}
+                    </h2>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-white/80">
                       {heroVideo.author && (
-                        <span className="inline-flex items-center gap-1">
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-medium text-neutral-700">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-medium">
                             {heroVideo.author.charAt(0).toUpperCase()}
                           </span>
                           <span>{heroVideo.author}</span>
                         </span>
                       )}
-                      {heroVideo.difficulty && (
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${getDifficultyStyle(
-                            heroVideo.difficulty,
-                            'card'
-                          )}`}
-                        >
-                          <span>{renderDifficultyLabel(heroVideo.difficulty)}</span>
-                        </span>
-                      )}
-                      {heroVideo.tags && heroVideo.tags.length > 0 && (
-                        <span className="inline-flex flex-wrap items-center gap-1">
-                          {heroVideo.tags.slice(0, 3).map((tag) => (
-                            <span
-                              key={tag}
-                              className="rounded-md bg-[var(--color-brand-pink-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-brand-pink-text)]"
-                            >
-                              #{tag}
-                            </span>
-                          ))}
-                        </span>
-                      )}
-                      <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5">
-                        <IconClock />
-                        <span>{formatDuration(heroVideo.duration)}</span>
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5">
+                      <span className="inline-flex items-center gap-1">
                         <IconFlame />
                         <span>已学习 {heroVideo.view_count ?? 0} 次</span>
                       </span>
                     </div>
+
+                    <button
+                      type="button"
+                      className="mt-4 inline-flex items-center gap-2 self-start rounded-full bg-white px-8 py-3 text-sm font-semibold text-neutral-900 shadow-sm transition-transform duration-200 hover:scale-105 hover:bg-neutral-100"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                      <span>继续精读</span>
+                    </button>
                   </div>
-
-                  <div className="mt-8 rounded-2xl bg-white/90 p-4 text-xs text-neutral-800 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] backdrop-blur-md">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-400">
-                          Study snapshot
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-neutral-900">
-                          {greetingLabel}, {displayName}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-neutral-500">本月打卡天数</span>
-                        <span className="text-sm font-semibold">
-                          {studyDates.length} 天
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-neutral-500">素材总数</span>
-                        <span className="text-sm font-semibold">
-                          {videos.length} 期
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-neutral-500">已学期数</span>
-                        <span className="text-sm font-semibold">
-                          {learnedCount} 期
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 text-[11px] text-neutral-500">
-                      小目标：本周再打卡 3 天，让英语出现在每一个碎片时间里。
-                    </div>
-                  </div>
-                </div>
+                </Link>
               </div>
 
-              {/* 移动端：单张 Hero 卡片 */}
+              {/* 移动端：单张 Hero 卡片（保持原有 Creamy 风格） */}
               <Link
                 href={`/watch/${heroVideo.cf_video_id}`}
                 className="relative block overflow-hidden rounded-2xl bg-neutral-900 shadow-sm md:hidden"
@@ -735,122 +778,223 @@ export default function Home() {
 
         {/* 分类 Tabs + 筛选条 */}
         <section className="space-y-4">
-          {/* 桌面端：双层分离过滤条（类目来自数据库真实标签） */}
-          <div className="hidden flex-col gap-3 rounded-2xl bg-white/95 px-5 py-4 text-[11px] text-neutral-600 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] md:sticky md:top-20 md:z-30 md:flex md:border md:border-neutral-100 md:backdrop-blur">
-            {/* Row 1: 类目 Tags + 右侧下拉选择 */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    { value: 'all' as CategoryValue, label: '全部' },
-                    ...(
-                      primaryTags.length > 0
-                        ? primaryTags
-                        : ['Vlog', '职场', '旅游', '电影']
-                    ).map((tag) => ({
-                      value: tag as CategoryValue,
-                      label: tag
-                    }))
-                  ] satisfies { value: CategoryValue; label: string }[]
-                ).map((tab) => {
-                  const isActive = activeCategory === tab.value;
-                  return (
-                    <button
-                      key={tab.value}
-                      type="button"
-                      className={`whitespace-nowrap rounded-full px-4 py-1.5 text-[11px] ${
-                        isActive
-                          ? 'bg-slate-900 text-white font-semibold shadow-md'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:border-[#FF2442] hover:text-[#FF2442]'
-                      }`}
-                      onClick={() => setActiveCategory(tab.value)}
-                    >
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* 右侧：下拉选择完整标签列表 */}
-              <div className="flex items-center gap-2">
-                <span className="text-neutral-500">更多:</span>
-                <select
-                  className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] text-neutral-700 focus:border-[#FF2442] focus:outline-none focus:ring-1 focus:ring-[#FF2442]/20"
-                  value={activeCategory}
-                  onChange={(e) =>
-                    setActiveCategory(e.target.value as CategoryValue)
-                  }
-                >
-                  <option value="all">全部标签</option>
-                  {themeTags.map((tag) => (
-                    <option key={tag} value={tag}>
-                      {tag}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Row 2: 排序 / 状态 / 难度 Chips（次级筛选） */}
-            <div className="flex flex-wrap items-center gap-4">
-              {/* 排序 */}
-              <div className="flex items-center gap-1">
-                <span className="text-neutral-500">排序:</span>
-                <select
-                  className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] text-neutral-700 focus:border-[#FF2442] focus:outline-none focus:ring-1 focus:ring-[#FF2442]/20"
-                  value={sortOrder}
-                  onChange={(e) =>
-                    setSortOrder(e.target.value as SortOrder)
-                  }
-                >
-                  <option value="hottest">最热</option>
-                  <option value="latest">最新</option>
-                </select>
-              </div>
-
-              {/* 状态：仅看未学 */}
-              <label className="flex cursor-pointer items-center gap-2 text-[11px] text-neutral-500 hover:text-[#FF2442]">
-                <input
-                  type="checkbox"
-                  className="h-3.5 w-3.5 rounded border-neutral-300 text-[#FF2442] focus:ring-[#FF2442]"
-                  checked={statusFilter === 'unlearned'}
-                  onChange={() =>
-                    setStatusFilter(
-                      statusFilter === 'unlearned' ? 'all' : 'unlearned'
-                    )
-                  }
-                />
-                <span>仅看未学</span>
-              </label>
-
-              {/* 难度 Chips */}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-neutral-500">难度:</span>
-                {(['all', 'easy', 'medium', 'hard'] as DifficultyFilter[]).map(
-                  (level) => {
-                    const labelMap: Record<DifficultyFilter, string> = {
-                      all: '全部',
-                      easy: '入门',
-                      medium: '进阶',
-                      hard: '大师'
-                    };
-                    const isActive = difficultyFilter === level;
+          {/* 桌面端：胶囊流 + 智能折叠筛选抽屉（仅在 md+ 显示） */}
+          <div className="hidden md:block">
+            <div className="rounded-2xl bg-white/95 px-5 py-4 text-[11px] text-neutral-600 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] md:border md:border-neutral-100 md:backdrop-blur md:sticky md:top-20 md:z-30">
+              {/* Row 1：一级类目胶囊 + 右侧“更多筛选”按钮 */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      { value: 'all' as CategoryValue, label: '全部' },
+                      ...(
+                        primaryTags.length > 0
+                          ? primaryTags
+                          : ['Vlog', '职场', '旅游', '电影']
+                      ).map((tag) => ({
+                        value: tag as CategoryValue,
+                        label: tag
+                      }))
+                    ] satisfies { value: CategoryValue; label: string }[]
+                  ).map((tab, index) => {
+                    const isActive = activeCategory === tab.value;
+                    const isFirst = index === 0;
                     return (
                       <button
-                        key={level}
+                        key={tab.value}
                         type="button"
-                        className={`rounded-full px-3 py-1 ${
+                        className={`whitespace-nowrap rounded-full px-4 py-1.5 font-medium ${
                           isActive
-                            ? 'bg-slate-900 text-white'
-                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                        }`}
-                        onClick={() => setDifficultyFilter(level)}
+                            ? 'bg-rose-500 text-white shadow-lg shadow-rose-200'
+                            : 'bg-stone-50 text-stone-600 hover:bg-stone-100'
+                        } ${isFirst ? 'text-[11px]' : 'text-[11px]'}`}
+                        onClick={() => setActiveCategory(tab.value)}
                       >
-                        {labelMap[level]}
+                        {tab.label}
                       </button>
                     );
+                  })}
+                </div>
+
+                {/* 右侧：更多筛选／收起筛选 */}
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-stone-50 px-3 py-1.5 text-[11px] font-medium text-stone-600 hover:bg-stone-100"
+                  onClick={() =>
+                    setIsDesktopFilterExpanded((prev) => !prev)
                   }
-                )}
+                >
+                  <IconFilter />
+                  <span>{isDesktopFilterExpanded ? '收起筛选' : '更多筛选'}</span>
+                  <svg
+                    viewBox="0 0 24 24"
+                    className={`h-3 w-3 transition-transform ${
+                      isDesktopFilterExpanded ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Row 2：展开筛选抽屉（按主题 / 难度 / 状态 + 排序） */}
+              <div
+                className={`overflow-hidden text-[11px] text-neutral-700 transition-all duration-300 ease-in-out ${
+                  isDesktopFilterExpanded
+                    ? 'mt-3 max-h-[260px] border-t border-neutral-100/70 pt-3 opacity-100'
+                    : 'max-h-0 opacity-0 pointer-events-none'
+                }`}
+              >
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  {/* 按主题：使用数据库真实标签 */}
+                  <div>
+                    <div className="mb-1 text-[11px] font-medium text-neutral-500">
+                      按主题
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(themeTags.length > 0
+                        ? themeTags.slice(0, 14)
+                        : ['电影精读', '留学生活', 'TED 演讲', '职场沟通', '旅行 Vlog']
+                      ).map((tag) => {
+                        const isActive = activeCategory === tag;
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            className={`rounded-full px-3 py-1 ${
+                              isActive
+                                ? 'bg-rose-500 text-white shadow-md shadow-rose-200'
+                                : 'bg-stone-50 text-stone-600 hover:bg-stone-100'
+                            }`}
+                            onClick={() =>
+                              setActiveCategory(tag as CategoryValue)
+                            }
+                          >
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 按难度 */}
+                  <div>
+                    <div className="mb-1 text-[11px] font-medium text-neutral-500">
+                      按难度
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(
+                        [
+                          { value: 'all', label: '全部', icon: '•' },
+                          { value: 'easy', label: '入门', icon: '🌱' },
+                          { value: 'medium', label: '进阶', icon: '🚀' },
+                          { value: 'hard', label: '大师', icon: '👑' }
+                        ] as { value: DifficultyFilter; label: string; icon: string }[]
+                      ).map((opt) => {
+                        const isActive = difficultyFilter === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 ${
+                              isActive
+                                ? 'bg-[#FFEDF0] text-[#BE185D] border border-[#FF2442]'
+                                : 'bg-stone-50 text-stone-600 hover:bg-stone-100'
+                            }`}
+                            onClick={() =>
+                              setDifficultyFilter(opt.value)
+                            }
+                          >
+                            <span>{opt.icon}</span>
+                            <span>{opt.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 按状态 + 排序 */}
+                  <div className="space-y-3">
+                    <div>
+                      <div className="mb-1 text-[11px] font-medium text-neutral-500">
+                        按状态
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {/* 仅看未学 */}
+                        <button
+                          type="button"
+                          className={`rounded-full px-3 py-1 ${
+                            statusFilter === 'unlearned'
+                              ? 'bg-[#FFEDF0] text-[#BE185D] border border-[#FF2442]'
+                              : 'bg-stone-50 text-stone-600 hover:bg-stone-100'
+                          }`}
+                          onClick={() =>
+                            setStatusFilter(
+                              statusFilter === 'unlearned'
+                                ? 'all'
+                                : 'unlearned'
+                            )
+                          }
+                        >
+                          仅看未学
+                        </button>
+                        {/* 仅看已学完 */}
+                        <button
+                          type="button"
+                          className={`rounded-full px-3 py-1 ${
+                            statusFilter === 'completed'
+                              ? 'bg-[#FFEDF0] text-[#BE185D] border border-[#FF2442]'
+                              : 'bg-stone-50 text-stone-600 hover:bg-stone-100'
+                          }`}
+                          onClick={() =>
+                            setStatusFilter(
+                              statusFilter === 'completed'
+                                ? 'all'
+                                : 'completed'
+                            )
+                          }
+                        >
+                          仅看已学完
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-1 text-[11px] font-medium text-neutral-500">
+                        排序
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className={`rounded-full px-3 py-1 ${
+                            sortOrder === 'hottest'
+                              ? 'bg-stone-900 text-white shadow-md shadow-black/20'
+                              : 'bg-stone-50 text-stone-600 hover:bg-stone-100'
+                          }`}
+                          onClick={() => setSortOrder('hottest')}
+                        >
+                          最热
+                        </button>
+                        <button
+                          type="button"
+                          className={`rounded-full px-3 py-1 ${
+                            sortOrder === 'latest'
+                              ? 'bg-stone-900 text-white shadow-md shadow-black/20'
+                              : 'bg-stone-50 text-stone-600 hover:bg-stone-100'
+                          }`}
+                          onClick={() => setSortOrder('latest')}
+                        >
+                          最新
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
