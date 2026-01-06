@@ -1702,6 +1702,13 @@ export default function WatchPage() {
 
   const currentTimeLabel = formatDuration(currentTime);
   const totalTimeLabel = formatDuration(videoData.duration ?? 0);
+  const deckProgressPercent =
+    videoData.duration && videoData.duration > 0
+      ? Math.min(
+          100,
+          Math.max(0, (currentTime / videoData.duration) * 100)
+        )
+      : 0;
   const resumeLabel =
     resumeSeconds !== null ? formatDuration(resumeSeconds) : '';
 
@@ -2035,77 +2042,66 @@ export default function WatchPage() {
               移动端：占用视频下方剩余高度，内部字幕区域滚动
               桌面端：固定宽度的侧边栏 */}
           <aside className="h-full flex w-full flex-1 flex-col lg:mt-0 lg:w-[30%] lg:flex-none">
-            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--bg-shell)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:shadow-sm lg:max-h-[calc(100vh-180px)]">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--bg-shell)] lg:max-h-[calc(100vh-180px)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:shadow-sm">
               {/* 顶部工具栏（Sticky，移动端隐藏以释放字幕空间） */}
-              <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-gray-100 bg-white px-4 py-3 text-xs text-gray-500 lg:flex">
+              <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-stone-100 bg-white/95 px-4 py-3 text-[11px] text-stone-500 backdrop-blur-xl lg:flex">
                 <div className="flex flex-col">
-                  <span className="text-[13px] font-medium text-gray-900">
+                  <span className="text-[13px] font-medium text-stone-900">
                     交互式课本
                   </span>
-                  <span className="mt-0.5 text-[11px] text-gray-400">
+                  <span className="mt-0.5 text-[11px] text-stone-400">
                     共 {videoData.subtitles.length} 句 · 点击句子即可跳转
                   </span>
                 </div>
-                <div className="ml-3 flex items-center gap-2">
-                  {user && vocabItems.length > 0 && (
+                <div className="ml-3 flex items-center gap-3">
+                  {/* 视图模式：中 / 双语 / 英 */}
+                  <div className="flex items-center rounded-xl border border-stone-100 bg-stone-50 p-1">
+                    {(
+                      [
+                        { value: 'cn', label: '中' },
+                        { value: 'both', label: '双语' },
+                        { value: 'en', label: '英' }
+                      ] as { value: 'cn' | 'both' | 'en'; label: string }[]
+                    ).map(mode => {
+                      const active = scriptMode === mode.value;
+                      return (
+                        <button
+                          key={mode.value}
+                          type="button"
+                          className={`flex items-center justify-center rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all ${
+                            active
+                              ? 'bg-rose-500 text-white shadow-md shadow-rose-200'
+                              : 'bg-transparent text-stone-500 hover:bg-stone-100 hover:text-stone-900'
+                          }`}
+                          onClick={() => setScriptMode(mode.value)}
+                        >
+                          {mode.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* 功能开关组：单词本 / 打印 */}
+                  <div className="flex items-center gap-2">
+                    {user && vocabItems.length > 0 && (
+                      <button
+                        type="button"
+                        className="hidden items-center rounded-lg bg-transparent px-3 py-1.5 text-[11px] font-bold text-stone-500 hover:bg-stone-100 hover:text-rose-500 lg:inline-flex"
+                        onClick={() => setIsVocabOpen(true)}
+                      >
+                        单词本
+                      </button>
+                    )}
+                    {/* 打印按钮：线型图标，配合极简描边 */}
                     <button
                       type="button"
-                      className="hidden items-center rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] text-gray-500 hover:border-[#FF2442]/50 hover:text-[#FF2442] lg:inline-flex"
-                      onClick={() => setIsVocabOpen(true)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-transparent text-stone-400 hover:bg-stone-100 hover:text-rose-500"
+                      onClick={handleExportTranscript}
+                      aria-label="打印字幕"
                     >
-                      单词本
+                      <IconPrint className="h-4 w-4" />
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] text-gray-400 hover:border-[#FF2442]/50"
-                    onClick={() =>
-                      setScriptMode(prev =>
-                        prev === 'both' ? 'en' : prev === 'en' ? 'cn' : 'both'
-                      )
-                    }
-                    aria-label="切换脚本显示语言"
-                  >
-                    <span
-                      className={`px-0.5 ${
-                        scriptMode === 'cn'
-                          ? 'font-medium text-[#FF2442]'
-                          : 'text-gray-400'
-                      }`}
-                    >
-                      中
-                    </span>
-                    <span className="px-0.5 text-gray-300">|</span>
-                    <span
-                      className={`px-0.5 ${
-                        scriptMode === 'en'
-                          ? 'font-medium text-[#FF2442]'
-                          : 'text-gray-400'
-                      }`}
-                    >
-                      英
-                    </span>
-                    <span className="px-0.5 text-gray-300">|</span>
-                    <span
-                      className={`px-0.5 ${
-                        scriptMode === 'both'
-                          ? 'font-medium text-[#FF2442]'
-                          : 'text-gray-400'
-                      }`}
-                    >
-                      中/英
-                    </span>
-                  </button>
-                  {/* 打印按钮：线性图标，无文字 */}
-                  <button
-                    type="button"
-                    className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-[#FF2442]"
-                    onClick={handleExportTranscript}
-                    aria-label="打印字幕"
-                  >
-                    <IconPrint className="h-4 w-4" />
-                  </button>
-                  {/* 语言切换按钮：中 | 英 | 中/英 文本分段，根据 scriptMode 高亮 */}
+                  </div>
                 </div>
               </div>
 
@@ -2131,13 +2127,17 @@ export default function WatchPage() {
                         ref={el => {
                           subtitleItemRefs.current[index] = el;
                         }}
-                        className={`card relative cursor-pointer ${
+                        className={`card group relative cursor-pointer ${
                           isActive ? 'active' : ''
-                        }`}
+                        } lg:hover:bg-stone-50`}
                         onClick={() => handleSubtitleClick(index)}
                       >
                         {/* 时间 + 收藏：桌面端辅助信息，移动端隐藏以还原 demo 的纯字幕卡片 */}
-                        <div className="hidden items-center justify-between text-[11px] text-gray-400 lg:flex">
+                        <div
+                          className={`hidden items-center justify-between text-[11px] text-gray-400 lg:flex ${
+                            isActive ? 'flex' : 'group-hover:flex'
+                          }`}
+                        >
                           <span>{formatDuration(subtitle.start)}</span>
                           <button
                             type="button"
@@ -2197,8 +2197,12 @@ export default function WatchPage() {
                           </div>
                         )}
 
-                        {/* 工具栏：桌面端所有行显示（仅图标，弱化存在感） */}
-                        <div className={toolbarDesktopClasses}>
+                        {/* 工具栏：桌面端仅激活 / Hover 时显示 */}
+                        <div
+                          className={`${toolbarDesktopClasses} ${
+                            isActive ? 'flex' : 'group-hover:flex'
+                          }`}
+                        >
                           <button
                             type="button"
                             className="inline-flex h-5 w-5 items-center justify-center text-[13px] text-gray-400 hover:text-gray-600"
