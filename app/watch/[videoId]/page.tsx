@@ -1872,8 +1872,8 @@ export default function WatchPage() {
               </div>
 
               {/* Layer 3：播放控制 & 工具面板（桌面端） */}
-              <div className="hidden w-full pt-3 lg:block">
-                <div className="bg-white rounded-3xl border border-stone-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)] p-4 flex items-center justify-between">
+              <div className="hidden w-full pt-1.5 lg:block">
+                <div className="bg-white rounded-3xl border border-stone-100 shadow-[0_6px_24px_rgba(0,0,0,0.04)] px-3.5 py-3 flex items-center justify-between">
                   {/* 左侧播放控制积木 */}
                   <div className="flex items-center gap-2">
                     {/* 播放键 */}
