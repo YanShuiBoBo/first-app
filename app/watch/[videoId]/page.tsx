@@ -1841,74 +1841,105 @@ export default function WatchPage() {
                 </div>
               </div>
 
-              {/* Layer 3: 播放控制栏（桌面端） */}
-              <div className="hidden h-16 items-center justify-between border-t border-gray-100 px-8 text-sm text-gray-700 lg:flex">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500">
-                    {currentTimeLabel} / {totalTimeLabel}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-[#FF2442]"
-                    onClick={handlePrevSentence}
-                    disabled={isTrial && trialEnded}
-                  >
-                    <IconPrev className="h-3.5 w-3.5" />
+              {/* Layer 3：播放控制 & 工具面板（桌面端） */}
+              <div className="hidden w-full pt-3 lg:block">
+                <div className="bg-white rounded-3xl border border-stone-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)] p-4 flex items-center justify-between">
+                  {/* 左侧播放控制积木 */}
+                  <div className="flex items-center gap-2">
+                    {/* 播放键 */}
+                    <button
+                      type="button"
+                      className="h-11 w-14 bg-stone-900 text-white rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-md shadow-stone-200"
+                      onClick={handleTogglePlay}
+                      disabled={isTrial && trialEnded}
+                      aria-label={isPlaying ? '暂停' : '播放'}
+                    >
+                      {isPlaying ? (
+                        <IconPause className="h-[22px] w-[22px]" />
+                      ) : (
+                        <IconPlay className="h-[22px] w-[22px] ml-0.5" />
+                      )}
+                    </button>
 
-                  </button>
-                  <button
-                    type="button"
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-[#FF2442] text-white shadow-lg shadow-[#FF2442]/50"
-                    onClick={handleTogglePlay}
-                    disabled={isTrial && trialEnded}
-                  >
-                    {isPlaying ? (
-                      <IconPause className="h-5 w-5" />
-                    ) : (
-                      <IconPlay className="h-5 w-5" />
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-[#FF2442]"
-                    onClick={handleNextSentence}
-                    disabled={isTrial && trialEnded}
-                  >
-
-                    <IconNext className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1">
-                    <span className="mr-1 text-[11px] text-gray-500">倍速</span>
-                    <select
-                      className="bg-transparent text-xs font-medium text-gray-800 outline-none focus:outline-none"
-                      value={String(playbackRate)}
-                      onChange={handleSpeedSelect}
+                    {/* 重听按钮 */}
+                    <button
+                      type="button"
+                      className="h-11 px-5 bg-rose-50 text-rose-600 rounded-2xl text-sm font-bold flex items-center gap-2 hover:bg-rose-100 transition-colors border border-rose-100/50"
+                      onClick={() => handleRowReplay(currentSubtitleIndex)}
                       disabled={isTrial && trialEnded}
                     >
-                      {speedOptions.map(speed => (
-                        <option key={speed} value={speed.toString()}>
-                          {speed.toString().replace(/\\.0$/, '')}x
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    type="button"
-                    className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                      sentenceLoop
-                        ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                    onClick={toggleSentenceLoop}
-                    disabled={isTrial && trialEnded}
-                  >
-                    <IconLoop className="h-5 w-5" />
+                      <IconReplay className="h-[18px] w-[18px]" />
+                    </button>
 
-                  </button>
+                    {/* 单句循环 */}
+                    <button
+                      type="button"
+                      className={`h-11 w-11 flex items-center justify-center rounded-2xl transition-all font-bold ${
+                        sentenceLoop
+                          ? 'bg-rose-500 text-white shadow-md shadow-rose-200'
+                          : 'bg-stone-50 text-stone-400 hover:bg-stone-100 hover:text-stone-600'
+                      }`}
+                      title="单句循环"
+                      onClick={() => handleRowLoop(currentSubtitleIndex)}
+                      disabled={isTrial && trialEnded}
+                    >
+                      <span className="text-lg leading-none">∞</span>
+                    </button>
+                  </div>
+
+                  {/* 右侧学习工具积木 */}
+                  <div className="flex items-center gap-2">
+                    {/* 倍速 */}
+                    <div className="h-11 flex items-center rounded-2xl bg-stone-50 text-stone-600 text-xs font-bold px-3 hover:bg-stone-100 transition-colors">
+                      <select
+                        className="bg-transparent outline-none cursor-pointer"
+                        value={String(playbackRate)}
+                        onChange={handleSpeedSelect}
+                        disabled={isTrial && trialEnded}
+                      >
+                        {speedOptions.map(speed => (
+                          <option key={speed} value={speed.toString()}>
+                            {speed.toString().replace(/\.0$/, '')}x
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 语言模式 */}
+                    <button
+                      type="button"
+                      className="h-11 px-4 bg-stone-50 text-stone-600 rounded-2xl text-xs font-bold hover:bg-stone-100 transition-colors flex items-center gap-2"
+                      onClick={() =>
+                        setScriptMode(prev =>
+                          prev === 'both'
+                            ? 'en'
+                            : prev === 'en'
+                            ? 'cn'
+                            : 'both'
+                        )
+                      }
+                    >
+                      <span className="text-[13px]">文</span>
+                      <span>
+                        {scriptMode === 'both'
+                          ? '双语'
+                          : scriptMode === 'cn'
+                          ? '中文'
+                          : '英文'}
+                      </span>
+                    </button>
+
+                    {/* 跟读 */}
+                    <button
+                      type="button"
+                      className="h-11 px-4 bg-white border-2 border-stone-100 text-stone-500 rounded-2xl text-xs font-bold flex items-center gap-2 hover:border-rose-400 hover:text-rose-500 transition-all"
+                      onClick={() => handleRowMic(currentSubtitleIndex)}
+                      disabled={isTrial && trialEnded}
+                    >
+                      <IconMic className="h-[16px] w-[16px]" />
+                      <span>跟读</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1956,61 +1987,61 @@ export default function WatchPage() {
                     >
                       {activeSubtitle.text_cn}
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-gray-600">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 shadow-sm hover:bg-gray-50"
-                        onClick={() => handleRowReplay(currentSubtitleIndex)}
-                        disabled={isTrial && trialEnded}
-                      >
-                        <IconReplay className="h-4 w-4" />
-                        <span>重听</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 shadow-sm ${
-                          shadowSubtitleIndex === currentSubtitleIndex &&
-                          shadowMode === 'recording'
-                            ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                        onClick={() => handleRowMic(currentSubtitleIndex)}
-                        disabled={isTrial && trialEnded}
-                      >
-                        {shadowSubtitleIndex === currentSubtitleIndex &&
-                        shadowMode === 'reviewing' ? (
-                          <IconReplay className="h-4 w-4" />
-                        ) : (
-                          <IconMic className="h-4 w-4" />
-                        )}
-                        <span>跟读</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 shadow-sm ${
-                          sentenceLoop
-                            ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                        onClick={() => handleRowLoop(currentSubtitleIndex)}
-                        disabled={isTrial && trialEnded}
-                      >
-                        <IconLoop className="h-4 w-4" />
-                        <span>循环</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 shadow-sm ${
-                          likedSubtitles.has(currentSubtitleIndex)
-                            ? 'bg-[#FF2442]/10 text-[#FF2442]'
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                        onClick={() => handleToggleLike(currentSubtitleIndex)}
-                      >
-                        <IconLike className="h-4 w-4" />
-                        <span>收藏</span>
-                      </button>
-                    </div>
+                    {/*<div className="mt-2 flex flex-wrap gap-3 text-[11px] text-gray-600">*/}
+                    {/*  <button*/}
+                    {/*    type="button"*/}
+                    {/*    className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 shadow-sm hover:bg-gray-50"*/}
+                    {/*    onClick={() => handleRowReplay(currentSubtitleIndex)}*/}
+                    {/*    disabled={isTrial && trialEnded}*/}
+                    {/*  >*/}
+                    {/*    <IconReplay className="h-4 w-4" />*/}
+                    {/*    <span>重听</span>*/}
+                    {/*  </button>*/}
+                    {/*  <button*/}
+                    {/*    type="button"*/}
+                    {/*    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 shadow-sm ${*/}
+                    {/*      shadowSubtitleIndex === currentSubtitleIndex &&*/}
+                    {/*      shadowMode === 'recording'*/}
+                    {/*        ? 'bg-[#FF2442]/10 text-[#FF2442]'*/}
+                    {/*        : 'bg-white text-gray-700 hover:bg-gray-50'*/}
+                    {/*    }`}*/}
+                    {/*    onClick={() => handleRowMic(currentSubtitleIndex)}*/}
+                    {/*    disabled={isTrial && trialEnded}*/}
+                    {/*  >*/}
+                    {/*    {shadowSubtitleIndex === currentSubtitleIndex &&*/}
+                    {/*    shadowMode === 'reviewing' ? (*/}
+                    {/*      <IconReplay className="h-4 w-4" />*/}
+                    {/*    ) : (*/}
+                    {/*      <IconMic className="h-4 w-4" />*/}
+                    {/*    )}*/}
+                    {/*    <span>跟读</span>*/}
+                    {/*  </button>*/}
+                    {/*  <button*/}
+                    {/*    type="button"*/}
+                    {/*    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 shadow-sm ${*/}
+                    {/*      sentenceLoop*/}
+                    {/*        ? 'bg-[#FF2442]/10 text-[#FF2442]'*/}
+                    {/*        : 'bg-white text-gray-700 hover:bg-gray-50'*/}
+                    {/*    }`}*/}
+                    {/*    onClick={() => handleRowLoop(currentSubtitleIndex)}*/}
+                    {/*    disabled={isTrial && trialEnded}*/}
+                    {/*  >*/}
+                    {/*    <IconLoop className="h-4 w-4" />*/}
+                    {/*    <span>循环</span>*/}
+                    {/*  </button>*/}
+                    {/*  <button*/}
+                    {/*    type="button"*/}
+                    {/*    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 shadow-sm ${*/}
+                    {/*      likedSubtitles.has(currentSubtitleIndex)*/}
+                    {/*        ? 'bg-[#FF2442]/10 text-[#FF2442]'*/}
+                    {/*        : 'bg-white text-gray-700 hover:bg-gray-50'*/}
+                    {/*    }`}*/}
+                    {/*    onClick={() => handleToggleLike(currentSubtitleIndex)}*/}
+                    {/*  >*/}
+                    {/*    <IconLike className="h-4 w-4" />*/}
+                    {/*    <span>收藏</span>*/}
+                    {/*  </button>*/}
+                    {/*</div>*/}
                   </>
                 ) : (
                   <div className="text-sm text-gray-400">
@@ -2020,7 +2051,7 @@ export default function WatchPage() {
               </div>
             </div>
 
-            {/* 移动端：视频下方的基础信息（V1.2 收紧首屏信息量，暂时隐藏） */}
+          {/* 移动端：视频下方的基础信息（V1.2 收紧首屏信息量，暂时隐藏） */}
             <div className="hidden">
               <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                 <span className="inline-flex items-center rounded-full bg-white px-2 py-1">
@@ -2105,11 +2136,11 @@ export default function WatchPage() {
                 </div>
               </div>
 
-              {/* 字幕列表：独立滚动区域（移动端样完式全对齐 HTML demo 的 feed-list + card） */}
+              {/* 字幕列表：独立滚动区域（移动端样式对齐 HTML demo 的 feed-list + card） */}
               <div className="relative flex-1 overflow-hidden">
                 <div
                   ref={subtitlesContainerRef}
-                  className="absolute inset-0 overflow-y-auto overflow-x-hidden pb-[100px] lg:static lg:h-full lg:pb-0 scroll-smooth"
+                  className="h-full overflow-y-auto overflow-x-hidden pb-[100px] lg:pb-0 scroll-smooth"
                 >
                   {videoData.subtitles.map((subtitle, index) => {
                     const isActive = currentSubtitleIndex === index;
@@ -2121,6 +2152,10 @@ export default function WatchPage() {
                     const showEn = scriptMode === 'both' || scriptMode === 'en';
                     const showCn = scriptMode === 'both' || scriptMode === 'cn';
 
+                    const rowHoverClass = isActive
+                      ? ''
+                      : 'lg:hover:bg-stone-50';
+
                     return (
                       <div
                         key={index}
@@ -2129,15 +2164,11 @@ export default function WatchPage() {
                         }}
                         className={`card group relative cursor-pointer ${
                           isActive ? 'active' : ''
-                        } lg:hover:bg-stone-50`}
+                        } ${rowHoverClass}`}
                         onClick={() => handleSubtitleClick(index)}
                       >
                         {/* 时间 + 收藏：桌面端辅助信息，移动端隐藏以还原 demo 的纯字幕卡片 */}
-                        <div
-                          className={`hidden items-center justify-between text-[11px] text-gray-400 lg:flex ${
-                            isActive ? 'flex' : 'group-hover:flex'
-                          }`}
-                        >
+                        <div className="hidden items-center justify-between text-[11px] text-gray-400 lg:flex">
                           <span>{formatDuration(subtitle.start)}</span>
                           <button
                             type="button"
@@ -2197,10 +2228,12 @@ export default function WatchPage() {
                           </div>
                         )}
 
-                        {/* 工具栏：桌面端仅激活 / Hover 时显示 */}
+                        {/* 工具栏：桌面端仅激活 / Hover 时显示，高度固定，避免行高跳动 */}
                         <div
-                          className={`${toolbarDesktopClasses} ${
-                            isActive ? 'flex' : 'group-hover:flex'
+                          className={`${toolbarDesktopClasses} transition-opacity ${
+                            isActive
+                              ? 'opacity-100'
+                              : 'opacity-0 group-hover:opacity-100'
                           }`}
                         >
                           <button

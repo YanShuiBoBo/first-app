@@ -107,18 +107,26 @@ const VocabPanel: React.FC<VocabPanelProps> = ({
 
   const hasItems = filtered.length > 0;
 
+  if (!open) {
+    return null;
+  }
+
   return (
     <>
-      {!open ? null : (
-    <>
-      {/* 背景遮罩，仅在移动端 Bottom Sheet 时使用 */}
-      {variant === 'sheet' && (
-        <div
-          className="fixed inset-0 z-30 bg-black/30"
-          onClick={onClose}
-        />
-      )}
-      <div className={`${containerCommon} ${wrapperClass}`}>
+      {/* 背景遮罩：
+          - 移动端 Bottom Sheet：半透明黑底
+          - 桌面端 Panel：透明点击层，用于点击空白关闭 */}
+      <div
+        className={`fixed inset-0 z-30 ${
+          variant === 'sheet' ? 'bg-black/30' : 'bg-transparent'
+        }`}
+        onClick={onClose}
+      />
+
+      <div
+        className={`${containerCommon} ${wrapperClass}`}
+        onClick={e => e.stopPropagation()}
+      >
         {/* 顶部拖拽条 / 关闭 */}
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
           <div className="flex items-center gap-2">
@@ -228,8 +236,6 @@ const VocabPanel: React.FC<VocabPanelProps> = ({
           </button>
         </div>
       </div>
-    </>
-      )}
     </>
   );
 };
