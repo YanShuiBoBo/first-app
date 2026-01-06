@@ -1615,34 +1615,31 @@ export default function WatchPage() {
   }, []);
 
   // 当前字幕自动跟随滚动到视图中间
-  // - 使用 block: 'center'，但行为为 'auto'，避免平滑动画带来的“二次跳动感”
+  // - 移动端：维持原来的 scrollIntoView 逻辑，体验已经比较自然
+  // - 桌面端：改用手动计算 scrollTop 的方式，避免某些嵌套滚动容器里 scrollIntoView 失效
   // - 若当前句本来就接近中心，则不滚动，减少不必要的 DOM 操作和浏览器扩展的副作用
   useEffect(() => {
     const container = subtitlesContainerRef.current;
     const activeEl = subtitleItemRefs.current[currentSubtitleIndex];
     if (!container || !activeEl) return;
 
-    try {
-      const containerRect = container.getBoundingClientRect();
-      const elRect = activeEl.getBoundingClientRect();
-      const elCenter = elRect.top + elRect.height / 2;
-      const containerCenter = containerRect.top + containerRect.height / 2;
-      const delta = Math.abs(elCenter - containerCenter);
+    const containerRect = container.getBoundingClientRect();
+    const elRect = activeEl.getBoundingClientRect();
+    const elCenter = elRect.top + elRect.height / 2;
+    const containerCenter = containerRect.top + containerRect.height / 2;
+    const delta = Math.abs(elCenter - containerCenter);
 
-      // 若已经基本在可视区域中间（误差在 16px 内），就不再滚动，避免频繁跳动
-      if (delta <= 16) {
-        return;
-      }
+    // 若已经基本在可视区域中间（误差在 16px 内），就不再滚动，避免频繁跳动
+    if (delta <= 16) {
+      return;
+    }
 
-      activeEl.scrollIntoView({
-        block: 'center',
-        behavior: 'auto'
-      });
-    } catch {
-      // 老浏览器兜底：简单居中到容器中间
+    const isDesktopView =
+      typeof window !== 'undefined' && window.innerWidth >= 1024;
+
+    if (isDesktopView) {
+      // 桌面端：手动计算目标 scrollTop，兼容更多浏览器 / WebView 的滚动行为
       try {
-        const containerRect = container.getBoundingClientRect();
-        const elRect = activeEl.getBoundingClientRect();
         const offset = elRect.top - containerRect.top;
         const target =
           container.scrollTop +
@@ -1655,7 +1652,40 @@ export default function WatchPage() {
           behavior: 'auto'
         });
       } catch {
-        // 忽略兜底过程中的错误，避免影响主流程
+        // 兜底到 scrollIntoView，避免极端环境下完全不滚动
+        try {
+          activeEl.scrollIntoView({
+            block: 'center',
+            behavior: 'auto'
+          });
+        } catch {
+          // 忽略最终兜底中的错误
+        }
+      }
+    } else {
+      // 移动端：保留原本的 scrollIntoView 方案
+      try {
+        activeEl.scrollIntoView({
+          block: 'center',
+          behavior: 'auto'
+        });
+      } catch {
+        // 若 scrollIntoView 抛错，再退回到手动滚动方案
+        try {
+          const offset = elRect.top - containerRect.top;
+          const target =
+            container.scrollTop +
+            offset -
+            containerRect.height / 2 +
+            elRect.height / 2;
+
+          container.scrollTo({
+            top: target,
+            behavior: 'auto'
+          });
+        } catch {
+          // 忽略兜底过程中的错误，避免影响主流程
+        }
       }
     }
   }, [currentSubtitleIndex]);
@@ -1713,7 +1743,7 @@ export default function WatchPage() {
     resumeSeconds !== null ? formatDuration(resumeSeconds) : '';
 
   return (
-    <div className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[var(--bg-shell)] text-gray-900 lg:h-auto lg:overflow-visible lg:bg-[var(--bg-body)]">
+    <div className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[var(--bg-shell)] text-gray-900 lg:h-screen lg:overflow-hidden lg:bg-[var(--bg-body)]">
       {/* 桌面端顶部导航栏：移动端在视频上方单独实现 */}
       <header className="hidden h-11 items-center justify-between bg-white/95 px-6 text-xs text-gray-700 shadow-sm shadow-black/5 lg:fixed lg:inset-x-0 lg:top-0 lg:z-30 lg:flex">
         <button
@@ -2073,7 +2103,7 @@ export default function WatchPage() {
               移动端：占用视频下方剩余高度，内部字幕区域滚动
               桌面端：固定宽度的侧边栏 */}
           <aside className="h-full flex w-full flex-1 flex-col lg:mt-0 lg:w-[30%] lg:flex-none">
-            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--bg-shell)] lg:max-h-[calc(100vh-180px)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:shadow-sm">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--bg-shell)] lg:max-h-[calc(100vh-180px)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-[var(--bg-shell)] lg:shadow-sm">
               {/* 顶部工具栏（Sticky，移动端隐藏以释放字幕空间） */}
               <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-stone-100 bg-white/95 px-4 py-3 text-[11px] text-stone-500 backdrop-blur-xl lg:flex">
                 <div className="flex flex-col">
@@ -2136,11 +2166,11 @@ export default function WatchPage() {
                 </div>
               </div>
 
-              {/* 字幕列表：独立滚动区域（移动端样式对齐 HTML demo 的 feed-list + card） */}
+              {/* 字幕列表：独立滚动区域（移动端样完式全对齐 HTML demo 的 feed-list + card） */}
               <div className="relative flex-1 overflow-hidden">
                 <div
                   ref={subtitlesContainerRef}
-                  className="h-full overflow-y-auto overflow-x-hidden pb-[100px] lg:pb-0 scroll-smooth"
+                  className="absolute inset-0 overflow-y-auto overflow-x-hidden pb-[100px] lg:static lg:h-full lg:pb-0 scroll-smooth lg:scroll-auto no-scrollbar"
                 >
                   {videoData.subtitles.map((subtitle, index) => {
                     const isActive = currentSubtitleIndex === index;
@@ -2162,7 +2192,7 @@ export default function WatchPage() {
                         ref={el => {
                           subtitleItemRefs.current[index] = el;
                         }}
-                        className={`card group relative cursor-pointer ${
+                        className={`card subtitle-card group relative cursor-pointer ${
                           isActive ? 'active' : ''
                         } ${rowHoverClass}`}
                         onClick={() => handleSubtitleClick(index)}
