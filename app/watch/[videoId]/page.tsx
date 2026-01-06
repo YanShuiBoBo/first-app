@@ -1743,7 +1743,7 @@ export default function WatchPage() {
     resumeSeconds !== null ? formatDuration(resumeSeconds) : '';
 
   return (
-    <div className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[var(--bg-shell)] text-gray-900 lg:h-auto lg:overflow-visible lg:bg-[var(--bg-body)]">
+    <div className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[var(--bg-shell)] text-gray-900 lg:h-screen lg:overflow-hidden lg:bg-[var(--bg-body)]">
       {/* 桌面端顶部导航栏：移动端在视频上方单独实现 */}
       <header className="hidden h-11 items-center justify-between bg-white/95 px-6 text-xs text-gray-700 shadow-sm shadow-black/5 lg:fixed lg:inset-x-0 lg:top-0 lg:z-30 lg:flex">
         <button
@@ -2410,40 +2410,56 @@ export default function WatchPage() {
 
       {/* 移动端：知识卡片 Bottom Sheet */}
       {activeCard && (
-        <div className="fixed inset-x-0 bottom-0 z-40 rounded-t-3xl border-t border-gray-200 bg-white px-4 pb-6 pt-4 shadow-[0_-18px_40px_rgba(0,0,0,0.18)] lg:hidden">
-          <div className="mx-auto max-w-2xl">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-semibold text-gray-900">
-                {activeCard.trigger_word}
-              </div>
-              <button
-                className="text-xs text-gray-400 hover:text-gray-700"
-                onClick={hideCard}
-              >
-                收起
-              </button>
-            </div>
-            {activeCard.data.ipa && (
-              <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
-                <span>{activeCard.data.ipa}</span>
+        <div
+          className="fixed inset-0 z-40 lg:hidden"
+          onClick={hideCard}
+        >
+          {/* 底部弹层本体：阻止事件冒泡，避免点击内容区域时关闭 */}
+          <div
+            className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-gray-200 bg-white px-4 pb-6 pt-4 shadow-[0_-18px_40px_rgba(0,0,0,0.18)]"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="mx-auto max-w-2xl">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-semibold text-gray-900">
+                    {activeCard.trigger_word}
+                  </div>
+                  {getCardTypeLabel(activeCard.data.type) && (
+                    <span className="rounded-full bg-[#FF2442]/5 px-2 py-[2px] text-[10px] text-[#FF2442]">
+                      {getCardTypeLabel(activeCard.data.type)}
+                    </span>
+                  )}
+                </div>
                 <button
-                  type="button"
-                  className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
-                  onClick={() => playCardAudio(activeCard)}
-                  aria-label="播放单词读音"
+                  className="text-xs text-gray-400 hover:text-gray-700"
+                  onClick={hideCard}
                 >
-                  <IconSound className="h-4 w-4" />
+                  收起
                 </button>
               </div>
-            )}
-            <div className="text-sm text-gray-800">
-              {activeCard.data.def}
-            </div>
-            {activeCard.data.sentence && (
-              <div className="mt-2 text-xs text-gray-500">
-                {activeCard.data.sentence}
+              {activeCard.data.ipa && (
+                <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
+                  <span>{activeCard.data.ipa}</span>
+                  <button
+                    type="button"
+                    className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
+                    onClick={() => playCardAudio(activeCard)}
+                    aria-label="播放单词读音"
+                  >
+                    <IconSound className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              <div className="text-sm text-gray-800">
+                {activeCard.data.def}
               </div>
-            )}
+              {activeCard.data.sentence && (
+                <div className="mt-2 text-xs text-gray-500">
+                  {activeCard.data.sentence}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
