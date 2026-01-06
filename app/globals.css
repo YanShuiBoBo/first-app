@@ -24,6 +24,11 @@
 
   --accent: #7c3aed;
   --badge-red: #ff5e57;
+
+  /* 首页品牌胶囊配色 */
+  --color-brand-pink-bg: #fce7f3;
+  --color-brand-pink-text: #be185d;
+  --color-brand-black: #111111;
 }
 
 body {

@@ -140,6 +140,7 @@ export default function Home() {
   const [activeThemeTag, setActiveThemeTag] = useState<string | null>(
     null
   );
+  const [showAllAuthors, setShowAllAuthors] = useState(false);
 
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isStatsSheetOpen, setIsStatsSheetOpen] = useState(false);
@@ -482,39 +483,53 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Row 2: 横向滚动 Tabs（All + 前几个真实标签） */}
-          <div className="no-scrollbar -mx-4 overflow-x-auto px-4 pb-1 mt-4">
-            <div className="flex items-center gap-2 text-xs">
-              {(
-                [
-                  { value: 'all' as CategoryValue, label: '全部' },
-                  ...(
-                    primaryTags.length > 0
-                      ? primaryTags
-                      : ['Vlog', 'Business', 'Travel', 'Movie']
-                    // 这里作为兜底，保证即使没有 tag 数据也有几个可点的类目
-                  ).map((tag) => ({
-                    value: tag as CategoryValue,
-                    label: tag
-                  }))
-                ] satisfies { value: CategoryValue; label: string }[]
-              ).map((tab) => {
-                const isActive = activeCategory === tab.value;
-                return (
-                  <button
-                    key={tab.value}
-                    type="button"
-                    className={`whitespace-nowrap rounded-full px-4 py-1.5 ${
-                      isActive
-                        ? 'bg-slate-900 text-white font-bold shadow-md'
-                        : 'bg-slate-50 text-slate-600 font-medium'
-                    }`}
-                    onClick={() => setActiveCategory(tab.value)}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
+          {/* Row 2: 横向滚动 Tabs（All + 前几个真实标签）+ 固定在右侧的筛选图标 */}
+          <div className="-mx-4 mt-4 px-4 pb-1">
+            <div className="relative flex items-center text-xs">
+              {/* 可横向滚动的标签区域 */}
+              <div className="no-scrollbar mr-2 flex-1 overflow-x-auto pr-10">
+                <div className="flex items-center gap-2">
+                  {(
+                    [
+                      { value: 'all' as CategoryValue, label: '全部' },
+                      ...(
+                        primaryTags.length > 0
+                          ? primaryTags
+                          : ['Vlog', 'Business', 'Travel', 'Movie']
+                      ).map((tag) => ({
+                        value: tag as CategoryValue,
+                        label: tag
+                      }))
+                    ] satisfies { value: CategoryValue; label: string }[]
+                  ).map((tab) => {
+                    const isActive = activeCategory === tab.value;
+                    return (
+                      <button
+                        key={tab.value}
+                        type="button"
+                        className={`whitespace-nowrap rounded-full px-4 py-1.5 ${
+                          isActive
+                            ? 'bg-gray-900 text-white font-medium'
+                            : 'bg-gray-100 text-gray-600 font-medium'
+                        }`}
+                        onClick={() => setActiveCategory(tab.value)}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 筛选按钮：始终固定在右侧，不随标签滚动 */}
+              <button
+                type="button"
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600"
+                onClick={() => setIsFilterSheetOpen(true)}
+                aria-label="筛选"
+              >
+                <IconFilter />
+              </button>
             </div>
           </div>
         </div>
@@ -540,7 +555,7 @@ export default function Home() {
             <>
               {/* 桌面端：左图右文杂志风布局 */}
               <div className="hidden items-start gap-8 md:flex">
-                {/* 左侧大图 */}
+                {/* 左侧大图：纯净封面 + 中央毛玻璃播放按钮 */}
                 <Link
                   href={`/watch/${heroVideo.cf_video_id}`}
                   className="group relative flex-[3] overflow-hidden rounded-2xl bg-neutral-900 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)]"
@@ -554,28 +569,46 @@ export default function Home() {
                       )}
                       alt={heroVideo.title}
                       fill
-                      className="object-cover"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                    {/* 中央毛玻璃播放按钮 */}
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white shadow-[0_10px_40px_rgba(0,0,0,0.25)] backdrop-blur-md transition-colors duration-300 group-hover:bg-white/30">
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-8 w-8 translate-x-0.5 fill-white"
+                        >
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
+                </Link>
 
-                  {/* 覆盖文字信息 */}
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4 md:p-6">
-                    <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-0.5 text-[11px] font-medium text-white">
-                      今日精选
+                {/* 右侧：杂志排版区 + 学习快照信息卡 */}
+                <div className="flex-[2] space-y-6">
+                  <div>
+                    {/* 眉题胶囊：浅粉 + 深粉字 */}
+                    <span className="inline-flex items-center rounded-full bg-[#FCE7F3] px-3 py-1 text-[11px] font-medium text-[#BE185D]">
+                      Vlog 精读推荐
                     </span>
-                    <h2 className="mt-2 line-clamp-2 font-serif text-xl font-semibold leading-snug text-white md:text-2xl">
-                      {heroVideo.title}
+                    {/* 大标题：加大字号，并整体用淡粉底高亮 */}
+                    <h2 className="mt-4 font-serif text-4xl font-semibold leading-snug text-[var(--color-brand-black)] md:text-5xl">
+                      <span className="inline-block rounded-md bg-[var(--color-brand-pink-bg)] px-2 py-1">
+                        {heroVideo.title}
+                      </span>
                     </h2>
                     {heroVideo.description && (
-                      <p className="mt-1 line-clamp-2 text-xs text-white/80">
+                      <p className="mt-3 line-clamp-3 text-sm text-neutral-600">
                         {heroVideo.description}
                       </p>
                     )}
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/80">
+
+                    {/* Meta 信息：作者 / 难度 / 标签 / 时长 / 学习次数，只在右侧展示一次 */}
+                    <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px] text-neutral-600">
                       {heroVideo.author && (
                         <span className="inline-flex items-center gap-1">
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-[10px] font-medium">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-medium text-neutral-700">
                             {heroVideo.author.charAt(0).toUpperCase()}
                           </span>
                           <span>{heroVideo.author}</span>
@@ -585,7 +618,7 @@ export default function Home() {
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${getDifficultyStyle(
                             heroVideo.difficulty,
-                            'banner'
+                            'card'
                           )}`}
                         >
                           <span>{renderDifficultyLabel(heroVideo.difficulty)}</span>
@@ -596,56 +629,25 @@ export default function Home() {
                           {heroVideo.tags.slice(0, 3).map((tag) => (
                             <span
                               key={tag}
-                              className="rounded-full bg-white/10 px-2 py-0.5 text-[10px]"
+                              className="rounded-md bg-[var(--color-brand-pink-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-brand-pink-text)]"
                             >
-                              {tag}
+                              #{tag}
                             </span>
                           ))}
                         </span>
                       )}
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-white/80">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5">
                         <IconClock />
                         <span>{formatDuration(heroVideo.duration)}</span>
                       </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5">
                         <IconFlame />
                         <span>已学习 {heroVideo.view_count ?? 0} 次</span>
                       </span>
                     </div>
                   </div>
 
-                  {/* Hover 播放按钮 */}
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/30 backdrop-blur">
-                      <svg
-                        viewBox="0 0 24 24"
-                        className="h-7 w-7 translate-x-0.5 fill-white"
-                      >
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </div>
-                  </div>
-                </Link>
-
-                {/* 右侧：学习快照信息卡 */}
-                <div className="flex-[2] space-y-4">
-                  <div>
-                    <span className="inline-flex items-center rounded-full bg-[#FF2442]/10 px-3 py-1 text-[11px] font-medium text-[#FF2442]">
-                      Vlog 精读推荐
-                    </span>
-                    <h2 className="mt-3 font-serif text-3xl font-semibold leading-snug text-[#1F1F1F]">
-                      {heroVideo.title}
-                    </h2>
-                    {heroVideo.description && (
-                      <p className="mt-2 text-sm text-neutral-600 line-clamp-3">
-                        {heroVideo.description}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="rounded-2xl bg-white/90 p-4 text-xs text-neutral-800 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] backdrop-blur-md">
+                  <div className="mt-8 rounded-2xl bg-white/90 p-4 text-xs text-neutral-800 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] backdrop-blur-md">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-400">
@@ -735,9 +737,9 @@ export default function Home() {
         <section className="space-y-4">
           {/* 桌面端：双层分离过滤条（类目来自数据库真实标签） */}
           <div className="hidden flex-col gap-3 rounded-2xl bg-white/95 px-5 py-4 text-[11px] text-neutral-600 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] md:sticky md:top-20 md:z-30 md:flex md:border md:border-neutral-100 md:backdrop-blur">
-            {/* Row 1: 类目 Tabs + 排序 / 未学开关 */}
+            {/* Row 1: 类目 Tags + 右侧下拉选择 */}
             <div className="flex items-center justify-between gap-4">
-              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+              <div className="flex flex-wrap gap-2">
                 {(
                   [
                     { value: 'all' as CategoryValue, label: '全部' },
@@ -769,102 +771,91 @@ export default function Home() {
                 })}
               </div>
 
-              <div className="flex items-center gap-4 border-l border-slate-100 pl-4">
-                {/* 排序 */}
-                <div className="flex items-center gap-1">
-                  <span className="text-neutral-500">排序:</span>
-                  <select
-                    className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] text-neutral-700 focus:border-[#FF2442] focus:outline-none focus:ring-1 focus:ring-[#FF2442]/20"
-                    value={sortOrder}
-                    onChange={(e) =>
-                      setSortOrder(e.target.value as SortOrder)
-                    }
-                  >
-                    <option value="hottest">最热</option>
-                    <option value="latest">最新</option>
-                  </select>
-                </div>
-                {/* 仅看未学 */}
-                <label className="flex cursor-pointer items-center gap-2 text-[11px] text-neutral-500 hover:text-[#FF2442]">
-                  <input
-                    type="checkbox"
-                    className="h-3.5 w-3.5 rounded border-neutral-300 text-[#FF2442] focus:ring-[#FF2442]"
-                    checked={statusFilter === 'unlearned'}
-                    onChange={() =>
-                      setStatusFilter(
-                        statusFilter === 'unlearned' ? 'all' : 'unlearned'
-                      )
-                    }
-                  />
-                  <span>仅看未学</span>
-                </label>
+              {/* 右侧：下拉选择完整标签列表 */}
+              <div className="flex items-center gap-2">
+                <span className="text-neutral-500">更多:</span>
+                <select
+                  className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] text-neutral-700 focus:border-[#FF2442] focus:outline-none focus:ring-1 focus:ring-[#FF2442]/20"
+                  value={activeCategory}
+                  onChange={(e) =>
+                    setActiveCategory(e.target.value as CategoryValue)
+                  }
+                >
+                  <option value="all">全部标签</option>
+                  {themeTags.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            {/* Row 2: 难度 Chips（次级筛选） */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-neutral-500">难度:</span>
-              {(['all', 'easy', 'medium', 'hard'] as DifficultyFilter[]).map(
-                (level) => {
-                  const labelMap: Record<DifficultyFilter, string> = {
-                    all: '全部',
-                    easy: '入门',
-                    medium: '进阶',
-                    hard: '大师'
-                  };
-                  const isActive = difficultyFilter === level;
-                  return (
-                    <button
-                      key={level}
-                      type="button"
-                      className={`rounded-full px-3 py-1 ${
-                        isActive
-                          ? 'bg-slate-900 text-white'
-                          : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                      }`}
-                      onClick={() => setDifficultyFilter(level)}
-                    >
-                      {labelMap[level]}
-                    </button>
-                  );
-                }
-              )}
+            {/* Row 2: 排序 / 状态 / 难度 Chips（次级筛选） */}
+            <div className="flex flex-wrap items-center gap-4">
+              {/* 排序 */}
+              <div className="flex items-center gap-1">
+                <span className="text-neutral-500">排序:</span>
+                <select
+                  className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] text-neutral-700 focus:border-[#FF2442] focus:outline-none focus:ring-1 focus:ring-[#FF2442]/20"
+                  value={sortOrder}
+                  onChange={(e) =>
+                    setSortOrder(e.target.value as SortOrder)
+                  }
+                >
+                  <option value="hottest">最热</option>
+                  <option value="latest">最新</option>
+                </select>
+              </div>
+
+              {/* 状态：仅看未学 */}
+              <label className="flex cursor-pointer items-center gap-2 text-[11px] text-neutral-500 hover:text-[#FF2442]">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 rounded border-neutral-300 text-[#FF2442] focus:ring-[#FF2442]"
+                  checked={statusFilter === 'unlearned'}
+                  onChange={() =>
+                    setStatusFilter(
+                      statusFilter === 'unlearned' ? 'all' : 'unlearned'
+                    )
+                  }
+                />
+                <span>仅看未学</span>
+              </label>
+
+              {/* 难度 Chips */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-neutral-500">难度:</span>
+                {(['all', 'easy', 'medium', 'hard'] as DifficultyFilter[]).map(
+                  (level) => {
+                    const labelMap: Record<DifficultyFilter, string> = {
+                      all: '全部',
+                      easy: '入门',
+                      medium: '进阶',
+                      hard: '大师'
+                    };
+                    const isActive = difficultyFilter === level;
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        className={`rounded-full px-3 py-1 ${
+                          isActive
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                        }`}
+                        onClick={() => setDifficultyFilter(level)}
+                      >
+                        {labelMap[level]}
+                      </button>
+                    );
+                  }
+                )}
+              </div>
             </div>
           </div>
 
-          {/* 移动端：排序 + 筛选按钮 */}
-          <div className="flex items-center justify-between text-xs text-neutral-600 md:hidden">
-            <div className="flex items-center gap-2">
-              <span>排序:</span>
-              <div className="inline-flex items-center rounded-full border border-neutral-200 bg-white p-0.5">
-                {[
-                  { value: 'hottest' as SortOrder, label: '综合' },
-                  { value: 'latest' as SortOrder, label: '最新' }
-                ].map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={`rounded-full px-2.5 py-0.5 text-[11px] ${
-                      sortOrder === opt.value
-                        ? 'bg-neutral-900 text-white'
-                        : 'text-neutral-600'
-                    }`}
-                    onClick={() => setSortOrder(opt.value)}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 rounded-full bg-neutral-900 px-3 py-1 text-[11px] font-medium text-white"
-              onClick={() => setIsFilterSheetOpen(true)}
-            >
-              <IconFilter />
-              <span>筛选</span>
-            </button>
-          </div>
+          {/* 移动端：排序 + 筛选按钮（已整合到顶部 Header 胶囊栏，仅保留 Bottom Sheet 逻辑） */}
         </section>
 
         {/* 视频卡片：移动端瀑布流 + PC Grid */}
@@ -897,9 +888,7 @@ export default function Home() {
                       )}
                       alt={video.title}
                       fill
-                      className={`object-cover transition-transform duration-300 group-hover:scale-[1.03] ${
-                        completedSet.has(video.id) ? 'opacity-60' : ''
-                      }`}
+                      className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                     />
                     {/* 左上角难度 Badge */}
                     {video.difficulty && (
@@ -912,28 +901,16 @@ export default function Home() {
                         {renderDifficultyLabel(video.difficulty)}
                       </span>
                     )}
+                    {/* 右上角已学习角标 */}
+                    {completedSet.has(video.id) && (
+                      <span className="absolute right-2 top-2 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
+                        已学完
+                      </span>
+                    )}
                     {/* 右下角时长 Badge */}
                     <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
                       {formatDuration(video.duration)}
                     </span>
-                    {/* 已学习覆盖层：淡白遮罩 + 绿色勾 */}
-                    {completedSet.has(video.id) && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[1px]">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg">
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="h-5 w-5"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={2.4}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      </div>
-                    )}
                   </div>
                   <div className="flex flex-1 flex-col justify-between gap-2 p-3">
                     <div className="space-y-1.5">
@@ -941,30 +918,27 @@ export default function Home() {
                         {video.title}
                       </h3>
                       {video.tags && video.tags.length > 0 && (
-                        <span className="inline-flex max-w-full items-center rounded bg-slate-50 px-1 text-[10px] text-slate-400">
+                        <span className="inline-flex max-w-full items-center rounded-md bg-[var(--color-brand-pink-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-brand-pink-text)]">
                           #{video.tags[0]}
                         </span>
                       )}
                       {video.author && (
-                        <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-600">
-                            {(video.author || '英')
-                              .charAt(0)
-                              .toUpperCase()}
+                        <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500">
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-600">
+                              {(video.author || '英')
+                                .charAt(0)
+                                .toUpperCase()}
+                            </div>
+                            <span>{video.author}</span>
                           </div>
-                          <span>{video.author}</span>
+                          {/* 右侧观看数 */}
+                          <div className="flex items-center gap-1.5">
+                            <IconHeart />
+                            <span>{video.view_count ?? 0}</span>
+                          </div>
                         </div>
                       )}
-                    </div>
-                    <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500">
-                      <div className="flex items-center gap-1.5">
-                        <IconHeart />
-                        <span>{video.view_count ?? 0}</span>
-                      </div>
-                      {/* 右侧保留一个轻量文案，未来可扩展为收藏/进度 */}
-                      <span className="text-[10px] text-slate-400">
-                        {renderDifficultyLabel(video.difficulty)}
-                      </span>
                     </div>
                   </div>
                 </Link>
@@ -976,13 +950,17 @@ export default function Home() {
 
       {/* 移动端筛选 Bottom Sheet */}
       {isFilterSheetOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-black/40 md:hidden">
+        <div className="fixed inset-0 z-50 flex flex-col md:hidden">
+          {/* 遮罩层：黑色透明 + 背景模糊 */}
           <button
             type="button"
-            className="flex-1"
+            className="absolute inset-0 bg-black/20 backdrop-blur-[4px]"
             onClick={() => setIsFilterSheetOpen(false)}
+            aria-label="关闭筛选"
           />
-          <div className="mt-auto max-h-[70vh] w-full rounded-t-3xl bg-white p-4 shadow-lg">
+
+          {/* 抽屉面板 */}
+          <div className="relative mt-auto max-h-[70vh] w-full rounded-t-3xl bg-white px-4 pt-4 pb-20 shadow-lg">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-neutral-900">
                 筛选条件
@@ -997,10 +975,10 @@ export default function Home() {
             </div>
 
             <div className="space-y-4 overflow-y-auto text-xs text-neutral-700">
-              {/* 难度 */}
+              {/* 难度：3 列 Grid + 图标 */}
               <div>
                 <div className="mb-2 font-medium">难度 Difficulty</div>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-3 gap-3">
                   {(['easy', 'medium', 'hard'] as DifficultyFilter[]).map(
                     (level) => {
                       const labelMap: Record<DifficultyFilter, string> = {
@@ -1009,25 +987,76 @@ export default function Home() {
                         medium: '进阶',
                         hard: '大师'
                       };
-                      const colorMap: Record<DifficultyFilter, string> = {
-                        all: 'bg-white text-neutral-600',
-                        easy: 'bg-emerald-100 text-emerald-700',
-                        medium: 'bg-amber-100 text-amber-700',
-                        hard: 'bg-rose-100 text-rose-700'
-                      };
                       const isActive = difficultyFilter === level;
+                      const baseClasses =
+                        'flex flex-col items-center justify-center rounded-xl border px-2 py-3 text-[11px] transition-colors';
+                      const activeClasses =
+                        'border-[#FF2442] bg-[#FFEDF0] text-[#BE185D]';
+                      const inactiveClasses =
+                        'border-neutral-200 bg-neutral-50 text-neutral-600';
+
                       return (
                         <button
                           key={level}
                           type="button"
-                          className={`rounded-full px-3 py-1 text-xs ${
-                            isActive
-                              ? colorMap[level]
-                              : 'bg-neutral-100 text-neutral-600'
+                          className={`${baseClasses} ${
+                            isActive ? activeClasses : inactiveClasses
                           }`}
                           onClick={() => setDifficultyFilter(level)}
                         >
-                          {labelMap[level]}
+                          {/* 图标 */}
+                          {level === 'easy' && (
+                            <svg
+                              className={`mb-1 h-5 w-5 ${
+                                isActive
+                                  ? 'stroke-[#FF2442]'
+                                  : 'stroke-gray-400'
+                              }`}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              strokeWidth={1.8}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M4 20c4-6 8-10 16-16" />
+                              <path d="M9 19c1-2 2.5-4 4-5.5" />
+                            </svg>
+                          )}
+                          {level === 'medium' && (
+                            <svg
+                              className={`mb-1 h-5 w-5 ${
+                                isActive
+                                  ? 'stroke-[#FF2442]'
+                                  : 'stroke-gray-400'
+                              }`}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              strokeWidth={1.8}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <rect x="4" y="14" width="16" height="5" rx="1" />
+                              <rect x="6" y="9" width="12" height="4" rx="1" />
+                              <rect x="8" y="4" width="8" height="3" rx="1" />
+                            </svg>
+                          )}
+                          {level === 'hard' && (
+                            <svg
+                              className={`mb-1 h-5 w-5 ${
+                                isActive
+                                  ? 'stroke-[#FF2442]'
+                                  : 'stroke-gray-400'
+                              }`}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              strokeWidth={1.8}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
+                            </svg>
+                          )}
+                          <span>{labelMap[level]}</span>
                         </button>
                       );
                     }
@@ -1035,81 +1064,117 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 作者 */}
+              {/* 作者：前 4-6 个 + 展开更多 */}
               <div>
-                <div className="mb-2 font-medium">作者 Creator</div>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-medium">作者 Creator</span>
+                  {authorOptions.length > 6 && (
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-[11px] text-[#FF2442]"
+                      onClick={() => setShowAllAuthors((v) => !v)}
+                    >
+                      <span>
+                        {showAllAuthors ? '收起全部' : '展开全部'}
+                      </span>
+                      <svg
+                        className={`h-3 w-3 transform transition-transform ${
+                          showAllAuthors ? 'rotate-180' : ''
+                        }`}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={1.5}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className={`rounded-full px-3 py-1 ${
+                    className={`flex items-center gap-2 rounded-full px-3 py-1 ${
                       authorFilter === 'all'
-                        ? 'bg-neutral-900 text-white'
+                        ? 'bg-[#FFEDF0] text-[#BE185D] border border-[#FF2442]'
                         : 'bg-neutral-100 text-neutral-600'
                     }`}
                     onClick={() => setAuthorFilter('all')}
                   >
-                    全部
+                    <span className="h-5 w-5 rounded-full bg-neutral-200" />
+                    <span>全部</span>
                   </button>
-                  {authorOptions.map((name) => (
-                    <button
-                      key={name}
-                      type="button"
-                      className={`rounded-full px-3 py-1 ${
-                        authorFilter === name
-                          ? 'bg-neutral-900 text-white'
-                          : 'bg-neutral-100 text-neutral-600'
-                      }`}
-                      onClick={() => setAuthorFilter(name)}
-                    >
-                      {name}
-                    </button>
-                  ))}
+                  {(showAllAuthors
+                    ? authorOptions
+                    : authorOptions.slice(0, 6)
+                  ).map((name) => {
+                    const isActive = authorFilter === name;
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        className={`flex items-center gap-2 rounded-full px-3 py-1 ${
+                          isActive
+                            ? 'bg-[#FFEDF0] text-[#BE185D] border border-[#FF2442]'
+                            : 'bg-neutral-100 text-neutral-600'
+                        }`}
+                        onClick={() => setAuthorFilter(name)}
+                      >
+                        <span
+                          className={`flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-[10px] ${
+                            isActive ? 'ring-2 ring-[#FF2442]' : ''
+                          }`}
+                        >
+                          {name.charAt(0).toUpperCase()}
+                        </span>
+                        <span>{name}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* 状态 */}
+              {/* 状态：Switch */}
               <div>
-                <div className="mb-2 font-medium">状态</div>
-                <div className="flex gap-2">
+                <div className="mb-2 font-medium">状态 Status</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-neutral-600">
+                    仅看未学
+                  </span>
                   <button
                     type="button"
-                    className={`flex-1 rounded-full px-3 py-1 ${
+                    className={`flex h-5 w-10 items-center rounded-full px-0.5 transition-colors ${
                       statusFilter === 'unlearned'
-                        ? 'bg-neutral-900 text-white'
-                        : 'bg-neutral-100 text-neutral-600'
+                        ? 'bg-[#FF2442]'
+                        : 'bg-gray-200'
                     }`}
                     onClick={() =>
                       setStatusFilter(
                         statusFilter === 'unlearned' ? 'all' : 'unlearned'
                       )
                     }
+                    aria-label="切换仅看未学"
                   >
-                    仅看未学
-                  </button>
-                  <button
-                    type="button"
-                    className={`flex-1 rounded-full px-3 py-1 ${
-                      statusFilter === 'completed'
-                        ? 'bg-neutral-900 text-white'
-                        : 'bg-neutral-100 text-neutral-600'
-                    }`}
-                    onClick={() =>
-                      setStatusFilter(
-                        statusFilter === 'completed'
-                          ? 'all'
-                          : 'completed'
-                      )
-                    }
-                  >
-                    仅看已完成
+                    <span
+                      className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                        statusFilter === 'unlearned'
+                          ? 'translate-x-5'
+                          : 'translate-x-0'
+                      }`}
+                    />
                   </button>
                 </div>
               </div>
+            </div>
 
-              <div className="flex items-center justify-between pt-2">
+            {/* 底部固定按钮 */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-3xl bg-white/95 p-3">
+              <div className="flex items-center justify-between gap-3">
                 <button
                   type="button"
-                  className="rounded-full border border-neutral-200 px-4 py-1.5 text-xs text-neutral-600"
+                  className="pointer-events-auto rounded-full border border-neutral-200 px-4 py-1.5 text-xs text-neutral-600"
                   onClick={() => {
                     setDifficultyFilter('all');
                     setAuthorFilter('all');
@@ -1120,7 +1185,7 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
-                  className="rounded-full bg-neutral-900 px-4 py-1.5 text-xs font-medium text-white"
+                  className="pointer-events-auto flex-1 rounded-full bg-[#FF2442] py-2.5 text-center text-xs font-medium text-white shadow-[0_0_20px_rgba(255,36,66,0.5)] active:scale-95"
                   onClick={() => setIsFilterSheetOpen(false)}
                 >
                   确认显示 ({filteredVideos.length})
@@ -1131,48 +1196,63 @@ export default function Home() {
         </div>
       )}
 
-      {/* 移动端底部悬浮导航岛 */}
-      <nav className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-full border border-white/70 bg-white/90 px-6 py-2.5 text-[11px] text-slate-500 shadow-[0_16px_40px_-18px_rgba(15,23,42,0.3)] backdrop-blur-xl md:hidden">
-        <button
-          type="button"
-          className="flex items-center gap-2 text-[#FF2442]"
-          aria-label="回到首页"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.7}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M3 11.5 12 4l9 7.5" />
-            <path d="M5 10.5v9h5v-5h4v5h5v-9" />
-          </svg>
-          <span className="font-medium">首页</span>
-        </button>
-        <div className="h-4 w-px bg-slate-200" />
-        <button
-          type="button"
-          className="flex items-center gap-2 text-slate-500"
-          aria-label="打开生词本（即将上线）"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.7}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
-          </svg>
-          <span>笔记本</span>
-        </button>
-      </nav>
+      {/* 移动端底部导航栏：iOS 风格毛玻璃悬浮条；当筛选/统计弹窗打开时隐藏 */}
+      {!isFilterSheetOpen && !isStatsSheetOpen && (
+        <nav className="fixed bottom-5 left-1/2 z-40 -translate-x-1/2 md:hidden">
+          <div className="flex h-[52px] w-[230px] items-center justify-between rounded-full border border-white/20 bg-white/80 px-3 text-[11px] text-slate-500 shadow-lg backdrop-blur-md">
+            {/* 首页 */}
+            <button
+              type="button"
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[#FF2442]"
+              aria-label="回到首页"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FF2442]/5 text-[#FF2442]">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.7}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 11.5 12 4l9 7.5" />
+                  <path d="M5 10.5v9h5v-5h4v5h5v-9" />
+                </svg>
+              </div>
+              <span className="text-[10px] font-semibold tracking-wide">
+                首页
+              </span>
+            </button>
+
+            {/* 分割线 */}
+            <div className="h-8 w-px bg-slate-200/80" />
+
+            {/* 生词本 */}
+            <button
+              type="button"
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 text-slate-500"
+              aria-label="打开生词本（即将上线）"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.7}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+                </svg>
+              </div>
+              <span className="text-[10px] font-medium">笔记本</span>
+            </button>
+          </div>
+        </nav>
+      )}
 
       {/* 移动端学习数据 Bottom Sheet */}
       {isStatsSheetOpen && (
