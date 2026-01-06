@@ -1743,7 +1743,7 @@ export default function WatchPage() {
     resumeSeconds !== null ? formatDuration(resumeSeconds) : '';
 
   return (
-    <div className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[var(--bg-shell)] text-gray-900 lg:h-screen lg:overflow-hidden lg:bg-[var(--bg-body)]">
+    <div className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[var(--bg-shell)] text-gray-900 lg:h-auto lg:overflow-visible lg:bg-[var(--bg-body)]">
       {/* 桌面端顶部导航栏：移动端在视频上方单独实现 */}
       <header className="hidden h-11 items-center justify-between bg-white/95 px-6 text-xs text-gray-700 shadow-sm shadow-black/5 lg:fixed lg:inset-x-0 lg:top-0 lg:z-30 lg:flex">
         <button
@@ -1780,35 +1780,35 @@ export default function WatchPage() {
               className="flex h-full flex-col rounded-2xl bg-[var(--bg-shell)] shadow-sm"
             >
               {/* Layer 1: Header（桌面端显示） */}
-              <div className="hidden h-14 items-center justify-between border-b border-gray-100 px-6 sm:flex">
-                <div className="flex flex-col overflow-hidden">
-                  <div className="truncate text-sm font-semibold text-gray-900">
-                    {videoData.title}
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-gray-500">
-                    {videoData.tags &&
-                      videoData.tags.slice(0, 3).map(tag => (
-                        <span
-                          key={tag}
-                          className="rounded-full bg-gray-100 px-2 py-0.5"
-                        >
-                          #{tag}
-                        </span>
-                      ))}
-                    {videoData.difficulty && (
-                      <span className="rounded-full bg-[#FFF0F2] px-2 py-0.5 text-[#FF2442]">
-                        Level {videoData.difficulty}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="hidden text-[11px] text-gray-400 md:flex md:flex-col md:items-end">
-                  <span>时长 {formatDuration(videoData.duration)}</span>
-                  <span className="mt-0.5">
-                    已学习 {videoData.view_count ?? 0} 次
-                  </span>
-                </div>
-              </div>
+              {/*<div className="hidden h-14 items-center justify-between border-b border-gray-100 px-6 sm:flex">*/}
+              {/*  <div className="flex flex-col overflow-hidden">*/}
+              {/*    <div className="truncate text-sm font-semibold text-gray-900">*/}
+              {/*      {videoData.title}*/}
+              {/*    </div>*/}
+              {/*    <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-gray-500">*/}
+              {/*      {videoData.tags &&*/}
+              {/*        videoData.tags.slice(0, 3).map(tag => (*/}
+              {/*          <span*/}
+              {/*            key={tag}*/}
+              {/*            className="rounded-full bg-gray-100 px-2 py-0.5"*/}
+              {/*          >*/}
+              {/*            #{tag}*/}
+              {/*          </span>*/}
+              {/*        ))}*/}
+              {/*      {videoData.difficulty && (*/}
+              {/*        <span className="rounded-full bg-[#FFF0F2] px-2 py-0.5 text-[#FF2442]">*/}
+              {/*          Level {videoData.difficulty}*/}
+              {/*        </span>*/}
+              {/*      )}*/}
+              {/*    </div>*/}
+              {/*  </div>*/}
+              {/*  <div className="hidden text-[11px] text-gray-400 md:flex md:flex-col md:items-end">*/}
+              {/*    <span>时长 {formatDuration(videoData.duration)}</span>*/}
+              {/*    <span className="mt-0.5">*/}
+              {/*      已学习 {videoData.view_count ?? 0} 次*/}
+              {/*    </span>*/}
+              {/*  </div>*/}
+              {/*</div>*/}
 
               {/* Layer 2: 视频区域 */}
               {/* 移动端：视频固定在视口顶部并覆盖导航；桌面端：保持卡片内部吸顶体验 */}
