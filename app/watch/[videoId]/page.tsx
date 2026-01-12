@@ -1825,8 +1825,8 @@ export default function WatchPage() {
                         <button
                           type="button"
                           className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/40"
-                          onClick={() => router.back()}
-                          aria-label="返回上一页"
+                          onClick={() => router.push('/')}
+                          aria-label="回到首页"
                         >
                           <IconArrowLeft className="h-3.5 w-3.5" />
                         </button>

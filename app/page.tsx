@@ -1107,7 +1107,7 @@ export default function Home() {
           <div className="relative mt-auto max-h-[70vh] w-full rounded-t-3xl bg-white px-4 pt-4 pb-20 shadow-lg">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-neutral-900">
-                筛选条件
+                筛选
               </h2>
               <button
                 type="button"
@@ -1121,7 +1121,7 @@ export default function Home() {
             <div className="space-y-4 overflow-y-auto text-xs text-neutral-700">
               {/* 难度：3 列 Grid + 图标 */}
               <div>
-                <div className="mb-2 font-medium">难度 Difficulty</div>
+                <div className="mb-2 font-medium">按难度</div>
                 <div className="grid grid-cols-3 gap-3">
                   {(['easy', 'medium', 'hard'] as DifficultyFilter[]).map(
                     (level) => {
@@ -1211,7 +1211,7 @@ export default function Home() {
               {/* 作者：前 4-6 个 + 展开更多 */}
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="font-medium">作者 Creator</span>
+                  <span className="font-medium">按作者</span>
                   {authorOptions.length > 6 && (
                     <button
                       type="button"
@@ -1282,7 +1282,7 @@ export default function Home() {
 
               {/* 状态：Switch */}
               <div>
-                <div className="mb-2 font-medium">状态 Status</div>
+                <div className="mb-2 font-medium">按状态</div>
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-neutral-600">
                     仅看未学
