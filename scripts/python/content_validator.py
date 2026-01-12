@@ -114,24 +114,51 @@ def merge_subtitles_with_skeleton(
 
 
 def normalize_knowledge(raw: Any) -> List[Dict[str, Any]]:
-  """过滤并规整知识卡片数组。"""
+  """
+  过滤并规整知识卡片数组。
+
+  目标：
+  - 保留 DeepSeek 生成的结构化字段（source / pos / collocations / ...）；
+  - 只强制要求 trigger_word + data.def；
+  - 过滤非法 type / 重复卡片。
+  """
   if not isinstance(raw, list):
     return []
 
   normalized: List[Dict[str, Any]] = []
   seen_keys: Set[Tuple[str, str, str]] = set()
 
+  def _norm_str(value: Any) -> str:
+    return str(value).strip()
+
+  def _normalize_string_list(value: Any, max_items: int = 4) -> List[str]:
+    if not isinstance(value, list):
+      return []
+    seen_local: Set[str] = set()
+    result: List[str] = []
+    for item in value:
+      text = _norm_str(item)
+      if not text or text in seen_local:
+        continue
+      seen_local.add(text)
+      result.append(text)
+      if len(result) >= max_items:
+        break
+    return result
+
   for item in raw:
     if not isinstance(item, dict):
       continue
 
-    trigger_word = str(item.get("trigger_word", "")).strip()
+    trigger_word_raw = item.get("trigger_word", "")
+    trigger_word = _norm_str(trigger_word_raw)
     data = item.get("data")
 
     if not trigger_word or not isinstance(data, dict):
       continue
 
-    definition = str(data.get("def", "")).strip()
+    definition_raw = data.get("def", "")
+    definition = _norm_str(definition_raw)
     if not definition:
       continue
 
@@ -142,30 +169,119 @@ def normalize_knowledge(raw: Any) -> List[Dict[str, Any]]:
       if t in ALLOWED_KNOWLEDGE_TYPES:
         type_str = t
 
-    ipa = data.get("ipa")
-    if isinstance(ipa, str):
-      ipa = ipa.strip()
-    else:
-      ipa = None
-
-    sentence = data.get("sentence")
-    if isinstance(sentence, str):
-      sentence = sentence.strip()
-    else:
-      sentence = None
-
     dedupe_key = (trigger_word, definition, type_str or "")
     if dedupe_key in seen_keys:
       continue
     seen_keys.add(dedupe_key)
 
     card_data: Dict[str, Any] = {"def": definition}
-    if ipa:
-      card_data["ipa"] = ipa
-    if sentence:
-      card_data["sentence"] = sentence
     if type_str:
       card_data["type"] = type_str
+
+    # headword：若与 trigger_word 不同则保留
+    headword_raw = data.get("headword")
+    if isinstance(headword_raw, str):
+      headword = headword_raw.strip()
+      if headword and headword.lower() != trigger_word.lower():
+        card_data["headword"] = headword
+
+    # ipa / pos
+    ipa_raw = data.get("ipa")
+    if isinstance(ipa_raw, str):
+      ipa = ipa_raw.strip()
+      if ipa:
+        card_data["ipa"] = ipa
+
+    pos_raw = data.get("pos")
+    if isinstance(pos_raw, str):
+      pos = pos_raw.strip()
+      if pos:
+        card_data["pos"] = pos
+
+    # 搭配 / 近义
+    collocations = _normalize_string_list(data.get("collocations"))
+    if collocations:
+      card_data["collocations"] = collocations
+
+    synonyms = _normalize_string_list(data.get("synonyms"))
+    if synonyms:
+      card_data["synonyms"] = synonyms
+
+    # 其他文本字段
+    difficulty_level_raw = data.get("difficulty_level")
+    if isinstance(difficulty_level_raw, str):
+      diff = difficulty_level_raw.strip()
+      if diff:
+        card_data["difficulty_level"] = diff
+
+    structure_raw = data.get("structure")
+    if isinstance(structure_raw, str):
+      structure = structure_raw.strip()
+      if structure:
+        card_data["structure"] = structure
+
+    register_raw = data.get("register")
+    if isinstance(register_raw, str):
+      register = register_raw.strip()
+      if register:
+        card_data["register"] = register
+
+    paraphrase_raw = data.get("paraphrase")
+    if isinstance(paraphrase_raw, str):
+      paraphrase = paraphrase_raw.strip()
+      if paraphrase and paraphrase != definition:
+        card_data["paraphrase"] = paraphrase
+
+    function_label_raw = data.get("function_label")
+    if isinstance(function_label_raw, str):
+      function_label = function_label_raw.strip()
+      if function_label:
+        card_data["function_label"] = function_label
+
+    scenario_raw = data.get("scenario")
+    if isinstance(scenario_raw, str):
+      scenario = scenario_raw.strip()
+      if scenario:
+        card_data["scenario"] = scenario
+
+    # sentence（英文原句，兼容老数据）
+    sentence_raw = data.get("sentence")
+    sentence = sentence_raw.strip() if isinstance(sentence_raw, str) else ""
+
+    # source：语境 + 时间戳
+    source_obj: Dict[str, Any] = {}
+    source_raw = data.get("source")
+    if isinstance(source_raw, dict):
+      sent_en_raw = source_raw.get("sentence_en")
+      if isinstance(sent_en_raw, str):
+        sent_en = sent_en_raw.strip()
+        if sent_en:
+          source_obj["sentence_en"] = sent_en
+
+      sent_cn_raw = source_raw.get("sentence_cn")
+      if isinstance(sent_cn_raw, str):
+        sent_cn = sent_cn_raw.strip()
+        if sent_cn:
+          source_obj["sentence_cn"] = sent_cn
+
+      ts_start_raw = source_raw.get("timestamp_start")
+      if isinstance(ts_start_raw, (int, float)):
+        source_obj["timestamp_start"] = float(ts_start_raw)
+
+      ts_end_raw = source_raw.get("timestamp_end")
+      if isinstance(ts_end_raw, (int, float)):
+        source_obj["timestamp_end"] = float(ts_end_raw)
+
+    # 若没有显式的 source.sentence_en，但存在 sentence 字段，则把 sentence 视为英文原句
+    if sentence and "sentence_en" not in source_obj:
+      source_obj["sentence_en"] = sentence
+
+    if source_obj:
+      card_data["source"] = source_obj
+
+    # 为兼容前端旧逻辑，保留一份平铺的 sentence（与 source.sentence_en 对齐）
+    if "sentence_en" in source_obj:
+      card_data["sentence"] = source_obj["sentence_en"]
 
     normalized.append(
       {
@@ -265,4 +381,3 @@ __all__ = [
   "normalize_knowledge",
   "validate_and_merge",
 ]
-

@@ -6,10 +6,9 @@ import { usePlayerStore } from '@/lib/store/player-store';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { createBrowserClient } from '@/lib/supabase/client';
-import VocabPanel, {
-  type VocabItem,
-  type VocabKind,
-  type VocabStatus
+import type {
+  VocabItem,
+  VocabStatus
 } from '@/components/watch/VocabPanel';
 
 // 定义视频数据类型
@@ -36,6 +35,34 @@ interface SubtitleItem {
   text_en: string;
   text_cn: string;
 }
+
+// 根据当前时间在字幕列表中查找句子索引（与全局 store 的 setCurrentSubtitle 保持一致）
+const findSubtitleIndex = (subtitles: SubtitleItem[], time: number): number => {
+  if (!subtitles || subtitles.length === 0) {
+    return 0;
+  }
+
+  let left = 0;
+  let right = subtitles.length - 1;
+  let currentIndex = 0;
+
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
+    const sub = subtitles[mid];
+
+    if (time >= sub.start && time < sub.end) {
+      currentIndex = mid;
+      break;
+    } else if (time < sub.start) {
+      right = mid - 1;
+    } else {
+      left = mid + 1;
+      currentIndex = mid;
+    }
+  }
+
+  return currentIndex;
+};
 
 // 定义知识卡片类型
 interface KnowledgeCard {
@@ -139,11 +166,175 @@ const getHighlightInlineStyle = (
   return undefined;
 };
 
+// 统一从知识卡里抽取 headword 的 key（小写），用于生词状态映射
+const getHeadwordKey = (card: KnowledgeCard): string => {
+  const headword =
+    card.data.headword?.trim() ||
+    card.trigger_word?.trim() ||
+    '';
+  return headword.toLowerCase();
+};
+
 // 内部结构：一段文本要么是普通文本，要么关联到某个卡片
 interface HighlightSegment {
   text: string;
   card?: KnowledgeCard;
 }
+
+// 生词本 / 知识卡展示用的归一化类型
+type NormalizedVocabKind = 'word' | 'phrase' | 'expression';
+
+interface NormalizedKnowledge {
+  kind: NormalizedVocabKind;
+  headword: string;
+  ipa?: string;
+  pos?: string;
+  def: string;
+  collocations?: string[];
+  synonyms?: string[];
+  structure?: string;
+  register?: string;
+  paraphrase?: string;
+  functionLabel?: string;
+  scenario?: string;
+  sourceSentenceEn?: string;
+  sourceSentenceCn?: string;
+  timestampStart?: number;
+  timestampEnd?: number;
+}
+
+// 将更细粒度的后端 type（word/phrase/phrasal_verb/expression/...）
+// 归一到前端使用的 3 种分类：单词 / 短语 / 表达
+const mapCardTypeToKind = (
+  type: KnowledgeCard['data']['type'] | undefined
+): NormalizedVocabKind => {
+  switch (type) {
+    case 'phrase':
+    case 'phrasal_verb':
+      return 'phrase';
+    case 'expression':
+    case 'spoken_pattern':
+    case 'idiom':
+    case 'slang':
+      return 'expression';
+    case 'word':
+    case 'proper_noun':
+    default:
+      return 'word';
+  }
+};
+
+// 把后端 KnowledgeCard 规范化成前端展示所需的信息结构
+const normalizeKnowledgeForDisplay = (
+  card: KnowledgeCard,
+  subtitles?: SubtitleItem[]
+): NormalizedKnowledge => {
+  const kind = mapCardTypeToKind(card.data.type);
+
+  const headword =
+    card.data.headword?.trim() ||
+    card.trigger_word?.trim() ||
+    '';
+
+  const ipa = card.data.ipa?.trim() || undefined;
+  const pos = card.data.pos?.trim() || undefined;
+  const def =
+    card.data.def?.trim() ||
+    card.data.paraphrase?.trim() ||
+    '';
+
+  // 语境句：优先使用 data.source.sentence_en/sentence_cn，其次回退到 data.sentence，
+  // 最后再从字幕中推断第一次出现该词的整句。
+  let sentenceEn =
+    card.data.source?.sentence_en?.trim() ||
+    card.data.sentence?.trim() ||
+    undefined;
+  let sentenceCn =
+    card.data.source?.sentence_cn?.trim() || undefined;
+
+  let tsStart =
+    card.data.source?.timestamp_start ?? undefined;
+  let tsEnd =
+    card.data.source?.timestamp_end ?? undefined;
+
+  if (
+    (!sentenceEn || typeof tsStart !== 'number' || !Number.isFinite(tsStart)) &&
+    subtitles &&
+    subtitles.length > 0 &&
+    headword
+  ) {
+    const keyword = headword.toLowerCase();
+    const hit = subtitles.find(sub =>
+      sub.text_en.toLowerCase().includes(keyword)
+    );
+    if (hit) {
+      if (!sentenceEn) {
+        sentenceEn = hit.text_en;
+      }
+      if (!sentenceCn) {
+        sentenceCn = hit.text_cn;
+      }
+      if (typeof tsStart !== 'number' || !Number.isFinite(tsStart)) {
+        tsStart = hit.start;
+      }
+      if (typeof tsEnd !== 'number' || !Number.isFinite(tsEnd)) {
+        tsEnd = hit.end;
+      }
+    }
+  }
+
+  const normalizeStringArray = (
+    value: unknown,
+    maxItems: number
+  ): string[] | undefined => {
+    if (!Array.isArray(value)) return undefined;
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const raw of value) {
+      const text = String(raw).trim();
+      if (!text || seen.has(text)) continue;
+      seen.add(text);
+      result.push(text);
+      if (result.length >= maxItems) break;
+    }
+    return result.length > 0 ? result : undefined;
+  };
+
+  const collocations = normalizeStringArray(
+    card.data.collocations,
+    3
+  );
+  const synonyms = normalizeStringArray(
+    card.data.synonyms,
+    3
+  );
+
+  const structure = card.data.structure?.trim() || undefined;
+  const register = card.data.register?.trim() || undefined;
+  const paraphrase = card.data.paraphrase?.trim() || undefined;
+  const functionLabel =
+    card.data.function_label?.trim() || undefined;
+  const scenario = card.data.scenario?.trim() || undefined;
+
+  return {
+    kind,
+    headword,
+    ipa,
+    pos,
+    def,
+    collocations,
+    synonyms,
+    structure,
+    register,
+    paraphrase,
+    functionLabel,
+    scenario,
+    sourceSentenceEn: sentenceEn,
+    sourceSentenceCn: sentenceCn,
+    timestampStart: tsStart,
+    timestampEnd: tsEnd
+  };
+};
 
 // 工具函数：判断是否为“单词边界”字符
 const isWordBoundaryChar = (ch: string): boolean => {
@@ -440,6 +631,10 @@ export default function WatchPage() {
   const [likedSubtitles, setLikedSubtitles] = useState<Set<number>>(
     () => new Set()
   );
+  // 右侧面板 / 底部内容区模式：字幕流 or 生词流
+  const [panelMode, setPanelMode] = useState<'transcript' | 'vocab'>(
+    'transcript'
+  );
   const [scriptMode, setScriptMode] = useState<'both' | 'en' | 'cn'>('both');
   const [cardPopover, setCardPopover] = useState<{
     card: KnowledgeCard;
@@ -460,9 +655,10 @@ export default function WatchPage() {
   const [resumeSeconds, setResumeSeconds] = useState<number | null>(null);
   const [showResumeToast, setShowResumeToast] = useState(false);
 
-  // 词汇面板状态
-  const [isVocabOpen, setIsVocabOpen] = useState(false);
-  const [vocabKind, setVocabKind] = useState<VocabKind>('word');
+  // 词汇状态：按词汇 key 聚合全局「认识 / 不认识 / 未标记」状态
+  const [vocabKindFilter, setVocabKindFilter] = useState<
+    'all' | 'word' | 'phrase' | 'expression'
+  >('all');
   const [vocabStatusMap, setVocabStatusMap] = useState<
     Record<string, VocabStatus>
   >({});
@@ -481,19 +677,6 @@ export default function WatchPage() {
   const [shadowAudioUrl, setShadowAudioUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<BlobPart[]>([]);
-
-  // 响应式：用于在 VocabPanel 中切换 sheet / panel 布局
-  const [isDesktop, setIsDesktop] = useState(false);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(min-width: 1024px)');
-    const update = () => setIsDesktop(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => {
-      mq.removeEventListener('change', update);
-    };
-  }, []);
 
   // 初始化登录状态（Phase 1 先不做强门禁，只同步一下本地登录信息）
   useEffect(() => {
@@ -705,52 +888,80 @@ export default function WatchPage() {
     return used;
   }, [videoData?.subtitles, videoData?.cards]);
 
-  // 打开词汇面板时批量获取当前视频词汇的全局状态
+  // 批量获取当前视频所有高亮词汇的全局状态：
+  // - 已登录：从后端 user_vocab_status 表拉取
+  // - 未登录：从 localStorage 中恢复（按「视频」维度隔离）
   useEffect(() => {
     const fetchVocabStatus = async () => {
-      if (!isVocabOpen || !videoData?.cards || !user?.email) return;
-
       const words = Array.from(usedVocabKeys);
       if (words.length === 0) return;
 
-      try {
-        const res = await fetch('/api/vocab/status/check', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ words })
-        });
+      // 已登录用户：调用后端接口
+      if (user?.email) {
+        try {
+          const res = await fetch('/api/vocab/status/check', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ words })
+          });
 
-        if (!res.ok) {
-          // 静默失败，不阻塞 UI
-          return;
+          if (!res.ok) {
+            // 静默失败，不阻塞 UI
+            return;
+          }
+
+          const data = (await res.json()) as Record<
+            string,
+            'known' | 'unknown'
+          >;
+
+          setVocabStatusMap(prev => {
+            const next = { ...prev };
+            for (const w of words) {
+            const status = data[w];
+            if (status === 'known' || status === 'unknown') {
+              next[w] = status;
+            }
+            }
+            return next;
+          });
+        } catch (err) {
+          console.error('获取词汇状态失败:', err);
         }
+        return;
+      }
 
-        const data = (await res.json()) as Record<
-          string,
-          'known' | 'unknown'
-        >;
+      // 未登录用户：从本地存储恢复
+      if (!videoData || typeof window === 'undefined') return;
+      try {
+        const storageKey = `immersive:vocab-status:${videoData.id}`;
+        const raw = window.localStorage.getItem(storageKey);
+        if (!raw) return;
+
+        const parsed = JSON.parse(raw) as Record<string, 'known' | 'unknown'>;
+        if (!parsed || typeof parsed !== 'object') return;
 
         setVocabStatusMap(prev => {
           const next = { ...prev };
           for (const w of words) {
-            const status = data[w];
+            const key = w.toLowerCase();
+            const status = parsed[key];
             if (status === 'known' || status === 'unknown') {
-              next[w] = status;
-            } else if (!next[w]) {
-              next[w] = 'unmarked';
+              next[key] = status;
             }
           }
           return next;
         });
       } catch (err) {
-        console.error('获取词汇状态失败:', err);
+        console.error('读取本地生词状态失败:', err);
       }
     };
 
+    if (!videoData?.cards || usedVocabKeys.size === 0) return;
     void fetchVocabStatus();
-  }, [isVocabOpen, usedVocabKeys, videoData?.cards, user?.email]);
+  }, [usedVocabKeys, videoData?.cards, videoData?.id, videoData, user?.email]);
 
   // 根据当前视频的 knowledge_cards 构建词汇项列表，并与全局状态合并
   const vocabItems: VocabItem[] = useMemo(() => {
@@ -760,17 +971,13 @@ export default function WatchPage() {
     const seen = new Set<string>();
 
     for (const card of videoData.cards) {
-      const kind: VocabKind =
-        card.data.type === 'phrase'
-          ? 'phrase'
-          : card.data.type === 'expression'
-          ? 'expression'
-          : 'word';
+      const normalized = normalizeKnowledgeForDisplay(
+        card,
+        videoData.subtitles
+      );
 
-      const headword =
-        card.data.headword?.trim() ||
-        card.trigger_word?.trim() ||
-        '';
+      const kind: VocabItem['kind'] = normalized.kind;
+      const headword = normalized.headword;
       if (!headword) continue;
 
       const key = headword.toLowerCase();
@@ -780,34 +987,37 @@ export default function WatchPage() {
       if (seen.has(key)) continue;
       seen.add(key);
 
-      const status = vocabStatusMap[key] || 'unmarked';
+      // 默认视为「认识」，只有明确点了“不认识”的词才进入生词本
+      const status = vocabStatusMap[key] || 'known';
+      // 只展示「不认识」的生词
+      if (status !== 'unknown') {
+        continue;
+      }
 
-      const source = card.data.source
-        ? {
-            sentence_en: card.data.source.sentence_en,
-            sentence_cn: card.data.source.sentence_cn,
-            timestamp_start: card.data.source.timestamp_start,
-            timestamp_end: card.data.source.timestamp_end
-          }
-        : {
-            sentence_en: card.data.sentence,
-            sentence_cn: undefined
-          };
+      const source =
+        normalized.sourceSentenceEn || normalized.sourceSentenceCn
+          ? {
+              sentence_en: normalized.sourceSentenceEn,
+              sentence_cn: normalized.sourceSentenceCn,
+              timestamp_start: normalized.timestampStart,
+              timestamp_end: normalized.timestampEnd
+            }
+          : undefined;
 
       const item: VocabItem = {
         key,
         kind,
         headword,
-        ipa: card.data.ipa,
-        pos: card.data.pos,
-        definition: card.data.def,
-        collocations: card.data.collocations,
-        synonyms: card.data.synonyms,
-        structure: card.data.structure,
-        register: card.data.register,
-        paraphrase: card.data.paraphrase,
-        scenario: card.data.scenario,
-        functionLabel: card.data.function_label,
+        ipa: normalized.ipa,
+        pos: normalized.pos,
+        definition: normalized.def,
+        collocations: normalized.collocations,
+        synonyms: normalized.synonyms,
+        structure: normalized.structure,
+        register: normalized.register,
+        paraphrase: normalized.paraphrase,
+        scenario: normalized.scenario,
+        functionLabel: normalized.functionLabel,
         source,
         status
       };
@@ -817,6 +1027,26 @@ export default function WatchPage() {
 
     return items;
   }, [videoData?.cards, usedVocabKeys, vocabStatusMap]);
+
+  // 未登录用户：在前端本地持久化当前视频的生词状态，便于刷新后恢复
+  useEffect(() => {
+    if (!videoData || user?.email || typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      const storageKey = `immersive:vocab-status:${videoData.id}`;
+      const payload: Record<string, 'known' | 'unknown'> = {};
+      for (const [key, status] of Object.entries(vocabStatusMap)) {
+        if (status === 'known' || status === 'unknown') {
+          payload[key] = status;
+        }
+      }
+      window.localStorage.setItem(storageKey, JSON.stringify(payload));
+    } catch (err) {
+      console.error('写入本地生词状态失败:', err);
+    }
+  }, [vocabStatusMap, videoData, user?.email]);
 
   // 工具函数：把当前本地时间格式化为 YYYY-MM-DD，避免使用 UTC 导致日期偏移
   const getLocalDateString = () => {
@@ -1011,6 +1241,12 @@ export default function WatchPage() {
   // 当前句循环播放计数：使用 ref 避免频繁 setState 造成卡顿
   const currentRepeatCountRef = useRef(0);
 
+  // 当前正在做「次数循环」的那一句索引，用于确保计数严格绑定到具体句子
+  const loopSentenceIndexRef = useRef<number | null>(null);
+
+  // 片段播放结束时间（用于生词本/知识卡片「回看原句」时的短片段播放）
+  const snippetEndRef = useRef<number | null>(null);
+
   // 视频时间更新回调：同步到全局播放器状态，并根据时间计算当前字幕行
   const handleTimeUpdate = () => {
     if (!streamRef.current || !videoData?.subtitles) return;
@@ -1018,10 +1254,9 @@ export default function WatchPage() {
     const subtitles = videoData.subtitles;
     let time = streamRef.current.currentTime;
 
-    // 先读取当前句索引和循环开关，再根据“旧索引”判断是否需要回到句首
+    // 当前循环配置（不再依赖全局 currentSubtitleIndex，避免索引与时间错位）
     const {
       sentenceLoop: loopOn,
-      currentSubtitleIndex: idx,
       loopMode: currentLoopMode,
       loopCount: targetLoopCount
     } = usePlayerStore.getState();
@@ -1044,10 +1279,37 @@ export default function WatchPage() {
       return;
     }
 
+    // 若当前处于「片段播放」模式（点击生词本/知识卡回看原句），优先按照片段结束时间控制暂停，
+    // 并跳过单句循环等额外逻辑，避免互相抢夺控制权导致卡顿。
+    const snippetEnd = snippetEndRef.current;
+    if (snippetEnd !== null) {
+      if (time >= snippetEnd) {
+        streamRef.current.pause();
+        snippetEndRef.current = null;
+      }
+      setCurrentTime(time);
+      setCurrentSubtitle(subtitles, time);
+      return;
+    }
+
+    // 基于当前时间计算字幕索引，作为循环逻辑的唯一依据
+    const idx = findSubtitleIndex(subtitles, time);
     if (loopOn) {
+      // 循环调试日志：方便排查“跳到下一句又被重置回当前行”的问题
+      console.log('[LOOP_DEBUG] base', {
+        time,
+        idx,
+        mode: currentLoopMode,
+        loopOn,
+        loopSentenceIndex: loopSentenceIndexRef.current,
+        repeatCount: currentRepeatCountRef.current,
+        targetLoopCount
+      });
+    }
+
+    if (loopOn && currentLoopMode === 'infinite') {
       const current = subtitles[idx];
       if (current) {
-        // 预留一个稍大的阈值，避免移动端 onTimeUpdate 触发不够频繁导致错过判定点
         const nearEnd = time >= current.end - 0.15;
         if (nearEnd) {
           // 影子跟读激活时，避免在录音 / 回放过程中强行跳句
@@ -1057,48 +1319,117 @@ export default function WatchPage() {
             return;
           }
 
-          // 无限循环：保持现有行为
-          if (currentLoopMode === 'infinite') {
+          streamRef.current.currentTime = current.start;
+          time = current.start;
+        }
+      }
+    } else if (loopOn && currentLoopMode === 'count') {
+      // 若尚未绑定循环句索引，则以当前时间对应的句子为起点；
+      // 一旦绑定，在完成指定次数之前都不再随时间自动切换句子，避免“刚到下一句又被拉回”的抖动。
+      let loopIdx = loopSentenceIndexRef.current;
+      if (loopIdx === null) {
+        loopIdx = idx;
+        loopSentenceIndexRef.current = loopIdx;
+        currentRepeatCountRef.current = 0;
+        console.log('[LOOP_DEBUG] bind-loop-sentence', {
+          time,
+          idx,
+          loopIdx,
+          repeatCount: currentRepeatCountRef.current
+        });
+      }
+
+      const current = subtitles[loopIdx];
+      if (current) {
+        const nearEnd = time >= current.end - 0.15;
+        if (nearEnd) {
+          console.log('[LOOP_DEBUG] near-end', {
+            time,
+            loopIdx,
+            start: current.start,
+            end: current.end,
+            repeatCount: currentRepeatCountRef.current,
+            targetLoopCount
+          });
+
+          // 影子跟读激活时，避免在录音 / 回放过程中强行跳句
+          if (shadowMode !== 'idle') {
+            setCurrentTime(time);
+            setCurrentSubtitle(subtitles, time);
+            return;
+          }
+
+          // 次数循环：记录当前句播放次数，达到目标后自动跳下一句
+          const nextCount = currentRepeatCountRef.current + 1;
+          const target = Math.max(1, targetLoopCount);
+
+          if (nextCount < target) {
+            // 还没到目标次数：回到句首继续循环
+            currentRepeatCountRef.current = nextCount;
             streamRef.current.currentTime = current.start;
             time = current.start;
-          } else if (currentLoopMode === 'count') {
-            // 次数循环：记录当前句播放次数，达到目标后自动跳下一句
-            const nextCount = currentRepeatCountRef.current + 1;
+            console.log('[LOOP_DEBUG] repeat-current', {
+              time,
+              loopIdx,
+              repeatCount: currentRepeatCountRef.current,
+              targetLoopCount
+            });
+          } else {
+            // 达到目标次数：重置计数并自动进入下一句
+            currentRepeatCountRef.current = 0;
+            const nextIndex = Math.min(
+              loopIdx + 1,
+              subtitles.length - 1
+            );
 
-            // 最后一遍之外：回到句首继续循环
-            if (nextCount < Math.max(1, targetLoopCount)) {
-              currentRepeatCountRef.current = nextCount;
-              streamRef.current.currentTime = current.start;
-              time = current.start;
-            } else {
-              // 达到目标次数：重置计数并自动进入下一句
-              currentRepeatCountRef.current = 0;
-              const nextIndex = Math.min(
-                idx + 1,
-                subtitles.length - 1
-              );
-
-              // 已是最后一句：保持停在句尾
-              if (nextIndex === idx) {
-                // 不再进行单句循环，关闭循环开关
-                toggleSentenceLoop();
-                setCurrentTime(time);
-                setCurrentSubtitle(subtitles, time);
-                return;
-              }
-
-              const nextSubtitle = subtitles[nextIndex];
-              streamRef.current.currentTime = nextSubtitle.start;
-              time = nextSubtitle.start;
-              jumpToSubtitle(nextIndex);
+            // 已是最后一句：保持停在句尾，并关闭循环
+            if (nextIndex === loopIdx) {
+              toggleSentenceLoop();
+              loopSentenceIndexRef.current = null;
+              console.log('[LOOP_DEBUG] reach-last-sentence-close-loop', {
+                time,
+                loopIdx
+              });
+              setCurrentTime(time);
+              setCurrentSubtitle(subtitles, time);
+              return;
             }
+
+            const nextSubtitle = subtitles[nextIndex];
+            streamRef.current.currentTime = nextSubtitle.start;
+            time = nextSubtitle.start;
+            loopSentenceIndexRef.current = nextIndex;
+            jumpToSubtitle(nextIndex);
+            console.log('[LOOP_DEBUG] move-to-next-sentence', {
+              time,
+              nextIndex,
+              nextStart: nextSubtitle.start,
+              targetLoopCount
+            });
           }
         }
       }
+    } else {
+      // 未开启单句循环时，重置次数与绑定索引
+      loopSentenceIndexRef.current = null;
+      currentRepeatCountRef.current = 0;
     }
 
     setCurrentTime(time);
-    setCurrentSubtitle(subtitles, time);
+
+    // 高亮当前字幕：
+    // - 非次数循环：仍然根据时间自动推断当前句；
+    // - 次数循环：高亮永远锁定在 loopSentenceIndexRef 指向的那一句，
+    //   避免在到达句尾瞬间高亮跳到下一句再被拉回，造成视觉抖动。
+    if (loopOn && currentLoopMode === 'count') {
+      const idxForHighlight =
+        loopSentenceIndexRef.current !== null
+          ? loopSentenceIndexRef.current
+          : findSubtitleIndex(subtitles, time);
+      jumpToSubtitle(idxForHighlight);
+    } else {
+      setCurrentSubtitle(subtitles, time);
+    }
   };
 
   // 首次加载视频和字幕后，默认选中第一句，避免播放前完全无高亮
@@ -1169,6 +1500,16 @@ export default function WatchPage() {
     setShadowSubtitleIndex(null);
     currentRepeatCountRef.current = 0;
 
+    // 若当前处于「次数循环」模式下，手动点击某一句时，应把循环焦点切换到这一句，
+    // 避免 handleTimeUpdate 再次把高亮和循环拉回到旧的句子。
+    const {
+      sentenceLoop: loopOn,
+      loopMode: currentLoopMode
+    } = usePlayerStore.getState();
+    if (loopOn && currentLoopMode === 'count') {
+      loopSentenceIndexRef.current = index;
+    }
+
     // 跳转到当前句子的开始时间
     streamRef.current.currentTime = subtitle.start;
     jumpToSubtitle(index);
@@ -1177,6 +1518,12 @@ export default function WatchPage() {
   // 高亮单词点击事件（桌面端：气泡；移动端：Bottom Sheet）
   const handleWordClick = (word: string, target?: HTMLElement | null) => {
     if (!videoData?.cards) return;
+
+    // 点击生词时先暂停视频，给用户留出标记和查看释义的时间
+    if (streamRef.current) {
+      streamRef.current.pause();
+      setIsPlaying(false);
+    }
 
     const lower = word.toLowerCase();
     const card = videoData.cards.find(
@@ -1282,21 +1629,22 @@ export default function WatchPage() {
       return false;
     }
 
+    // 播放片段前，关闭单句循环、清空循环计数和影子跟读状态，避免互相抢控制权
+    currentRepeatCountRef.current = 0;
+    loopSentenceIndexRef.current = null;
+    setShadowMode('idle');
+    setShadowSubtitleIndex(null);
+    const { sentenceLoop: loopOn } = usePlayerStore.getState();
+    if (loopOn) {
+      toggleSentenceLoop();
+    }
+
+    // 记录本次片段的结束时间，由 handleTimeUpdate 统一负责在到达时暂停
+    snippetEndRef.current = end;
+
     const player = streamRef.current;
     player.currentTime = start;
     void player.play();
-
-    const check = () => {
-      if (!streamRef.current) return;
-      const now = streamRef.current.currentTime;
-      if (now >= end) {
-        streamRef.current.pause();
-      } else {
-        requestAnimationFrame(check);
-      }
-    };
-
-    requestAnimationFrame(check);
     return true;
   };
 
@@ -1387,9 +1735,7 @@ export default function WatchPage() {
     setShowResumeToast(false);
   };
 
-  // 词汇卡播放音频：
-  // - 单词卡：优先使用 TTS 播放单词本身；若不支持 TTS，则回退到视频原声片段；
-  // - 短语 / 表达：优先播放视频中的片段，缺失时间戳时回退到 TTS/原声兜底。
+  // 词汇卡播放：优先回放原视频片段，缺失时间戳时退回到 TTS/原声兜底
   const handlePlayVocabClip = (item: VocabItem) => {
     // 先在当前知识卡集合中找到对应词条
     const card = videoData?.cards.find(c => {
@@ -1400,18 +1746,87 @@ export default function WatchPage() {
 
     if (!card) return;
 
-    if (item.kind === 'word') {
-      // 单词卡：优先尝试 TTS，失败时在 playCardAudio 内部自动回退到视频片段
-      playCardAudio(card);
-      return;
-    }
-
-    // 短语 / 表达：优先播放视频片段，无法定位片段时退回到 TTS/原声兜底
     const played = playCardSnippet(card);
     if (!played) {
       playCardAudio(card);
     }
   };
+
+  // 单词本：更新某个词条的状态（认识 / 不认识）
+  const handleUpdateVocabStatus = useCallback(
+    (key: string, status: Exclude<VocabStatus, 'unmarked'>) => {
+      setVocabStatusMap(prev => ({
+        ...prev,
+        [key]: status
+      }));
+
+      // 未登录用户只做本地更新（已由 useEffect 同步到 localStorage）
+      if (!user?.email) {
+        return;
+      }
+
+      // 已登录：携带上下文快照同步到后端
+      const item = vocabItems.find(i => i.key === key);
+      const context =
+        item && videoData
+          ? {
+              video_id: videoData.id,
+              sentence_en: item.source?.sentence_en,
+              sentence_cn: item.source?.sentence_cn,
+              timestamp_start: item.source?.timestamp_start,
+              timestamp_end: item.source?.timestamp_end
+            }
+          : videoData
+          ? { video_id: videoData.id }
+          : undefined;
+
+      void fetch('/api/vocab/status/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          word: key,
+          status,
+          context
+        })
+      }).catch(err => {
+        console.error('更新词汇状态失败:', err);
+      });
+    },
+    [user?.email, vocabItems, videoData]
+  );
+
+  // 单词本：一键将当前类型下所有「未标记」词标记为认识
+  const handleMarkRestKnown = useCallback(() => {
+    const unmarkedKeys = vocabItems
+      .filter(item => item.status === 'unknown')
+      .map(item => item.key);
+
+    if (unmarkedKeys.length === 0) return;
+
+    setVocabStatusMap(prev => {
+      const next = { ...prev };
+      for (const key of unmarkedKeys) {
+        next[key] = 'known';
+      }
+      return next;
+    });
+
+    if (!user?.email || !videoData) {
+      return;
+    }
+
+    const context = {
+      video_id: videoData.id
+    };
+
+    void fetch('/api/vocab/status/batch-known', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ words: unmarkedKeys, context })
+    }).catch(err => {
+      console.error('批量标记词汇状态失败:', err);
+    });
+  }, [vocabItems, user?.email, videoData]);
 
   // 行内工具栏：重听当前句（播放原声）
   const handleRowReplay = (index: number) => {
@@ -1715,6 +2130,9 @@ export default function WatchPage() {
   // - 桌面端：改用手动计算 scrollTop 的方式，避免某些嵌套滚动容器里 scrollIntoView 失效
   // - 若当前句本来就接近中心，则不滚动，减少不必要的 DOM 操作和浏览器扩展的副作用
   useEffect(() => {
+    // 仅在字幕视图下才执行自动滚动，避免生词视图下无意义的 DOM 操作
+    if (panelMode !== 'transcript') return;
+
     const container = subtitlesContainerRef.current;
     const activeEl = subtitleItemRefs.current[currentSubtitleIndex];
     if (!container || !activeEl) return;
@@ -1784,7 +2202,7 @@ export default function WatchPage() {
         }
       }
     }
-  }, [currentSubtitleIndex]);
+  }, [currentSubtitleIndex, panelMode]);
 
   // 断点续播提示：自动在 5 秒后淡出
   useEffect(() => {
@@ -1841,6 +2259,9 @@ export default function WatchPage() {
       : 0;
   const resumeLabel =
     resumeSeconds !== null ? formatDuration(resumeSeconds) : '';
+  const vocabUnknownCount = vocabItems.filter(
+    item => item.status === 'unknown'
+  ).length;
 
   return (
     <div className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[var(--bg-shell)] text-gray-900 lg:h-screen lg:overflow-hidden lg:bg-[var(--bg-body)]">
@@ -2208,10 +2629,16 @@ export default function WatchPage() {
                           }
 
                           const type = segment.card.data.type;
+                          const vocabKey = getHeadwordKey(segment.card);
+                          const status = vocabStatusMap[vocabKey];
+                          const highlightClass = getHighlightClassNames(type);
+                          const extraClass =
+                            status === 'unknown' ? 'hl-unknown' : '';
+
                           return (
                             <span
                               key={segIndex}
-                              className={getHighlightClassNames(type)}
+                              className={`${highlightClass} ${extraClass}`}
                               style={getHighlightInlineStyle(type)}
                               onClick={e => {
                                 e.stopPropagation();
@@ -2326,72 +2753,128 @@ export default function WatchPage() {
           <aside className="h-full flex w-full flex-1 flex-col lg:mt-0 lg:w-[30%] lg:flex-none">
             <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--bg-shell)] lg:max-h-[calc(100vh-180px)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-[var(--bg-shell)] lg:shadow-sm">
               {/* 顶部工具栏（Sticky，移动端隐藏以释放字幕空间） */}
-              <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-stone-100 bg-white/95 px-4 py-3 text-[11px] text-stone-500 backdrop-blur-xl lg:flex">
-                <div className="flex flex-col">
-                  <span className="text-[13px] font-medium text-stone-900">
-                    交互式课本
-                  </span>
-                  <span className="mt-0.5 text-[11px] text-stone-400">
-                    共 {videoData.subtitles.length} 句 · 点击句子即可跳转
-                  </span>
-                </div>
-                <div className="ml-3 flex items-center gap-3">
-                  {/* 视图模式：中 / 双语 / 英 */}
-                  <div className="flex items-center rounded-xl border border-stone-100 bg-stone-50 p-1">
-                    {(
-                      [
-                        { value: 'cn', label: '中' },
-                        { value: 'both', label: '双语' },
-                        { value: 'en', label: '英' }
-                      ] as { value: 'cn' | 'both' | 'en'; label: string }[]
-                    ).map(mode => {
-                      const active = scriptMode === mode.value;
-                      return (
-                        <button
-                          key={mode.value}
-                          type="button"
-                          className={`flex items-center justify-center rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all ${
-                            active
-                              ? 'bg-rose-500 text-white shadow-md shadow-rose-200'
-                              : 'bg-transparent text-stone-500 hover:bg-stone-100 hover:text-stone-900'
-                          }`}
-                          onClick={() => setScriptMode(mode.value)}
-                        >
-                          {mode.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* 功能开关组：单词本 / 打印 */}
-                  <div className="flex items-center gap-2">
-                    {user && vocabItems.length > 0 && (
-                      <button
-                        type="button"
-                        className="hidden items-center rounded-lg bg-transparent px-3 py-1.5 text-[11px] font-bold text-stone-500 hover:bg-stone-100 hover:text-rose-500 lg:inline-flex"
-                        onClick={() => setIsVocabOpen(true)}
-                      >
-                        单词本
-                      </button>
-                    )}
-                    {/* 打印按钮：线型图标，配合极简描边 */}
+              <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-stone-100 bg-white/95 px-4 py-2 text-[11px] text-stone-500 backdrop-blur-xl lg:flex">
+                <div className="flex items-center">
+                  {/* Tab：字幕 / 生词（线型图标胶囊） */}
+                  <div className="inline-flex items-center rounded-full bg-stone-50 p-1">
                     <button
                       type="button"
-                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-transparent text-stone-400 hover:bg-stone-100 hover:text-rose-500"
-                      onClick={handleExportTranscript}
-                      aria-label="打印字幕"
+                      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium ${
+                        panelMode === 'transcript'
+                          ? 'bg-white text-stone-900 shadow-sm'
+                          : 'text-stone-500 hover:text-stone-900'
+                      }`}
+                      onClick={() => setPanelMode('transcript')}
                     >
-                      <IconPrint className="h-4 w-4" />
+                      <svg
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.4"
+                        className="h-3.5 w-3.5"
+                      >
+                        <rect
+                          x="2.5"
+                          y="3"
+                          width="11"
+                          height="10"
+                          rx="1.5"
+                        />
+                        <path d="M4.2 5.2h7" strokeLinecap="round" />
+                        <path d="M4.2 7.6h5.2" strokeLinecap="round" />
+                        <path d="M4.2 10h3.6" strokeLinecap="round" />
+                      </svg>
+                      <span>字幕</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`ml-1 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium ${
+                        panelMode === 'vocab'
+                          ? 'bg-white text-stone-900 shadow-sm'
+                          : 'text-stone-500 hover:text-stone-900'
+                      }`}
+                      onClick={() => setPanelMode('vocab')}
+                      disabled={!user || vocabItems.length === 0}
+                    >
+                      <IconVocab className="h-3.5 w-3.5" />
+                      <span>生词</span>
+                      {user && vocabUnknownCount > 0 && (
+                        <span className="ml-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[#FF2442] px-1 text-[10px] font-semibold text-white">
+                          {vocabUnknownCount}
+                        </span>
+                      )}
                     </button>
                   </div>
                 </div>
+                <div className="ml-3 flex items-center gap-3">
+                  {/* 视图模式：中 / 双语 / 英 —— 仅在字幕模式下展示 */}
+                  {panelMode === 'transcript' ? (
+                    <>
+                      <div className="flex items-center rounded-xl border border-stone-100 bg-stone-50 p-1">
+                        {(
+                          [
+                            { value: 'cn', label: '中' },
+                            { value: 'both', label: '双语' },
+                            { value: 'en', label: '英' }
+                          ] as { value: 'cn' | 'both' | 'en'; label: string }[]
+                        ).map(mode => {
+                          const active = scriptMode === mode.value;
+                          return (
+                            <button
+                              key={mode.value}
+                              type="button"
+                              className={`flex items-center justify-center rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all ${
+                                active
+                                  ? 'bg-white text-rose-600 shadow-sm shadow-rose-100 border border-rose-300'
+                                  : 'bg-transparent text-stone-500 hover:bg-stone-100 hover:text-stone-900'
+                              }`}
+                              onClick={() => setScriptMode(mode.value)}
+                            >
+                              {mode.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {/* 打印按钮：线型图标，配合极简描边 */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-transparent text-stone-400 hover:bg-stone-100 hover:text-rose-500"
+                          onClick={handleExportTranscript}
+                          aria-label="打印字幕"
+                        >
+                          <IconPrint className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    /* 生词模式：顶部右侧放“全部标记为认识” */
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className={`inline-flex items-center rounded-full px-3 py-1.5 text-[11px] font-medium ${
+                          vocabItems.length > 0
+                            ? 'bg-rose-500 text-white shadow-sm shadow-rose-200 hover:bg-rose-600'
+                            : 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                        }`}
+                        disabled={vocabItems.length === 0}
+                        onClick={handleMarkRestKnown}
+                      >
+                        ✨ 全部标记为认识
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* 字幕列表：独立滚动区域（移动端样完式全对齐 HTML demo 的 feed-list + card） */}
+              {/* 右侧内容区：根据 panelMode 在「字幕流」和「生词流」之间切换 */}
               <div className="relative flex-1 overflow-hidden">
+                {/* 字幕列表：独立滚动区域（移动端样式对齐 HTML demo 的 feed-list + card） */}
                 <div
                   ref={subtitlesContainerRef}
-                  className="absolute inset-0 overflow-y-auto overflow-x-hidden pb-[100px] lg:static lg:h-full lg:pb-0 scroll-smooth lg:scroll-auto no-scrollbar"
+                  className={`absolute inset-0 overflow-y-auto overflow-x-hidden pb-[100px] lg:static lg:h-full lg:pb-0 scroll-smooth lg:scroll-auto no-scrollbar ${
+                    panelMode === 'vocab' ? 'hidden' : ''
+                  }`}
                 >
                   {videoData.subtitles.map((subtitle, index) => {
                     const isActive = currentSubtitleIndex === index;
@@ -2452,10 +2935,17 @@ export default function WatchPage() {
                               }
 
                               const type = segment.card.data.type;
+                              const vocabKey = getHeadwordKey(segment.card);
+                              const status = vocabStatusMap[vocabKey];
+                              const highlightClass =
+                                getHighlightClassNames(type);
+                              const extraClass =
+                                status === 'unknown' ? 'hl-unknown' : '';
+
                               return (
                                 <span
                                   key={segIndex}
-                                  className={getHighlightClassNames(type)}
+                                  className={`${highlightClass} ${extraClass}`}
                                   style={getHighlightInlineStyle(type)}
                                   onClick={e => {
                                     e.stopPropagation();
@@ -2546,6 +3036,148 @@ export default function WatchPage() {
                     );
                   })}
                 </div>
+
+                {/* 生词流：PC 端右侧面板复习视图 */}
+                <div
+                  className={`absolute inset-0 flex flex-col overflow-y-auto px-4 pb-4 pt-3 lg:static lg:h-full ${
+                    panelMode === 'vocab' ? 'block' : 'hidden'
+                  }`}
+                >
+                  {vocabItems.length === 0 && (
+                    <div className="mt-10 rounded-2xl bg-stone-50 px-4 py-6 text-center text-[11px] text-stone-500">
+                      本视频暂时还没有可复习的生词。先在字幕中点击单词，标记为“不认识”再来这里看看。
+                    </div>
+                  )}
+
+                  {vocabItems.length > 0 && (
+                    <>
+                      {/* 类型分类：单词 / 短语 / 表达 */}
+                      <div className="mb-2 flex items-center gap-2 text-[11px]">
+                        {[
+                          { label: '全部', value: 'all' as const },
+                          { label: '单词', value: 'word' as const },
+                          { label: '短语', value: 'phrase' as const },
+                          { label: '表达', value: 'expression' as const }
+                        ].map(tab => {
+                          const active = vocabKindFilter === tab.value;
+                          return (
+                            <button
+                              key={tab.value}
+                              type="button"
+                              className={`rounded-full px-3 py-1 ${
+                                active
+                                  ? 'bg-rose-500 text-white shadow-sm shadow-rose-200'
+                                  : 'bg-stone-50 text-stone-600 hover:bg-stone-100 hover:text-stone-900'
+                              }`}
+                              onClick={() => setVocabKindFilter(tab.value)}
+                            >
+                              {tab.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* 生词卡片列表（仅展示「不认识」的生词） */}
+                      <div className="space-y-2">
+                        {vocabItems
+                          .filter(item => {
+                            const matchKind =
+                              vocabKindFilter === 'all' ||
+                              item.kind === vocabKindFilter;
+                            if (!matchKind) return false;
+                            return true;
+                          })
+                          .map(item => {
+                            const base =
+                              'relative rounded-2xl border px-3 py-2.5 text-[11px] transition-all cursor-pointer';
+                            const stateClass =
+                              'border-gray-100 bg-white shadow-sm hover:border-gray-200 hover:bg-gray-50';
+
+                            return (
+                              <div
+                                key={item.key}
+                                className={`${base} ${stateClass}`}
+                                onClick={() => handlePlayVocabClip(item)}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-baseline justify-between gap-2">
+                                      <div className="flex flex-wrap items-baseline gap-1">
+                                        <span className="text-[15px] font-semibold text-gray-900">
+                                          {item.headword}
+                                        </span>
+                                        {item.ipa && (
+                                          <span className="font-serif text-[11px] text-gray-500">
+                                            {item.ipa}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="mt-1 text-[11px]">
+                                      {item.pos && (
+                                        <span className="mr-1 font-medium text-gray-700">
+                                          {item.pos}
+                                        </span>
+                                      )}
+                                      <span className="text-rose-700">
+                                        {item.definition || item.paraphrase}
+                                      </span>
+                                    </div>
+
+                                    {(item.source?.sentence_en ||
+                                      item.source?.sentence_cn) && (
+                                      <div className="mt-1 border-l border-gray-200 pl-2 text-[10px] text-gray-600">
+                                        {item.source?.sentence_en && (
+                                          <div className="italic">
+                                            {item.source.sentence_en}
+                                          </div>
+                                        )}
+                                        {item.source?.sentence_cn && (
+                                          <div className="mt-0.5">
+                                            {item.source.sentence_cn}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="ml-1 flex flex-col items-end gap-1">
+                                    <button
+                                      type="button"
+                                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        handlePlayVocabClip(item);
+                                      }}
+                                      title="播放例句片段"
+                                    >
+                                      <IconSound className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="mt-2 flex gap-2">
+                                  <button
+                                    type="button"
+                                    className="flex-1 rounded-full border px-2 py-1 text-[11px] font-medium border-rose-400 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-500"
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      handleUpdateVocabStatus(
+                                        item.key,
+                                        'known'
+                                      );
+                                    }}
+                                  >
+                                    ✓ 认识
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+
+                      {/* 底部已无额外操作，所有“全部标记为认识”操作移动到顶部工具栏 */}
+                    </>
+                  )}
+                </div>
               </div>
 
             </div>
@@ -2575,40 +3207,164 @@ export default function WatchPage() {
                   : 'left-1/2 -translate-x-1/2 -bottom-1 border-t-0 border-l-0'
               }`}
             />
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-900">
-                {cardPopover.card.trigger_word}
-              </span>
-              {getCardTypeLabel(cardPopover.card.data.type) && (
-                <span className="rounded-full bg-[#FF2442]/5 px-2 py-[2px] text-[10px] text-[#FF2442]">
-                  {getCardTypeLabel(cardPopover.card.data.type)}
-                </span>
-              )}
-            </div>
-            {cardPopover.card.data.ipa && (
-              <div className="mb-1 flex items-center justify-between text-[11px] text-gray-500">
-                <span>{cardPopover.card.data.ipa}</span>
-                <button
-                  type="button"
-                  className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
-                  onClick={e => {
-                    e.stopPropagation();
-                    playCardAudio(cardPopover.card);
-                  }}
-                  aria-label="播放单词读音"
-                >
-                  <IconSound className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-            <div className="text-[11px] leading-relaxed text-gray-800">
-              {cardPopover.card.data.def}
-            </div>
-            {cardPopover.card.data.sentence && (
-              <div className="mt-2 text-[11px] text-gray-500">
-                {cardPopover.card.data.sentence}
-              </div>
-            )}
+            {(() => {
+              const normalized = normalizeKnowledgeForDisplay(
+                cardPopover.card,
+                videoData?.subtitles
+              );
+              const typeLabel = getCardTypeLabel(
+                cardPopover.card.data.type
+              );
+
+              const isWord = normalized.kind === 'word';
+              const isPhrase = normalized.kind === 'phrase';
+              const isExpression = normalized.kind === 'expression';
+
+              return (
+                <>
+                  {/* 头部：单词 + IPA + 类型标签 */}
+                  <div className="mb-1 flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-semibold text-gray-900">
+                          {normalized.headword ||
+                            cardPopover.card.trigger_word}
+                        </span>
+                        {normalized.ipa && (
+                          <span className="font-serif text-[11px] text-gray-500">
+                            {normalized.ipa}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-gray-800">
+                        {normalized.pos && (
+                          <span className="mr-1 font-medium text-gray-700">
+                            {normalized.pos}
+                          </span>
+                        )}
+                        <span className="text-rose-700">
+                          {normalized.def}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      {typeLabel && (
+                        <span className="rounded-full bg-stone-100 px-2 py-[2px] text-[10px] text-stone-600">
+                          {typeLabel}
+                        </span>
+                      )}
+                      {normalized.ipa && (
+                        <button
+                          type="button"
+                          className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
+                          onClick={e => {
+                            e.stopPropagation();
+                            playCardAudio(cardPopover.card);
+                          }}
+                          aria-label="播放单词读音"
+                        >
+                          <IconSound className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 类型相关的补充信息 */}
+                  {isWord && normalized.collocations && (
+                    <div className="mt-1 text-[10px] text-gray-600">
+                      <span className="mr-1 text-gray-500">
+                        常见搭配：
+                      </span>
+                      <span>
+                        {normalized.collocations.join(' · ')}
+                      </span>
+                    </div>
+                  )}
+                  {isWord && normalized.synonyms && (
+                    <div className="mt-1 text-[10px] text-gray-600">
+                      <span className="mr-1 text-gray-500">
+                        近义：
+                      </span>
+                      <span>
+                        {normalized.synonyms.join(' · ')}
+                      </span>
+                    </div>
+                  )}
+
+                  {isPhrase && normalized.structure && (
+                    <div className="mt-1 font-mono text-[10px] text-indigo-600">
+                      结构：{normalized.structure}
+                    </div>
+                  )}
+
+                  {isExpression && (
+                    <div className="mt-1 space-y-0.5 text-[10px] text-gray-600">
+                      {normalized.functionLabel && (
+                        <div>
+                          <span className="mr-1 text-gray-500">
+                            功能：
+                          </span>
+                          <span>{normalized.functionLabel}</span>
+                        </div>
+                      )}
+                      {(normalized.register || normalized.scenario) && (
+                        <div className="flex flex-wrap items-center gap-1">
+                          {normalized.register && (
+                            <span className="rounded-full border border-stone-200 bg-stone-50 px-1.5 py-[1px] text-[9px] uppercase tracking-wide text-stone-600">
+                              {normalized.register}
+                            </span>
+                          )}
+                          {normalized.scenario && (
+                            <span>{normalized.scenario}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(normalized.sourceSentenceEn ||
+                    normalized.sourceSentenceCn) && (
+                    <div className="mt-2 border-l border-gray-200 pl-2 text-[10px] text-gray-700">
+                      {normalized.sourceSentenceEn && (
+                        <div className="italic">
+                          {normalized.sourceSentenceEn}
+                        </div>
+                      )}
+                      {normalized.sourceSentenceCn && (
+                        <div className="mt-0.5 text-stone-500">
+                          {normalized.sourceSentenceCn}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+            {(() => {
+              const vocabKey = getHeadwordKey(cardPopover.card);
+              const status = vocabStatusMap[vocabKey];
+              const isUnknown = status === 'unknown';
+
+              // PC 知识卡 Popover：只提供“加入生词本（不认识）”，不再在这里标记“认识”
+              return (
+                <div className="mt-3 flex">
+                  <button
+                    type="button"
+                    className={`flex-1 rounded-full border px-2 py-1 text-[11px] font-medium ${
+                      isUnknown
+                        ? 'border-orange-500 bg-orange-500 text-white'
+                        : 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
+                    }`}
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleUpdateVocabStatus(vocabKey, 'unknown');
+                    }}
+                  >
+                    不认识
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -2625,105 +3381,163 @@ export default function WatchPage() {
             onClick={e => e.stopPropagation()}
           >
             <div className="mx-auto max-w-2xl">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="text-sm font-semibold text-gray-900">
-                    {activeCard.trigger_word}
+              {(() => {
+                const normalized = normalizeKnowledgeForDisplay(
+                  activeCard,
+                  videoData?.subtitles
+                );
+                const typeLabel = getCardTypeLabel(
+                  activeCard.data.type
+                );
+
+                const isWord = normalized.kind === 'word';
+                const isPhrase = normalized.kind === 'phrase';
+                const isExpression = normalized.kind === 'expression';
+
+                return (
+                  <>
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-semibold text-gray-900">
+                            {normalized.headword ||
+                              activeCard.trigger_word}
+                          </div>
+                          {typeLabel && (
+                            <span className="rounded-full bg-stone-100 px-2 py-[2px] text-[10px] text-stone-600">
+                              {typeLabel}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-800">
+                          {normalized.pos && (
+                            <span className="mr-1 font-medium text-gray-700">
+                              {normalized.pos}
+                            </span>
+                          )}
+                          <span className="text-rose-700">
+                            {normalized.def}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        className="text-xs text-gray-400 hover:text-gray-700"
+                        onClick={hideCard}
+                      >
+                        收起
+                      </button>
+                    </div>
+
+                    {normalized.ipa && (
+                      <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
+                        <span>{normalized.ipa}</span>
+                        <button
+                          type="button"
+                          className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
+                          onClick={() => playCardAudio(activeCard)}
+                          aria-label="播放单词读音"
+                        >
+                          <IconSound className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+
+                    {isWord && normalized.collocations && (
+                      <div className="mt-1 text-[11px] text-gray-600">
+                        <span className="mr-1 text-gray-500">
+                          常见搭配：
+                        </span>
+                        <span>
+                          {normalized.collocations.join(' · ')}
+                        </span>
+                      </div>
+                    )}
+
+                    {isPhrase && normalized.structure && (
+                      <div className="mt-1 font-mono text-[11px] text-indigo-600">
+                        结构：{normalized.structure}
+                      </div>
+                    )}
+
+                    {isExpression && (
+                      <div className="mt-1 space-y-0.5 text-[11px] text-gray-600">
+                        {normalized.functionLabel && (
+                          <div>
+                            <span className="mr-1 text-gray-500">
+                              功能：
+                            </span>
+                            <span>{normalized.functionLabel}</span>
+                          </div>
+                        )}
+                        {(normalized.register ||
+                          normalized.scenario) && (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {normalized.register && (
+                              <span className="rounded-full border border-stone-200 bg-stone-50 px-1.5 py-[1px] text-[9px] uppercase tracking-wide text-stone-600">
+                                {normalized.register}
+                              </span>
+                            )}
+                            {normalized.scenario && (
+                              <span>{normalized.scenario}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {(normalized.sourceSentenceEn ||
+                      normalized.sourceSentenceCn) && (
+                      <div className="mt-2 border-l border-gray-200 pl-2 text-xs text-gray-700">
+                        {normalized.sourceSentenceEn && (
+                          <div className="italic">
+                            {normalized.sourceSentenceEn}
+                          </div>
+                        )}
+                        {normalized.sourceSentenceCn && (
+                          <div className="mt-0.5 text-[11px] text-stone-500">
+                            {normalized.sourceSentenceCn}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+              {(() => {
+                const vocabKey = getHeadwordKey(activeCard);
+                const status = vocabStatusMap[vocabKey];
+                const isUnknown = status === 'unknown';
+
+                return (
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      type="button"
+                      className={`flex-1 rounded-full border px-3 py-2 text-[12px] font-medium ${
+                        isUnknown
+                          ? 'border-orange-500 bg-orange-500 text-white'
+                          : 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
+                      }`}
+                      onClick={() => {
+                        handleUpdateVocabStatus(vocabKey, 'unknown');
+                        hideCard();
+                        // 默认在移动端自动恢复播放，保持学习流畅
+                        if (
+                          streamRef.current &&
+                          !(isTrial && trialEnded)
+                        ) {
+                          void streamRef.current.play();
+                          setIsPlaying(true);
+                        }
+                      }}
+                    >
+                      不认识
+                    </button>
                   </div>
-                  {getCardTypeLabel(activeCard.data.type) && (
-                    <span className="rounded-full bg-[#FF2442]/5 px-2 py-[2px] text-[10px] text-[#FF2442]">
-                      {getCardTypeLabel(activeCard.data.type)}
-                    </span>
-                  )}
-                </div>
-                <button
-                  className="text-xs text-gray-400 hover:text-gray-700"
-                  onClick={hideCard}
-                >
-                  收起
-                </button>
-              </div>
-              {activeCard.data.ipa && (
-                <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
-                  <span>{activeCard.data.ipa}</span>
-                  <button
-                    type="button"
-                    className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
-                    onClick={() => playCardAudio(activeCard)}
-                    aria-label="播放单词读音"
-                  >
-                    <IconSound className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-              <div className="text-sm text-gray-800">
-                {activeCard.data.def}
-              </div>
-              {activeCard.data.sentence && (
-                <div className="mt-2 text-xs text-gray-500">
-                  {activeCard.data.sentence}
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         </div>
-      )}
-
-      {/* 词汇管理器：移动端 Bottom Sheet / 桌面端侧边抽屉 */}
-      {user && vocabItems.length > 0 && (
-        <VocabPanel
-          open={isVocabOpen}
-          variant={isDesktop ? 'panel' : 'sheet'}
-          activeKind={vocabKind}
-          items={vocabItems}
-          onClose={() => setIsVocabOpen(false)}
-          onKindChange={setVocabKind}
-          onUpdateStatus={(key, status) => {
-            setVocabStatusMap(prev => ({
-              ...prev,
-              [key]: status
-            }));
-            // 乐观更新后异步同步到后端
-            void fetch('/api/vocab/status/update', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                word: key,
-                status
-              })
-            }).catch(err => {
-              console.error('更新词汇状态失败:', err);
-            });
-          }}
-          onMarkRestKnown={() => {
-            const unmarkedKeys = vocabItems
-              .filter(
-                item =>
-                  item.status === 'unmarked' &&
-                  (vocabKind ? item.kind === vocabKind : true)
-              )
-              .map(item => item.key);
-
-            if (unmarkedKeys.length === 0) return;
-
-            setVocabStatusMap(prev => {
-              const next = { ...prev };
-              for (const key of unmarkedKeys) {
-                next[key] = 'known';
-              }
-              return next;
-            });
-
-            void fetch('/api/vocab/status/batch-known', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ words: unmarkedKeys })
-            }).catch(err => {
-              console.error('批量标记词汇状态失败:', err);
-            });
-          }}
-          onPlayClip={handlePlayVocabClip}
-        />
       )}
 
       {/* 移动端：底部“奶油风”悬浮岛控制台（5 点对称布局） */}
@@ -2760,17 +3574,25 @@ export default function WatchPage() {
                       </div>
                       <div className="h-px w-full bg-gray-100/80" />
                       <div className="flex rounded-full bg-gray-100 p-1">
-                        {['cn', 'both', 'en'].map((mode) => (
+                        {(['cn', 'both', 'en'] as ('cn' | 'both' | 'en')[]).map(
+                          mode => (
                             <button
-                                key={mode}
-                                onClick={() => setScriptMode(mode as any)}
-                                className={`flex-1 rounded-full py-1.5 text-[11px] font-medium transition-all ${
-                                    scriptMode === mode ? 'bg-white text-black shadow-sm' : 'text-gray-400'
-                                }`}
+                              key={mode}
+                              onClick={() => setScriptMode(mode)}
+                              className={`flex-1 rounded-full py-1.5 text-[11px] font-medium transition-all ${
+                                scriptMode === mode
+                                  ? 'bg-white text-black shadow-sm'
+                                  : 'text-gray-400'
+                              }`}
                             >
-                              {mode === 'cn' ? '中' : mode === 'en' ? '英' : '双语'}
+                              {mode === 'cn'
+                                ? '中'
+                                : mode === 'en'
+                                ? '英'
+                                : '双语'}
                             </button>
-                        ))}
+                          )
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2987,28 +3809,70 @@ export default function WatchPage() {
                   </div>
                 </button>
 
-                {/* Button 5: 右侧 - 单词本 */}
+                {/* Button 5: 右侧 - 字幕 / 生词流切换 */}
                 <button
-                    type="button"
-                    className="group relative flex flex-1 items-center justify-center active:scale-95 transition-transform"
-                    onClick={() => {
-                      if(user && vocabItems.length > 0) setIsVocabOpen(true)
-                    }}
-                    aria-label="打开单词本"
+                  type="button"
+                  className="group relative flex flex-1 items-center justify-center active:scale-95 transition-transform"
+                  onClick={() => {
+                    // 没有登录或没有生词时，不允许进入生词模式
+                    if (panelMode === 'transcript') {
+                      if (!user || vocabItems.length === 0) return;
+                      setPanelMode('vocab');
+                    } else {
+                      setPanelMode('transcript');
+                    }
+                  }}
+                  aria-label={
+                    panelMode === 'transcript' ? '打开生词本' : '返回字幕模式'
+                  }
                 >
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-full text-gray-400 group-active:bg-black/5`}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
-                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                    </svg>
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                      panelMode === 'vocab'
+                        ? 'text-gray-900 bg-black/5'
+                        : 'text-gray-400 group-active:bg-black/5'
+                    }`}
+                  >
+                    {panelMode === 'vocab' ? (
+                      // 生词模式下：显示「字幕」图标，提示可以切回字幕
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-[22px] w-[22px]"
+                      >
+                        <path d="M4 5h16" />
+                        <path d="M4 9h10" />
+                        <path d="M4 13h16" />
+                        <path d="M4 17h8" />
+                      </svg>
+                    ) : (
+                      // 字幕模式下：显示「生词本」图标
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-[22px] w-[22px]"
+                      >
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                      </svg>
+                    )}
                   </div>
-                  {/* 只有在有单词时显示图标颜色或 Badge */}
-                  {user && vocabItems.length > 0 ? (
-                      <span className="absolute right-3 top-2 h-2 w-2 rounded-full bg-[#FF2442] ring-2 ring-white" />
-                  ) : (
-                      // 空状态占位，保持对称
-                      null
-                  )}
+                  {/* 只有在字幕模式且存在生词时显示红点数量 */}
+                  {panelMode === 'transcript' &&
+                    user &&
+                    vocabUnknownCount > 0 && (
+                      <span className="absolute right-3 top-1.5 min-w-[16px] rounded-full bg-[#FF2442] px-1 text-[10px] font-semibold leading-none text-white">
+                        {vocabUnknownCount}
+                      </span>
+                    )}
                 </button>
 
               </div>

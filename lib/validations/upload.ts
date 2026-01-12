@@ -15,9 +15,27 @@ export const SubtitleItemSchema = z.object({
 export const KnowledgeCardSchema = z.object({
   trigger_word: z.string().min(1, '触发词不能为空'),
   data: z.object({
+    headword: z.string().optional(),        // 词形原型（可选）
     ipa: z.string().optional(),              // 音标
     def: z.string().min(1, '释义不能为空'),   // 中文释义
-    sentence: z.string().optional(),         // 例句
+    sentence: z.string().optional(),         // 英文例句（兼容老数据，优先使用 source.sentence_en）
+    pos: z.string().optional(),              // 词性（如 v./n./adj.）
+    collocations: z.array(z.string()).optional(), // 常见搭配
+    synonyms: z.array(z.string()).optional(),     // 近义词
+    difficulty_level: z.string().optional(),      // 难度标签（保留字段）
+    structure: z.string().optional(),             // 短语 / 短语动词结构
+    register: z.string().optional(),              // 语体（口语/正式等）
+    paraphrase: z.string().optional(),            // 英文释义或同义改写
+    function_label: z.string().optional(),        // 功能标签（如“缓和语气”）
+    scenario: z.string().optional(),              // 典型使用场景描述
+    source: z
+      .object({
+        sentence_en: z.string().optional(),       // 完整英文原句
+        sentence_cn: z.string().optional(),       // 对应中文翻译
+        timestamp_start: z.number().optional(),   // 片段起始时间（秒）
+        timestamp_end: z.number().optional()      // 片段结束时间（秒）
+      })
+      .optional(),
     // 卡片类型：
     // word           单词
     // phrase         短语
@@ -39,7 +57,7 @@ export const KnowledgeCardSchema = z.object({
         'proper_noun'
       ])
       .optional() // 类型
-  })
+  }).passthrough() // 允许保留额外字段，避免前端/脚本扩展时被截断
 });
 
 // Finalize 请求 Schema

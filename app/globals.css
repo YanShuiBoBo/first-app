@@ -57,6 +57,12 @@ body {
   color: var(--hl-pink-text);
 }
 
+/* 生词本：标记为“不认识”的词，使用淡红色底作为额外语义高亮 */
+.hl-unknown {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .hl:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
