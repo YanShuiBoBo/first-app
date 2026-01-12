@@ -454,6 +454,7 @@ export default function WatchPage() {
   const TRIAL_LIMIT_SECONDS = 6 * 60;
   const ttsVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
+  const [isLoopMenuOpen, setIsLoopMenuOpen] = useState(false);
 
   // 断点续播提示（本地缓存的上次观看时间）
   const [resumeSeconds, setResumeSeconds] = useState<number | null>(null);
@@ -937,14 +938,56 @@ export default function WatchPage() {
     activeCard,
     playbackRate,
     sentenceLoop,
+    loopMode,
+    loopCount,
     setCurrentTime,
     jumpToSubtitle,
     showCard,
     hideCard,
     setCurrentSubtitle,
     setPlaybackRate,
-    toggleSentenceLoop
+    toggleSentenceLoop,
+    setLoopMode,
+    setLoopCount
   } = usePlayerStore();
+
+  // 本地记忆循环配置（模式 + 次数）
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem('ie-loop-config');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        mode?: 'infinite' | 'count';
+        count?: number;
+      };
+      if (parsed.mode === 'infinite' || parsed.mode === 'count') {
+        setLoopMode(parsed.mode);
+      }
+      if (
+        typeof parsed.count === 'number' &&
+        Number.isFinite(parsed.count) &&
+        parsed.count > 0
+      ) {
+        setLoopCount(parsed.count);
+      }
+    } catch {
+      // ignore
+    }
+  }, [setLoopMode, setLoopCount]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const payload = JSON.stringify({
+        mode: loopMode,
+        count: loopCount
+      });
+      window.localStorage.setItem('ie-loop-config', payload);
+    } catch {
+      // ignore
+    }
+  }, [loopMode, loopCount]);
 
   // 每秒将当前播放进度写入 localStorage（L1 缓存）
   useEffect(() => {
@@ -965,6 +1008,9 @@ export default function WatchPage() {
     }
   }, [currentTime, videoData, user?.email]);
 
+  // 当前句循环播放计数：使用 ref 避免频繁 setState 造成卡顿
+  const currentRepeatCountRef = useRef(0);
+
   // 视频时间更新回调：同步到全局播放器状态，并根据时间计算当前字幕行
   const handleTimeUpdate = () => {
     if (!streamRef.current || !videoData?.subtitles) return;
@@ -973,8 +1019,12 @@ export default function WatchPage() {
     let time = streamRef.current.currentTime;
 
     // 先读取当前句索引和循环开关，再根据“旧索引”判断是否需要回到句首
-    const { sentenceLoop: loopOn, currentSubtitleIndex: idx } =
-      usePlayerStore.getState();
+    const {
+      sentenceLoop: loopOn,
+      currentSubtitleIndex: idx,
+      loopMode: currentLoopMode,
+      loopCount: targetLoopCount
+    } = usePlayerStore.getState();
 
     // 试看模式：超过限制时间后强制暂停，并标记试看结束
     if (isTrial && !trialEnded && time >= TRIAL_LIMIT_SECONDS) {
@@ -1000,8 +1050,49 @@ export default function WatchPage() {
         // 预留一个稍大的阈值，避免移动端 onTimeUpdate 触发不够频繁导致错过判定点
         const nearEnd = time >= current.end - 0.15;
         if (nearEnd) {
-          streamRef.current.currentTime = current.start;
-          time = current.start;
+          // 影子跟读激活时，避免在录音 / 回放过程中强行跳句
+          if (shadowMode !== 'idle') {
+            setCurrentTime(time);
+            setCurrentSubtitle(subtitles, time);
+            return;
+          }
+
+          // 无限循环：保持现有行为
+          if (currentLoopMode === 'infinite') {
+            streamRef.current.currentTime = current.start;
+            time = current.start;
+          } else if (currentLoopMode === 'count') {
+            // 次数循环：记录当前句播放次数，达到目标后自动跳下一句
+            const nextCount = currentRepeatCountRef.current + 1;
+
+            // 最后一遍之外：回到句首继续循环
+            if (nextCount < Math.max(1, targetLoopCount)) {
+              currentRepeatCountRef.current = nextCount;
+              streamRef.current.currentTime = current.start;
+              time = current.start;
+            } else {
+              // 达到目标次数：重置计数并自动进入下一句
+              currentRepeatCountRef.current = 0;
+              const nextIndex = Math.min(
+                idx + 1,
+                subtitles.length - 1
+              );
+
+              // 已是最后一句：保持停在句尾
+              if (nextIndex === idx) {
+                // 不再进行单句循环，关闭循环开关
+                toggleSentenceLoop();
+                setCurrentTime(time);
+                setCurrentSubtitle(subtitles, time);
+                return;
+              }
+
+              const nextSubtitle = subtitles[nextIndex];
+              streamRef.current.currentTime = nextSubtitle.start;
+              time = nextSubtitle.start;
+              jumpToSubtitle(nextIndex);
+            }
+          }
         }
       }
     }
@@ -1073,9 +1164,10 @@ export default function WatchPage() {
       return;
     }
 
-    // 手动切换句子时，重置影子跟读状态
+    // 手动切换句子时，重置影子跟读状态和循环计数
     setShadowMode('idle');
     setShadowSubtitleIndex(null);
+    currentRepeatCountRef.current = 0;
 
     // 跳转到当前句子的开始时间
     streamRef.current.currentTime = subtitle.start;
@@ -1344,8 +1436,10 @@ export default function WatchPage() {
       return;
     }
 
-    const { sentenceLoop: loopOn, currentSubtitleIndex: currentIndex } =
-      usePlayerStore.getState();
+    const {
+      sentenceLoop: loopOn,
+      currentSubtitleIndex: currentIndex
+    } = usePlayerStore.getState();
 
     // 跳转到当前句子的开始时间
     streamRef.current.currentTime = subtitle.start;
@@ -1358,6 +1452,8 @@ export default function WatchPage() {
     if (loopOn && currentIndex === index) {
       toggleSentenceLoop();
     } else if (!loopOn) {
+      // 开启单句循环时，默认使用当前配置（无限 / 次数），并重置计数
+      currentRepeatCountRef.current = 0;
       toggleSentenceLoop();
     }
   };
@@ -1905,20 +2001,117 @@ export default function WatchPage() {
                       <IconReplay className="h-[18px] w-[18px]" />
                     </button>
 
-                    {/* 单句循环 */}
-                    <button
-                      type="button"
-                      className={`h-11 w-11 flex items-center justify-center rounded-2xl transition-all font-bold ${
-                        sentenceLoop
-                          ? 'bg-rose-500 text-white shadow-md shadow-rose-200'
-                          : 'bg-stone-50 text-stone-400 hover:bg-stone-100 hover:text-stone-600'
-                      }`}
-                      title="单句循环"
-                      onClick={() => handleRowLoop(currentSubtitleIndex)}
-                      disabled={isTrial && trialEnded}
-                    >
-                      <span className="text-lg leading-none">∞</span>
-                    </button>
+                    {/* 单句循环：支持次数 / 无限模式（PC 浮层按钮组） */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className={`h-11 w-11 flex items-center justify-center rounded-2xl transition-all font-bold ${
+                          sentenceLoop
+                            ? 'bg-rose-500 text-white shadow-md shadow-rose-200'
+                            : 'bg-stone-50 text-stone-400 hover:bg-stone-100 hover:text-stone-600'
+                        }`}
+                        title="单句循环"
+                        onClick={() => {
+                          // PC 端点击仅负责展开配置浮层，循环开关在浮层中设置
+                          setIsLoopMenuOpen(v => !v);
+                        }}
+                        disabled={isTrial && trialEnded}
+                      >
+                        <span className="text-lg leading-none">
+                          {sentenceLoop && loopMode === 'count'
+                            ? Math.max(1, loopCount)
+                            : '∞'}
+                        </span>
+                      </button>
+                      {isLoopMenuOpen && !isTrial && !trialEnded && (
+                        <div className="absolute left-0 top-[120%] z-20 rounded-2xl border border-stone-100 bg-white/98 px-2 py-1.5 text-[11px] shadow-lg shadow-black/5">
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 5, 10].map(count => (
+                              <button
+                                key={count}
+                                type="button"
+                                className={`h-7 w-7 rounded-full text-[11px] font-medium ${
+                                  sentenceLoop &&
+                                  loopMode === 'count' &&
+                                  loopCount === count
+                                    ? 'bg-rose-500 text-white shadow-sm'
+                                    : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                                }`}
+                                onClick={() => {
+                                  // 选择次数：1 次 = 关闭循环，其它次数 = 按次数循环
+                                  const { sentenceLoop: loopOn, currentSubtitleIndex: idx } =
+                                    usePlayerStore.getState();
+                                  if (count === 1) {
+                                    // 1 次：等价于关闭单句循环
+                                    if (loopOn) {
+                                      toggleSentenceLoop();
+                                    }
+                                    currentRepeatCountRef.current = 0;
+                                    setIsLoopMenuOpen(false);
+                                    return;
+                                  }
+
+                                  if (!loopOn) {
+                                    toggleSentenceLoop();
+                                  }
+                                  setLoopMode('count');
+                                  setLoopCount(count);
+                                  currentRepeatCountRef.current = 0;
+
+                                  // 跳回当前句开头，确保从头开始循环
+                                  if (videoData?.subtitles && streamRef.current) {
+                                    const current = videoData.subtitles[idx];
+                                    if (current) {
+                                      if (isTrial && current.start >= TRIAL_LIMIT_SECONDS) {
+                                        setIsLoopMenuOpen(false);
+                                        return;
+                                      }
+                                      streamRef.current.currentTime = current.start;
+                                      jumpToSubtitle(idx);
+                                    }
+                                  }
+                                  setIsLoopMenuOpen(false);
+                                }}
+                              >
+                                {count}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              className={`h-7 w-7 rounded-full text-[11px] font-medium ${
+                                sentenceLoop && loopMode === 'infinite'
+                                  ? 'bg-rose-500 text-white shadow-sm'
+                                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                              }`}
+                              onClick={() => {
+                                const { sentenceLoop: loopOn, currentSubtitleIndex: idx } =
+                                  usePlayerStore.getState();
+                                if (!loopOn) {
+                                  toggleSentenceLoop();
+                                }
+                                setLoopMode('infinite');
+                                currentRepeatCountRef.current = 0;
+
+                                if (videoData?.subtitles && streamRef.current) {
+                                  const current = videoData.subtitles[idx];
+                                  if (current) {
+                                    if (isTrial && current.start >= TRIAL_LIMIT_SECONDS) {
+                                      setIsLoopMenuOpen(false);
+                                      return;
+                                    }
+                                    streamRef.current.currentTime = current.start;
+                                    jumpToSubtitle(idx);
+                                  }
+                                }
+                                setIsLoopMenuOpen(false);
+                              }}
+                            >
+                              ♾️
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* 右侧学习工具积木 */}
@@ -2331,25 +2524,9 @@ export default function WatchPage() {
                           <button
                             type="button"
                             className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
-                              sentenceLoop && isActive
-                                ? 'text-[#FF2442]'
-                                : 'text-gray-400 hover:text-gray-600'
-                            }`}
-                            title="单句循环"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleRowLoop(index);
-                            }}
-                            disabled={isTrial && trialEnded}
-                          >
-                            <IconLoop className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
                               likedSubtitles.has(index)
                                 ? 'text-[#FF2442]'
-                                : 'text-gray-300 hover:text-gray-500'
+                                : 'text-gray-400 hover:text-gray-600'
                             }`}
                             title="收藏"
                             onClick={e => {
@@ -2555,7 +2732,7 @@ export default function WatchPage() {
           <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center pb-[env(safe-area-inset-bottom,16px)] lg:hidden">
             <div className="relative w-full max-w-[414px] px-5 pb-4">
 
-              {/* 设置 Popover：位置微调以匹配新的岛屿高度 */}
+              {/* 倍速 / 字幕设置 Popover */}
               {isSpeedMenuOpen && !isTrial && !trialEnded && (
                   <div className="pointer-events-auto absolute bottom-[88px] left-1/2 w-[280px] -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-200">
                     <div className="flex flex-col gap-4 rounded-[24px] border border-white/60 bg-white/90 p-5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] backdrop-blur-xl">
@@ -2599,6 +2776,99 @@ export default function WatchPage() {
                   </div>
               )}
 
+              {/* 移动端：单句循环次数 Popover */}
+              {isLoopMenuOpen && !isTrial && !trialEnded && (
+                  <div className="pointer-events-auto absolute bottom-[88px] left-1/2 w-[220px] -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-200">
+                    <div className="flex flex-col gap-2 rounded-[20px] border border-white/60 bg-white/95 p-3 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] backdrop-blur-xl">
+                      <div className="text-[11px] font-medium text-gray-500">
+                        单句循环次数
+                      </div>
+                      <div className="flex justify-between gap-1">
+                        {[1, 2, 3, 5, 10].map(count => (
+                            <button
+                                key={count}
+                                type="button"
+                                onClick={() => {
+                                  const { sentenceLoop: loopOn, currentSubtitleIndex: idx } =
+                                      usePlayerStore.getState();
+                                  if (count === 1) {
+                                    // 1 次：等价于关闭单句循环
+                                    if (loopOn) {
+                                      toggleSentenceLoop();
+                                    }
+                                    currentRepeatCountRef.current = 0;
+                                    setIsLoopMenuOpen(false);
+                                    return;
+                                  }
+
+                                  if (!loopOn) {
+                                    toggleSentenceLoop();
+                                  }
+                                  setLoopMode('count');
+                                  setLoopCount(count);
+                                  currentRepeatCountRef.current = 0;
+
+                                  if (videoData?.subtitles && streamRef.current) {
+                                    const current = videoData.subtitles[idx];
+                                    if (current) {
+                                      if (isTrial && current.start >= TRIAL_LIMIT_SECONDS) {
+                                        setIsLoopMenuOpen(false);
+                                        return;
+                                      }
+                                      streamRef.current.currentTime = current.start;
+                                      jumpToSubtitle(idx);
+                                    }
+                                  }
+                                  setIsLoopMenuOpen(false);
+                                }}
+                                className={`h-8 flex-1 rounded-full text-[11px] font-medium ${
+                                    sentenceLoop &&
+                                    loopMode === 'count' &&
+                                    loopCount === count
+                                        ? 'bg-[#1a1a1a] text-white shadow-md'
+                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                }`}
+                            >
+                              {count}
+                            </button>
+                        ))}
+                        <button
+                            type="button"
+                            onClick={() => {
+                              const { sentenceLoop: loopOn, currentSubtitleIndex: idx } =
+                                  usePlayerStore.getState();
+                              if (!loopOn) {
+                                toggleSentenceLoop();
+                              }
+                              setLoopMode('infinite');
+                              currentRepeatCountRef.current = 0;
+
+                              if (videoData?.subtitles && streamRef.current) {
+                                const current = videoData.subtitles[idx];
+                                if (current) {
+                                  if (isTrial && current.start >= TRIAL_LIMIT_SECONDS) {
+                                    setIsLoopMenuOpen(false);
+                                    return;
+                                  }
+                                  streamRef.current.currentTime = current.start;
+                                  jumpToSubtitle(idx);
+                                }
+                              }
+                              setIsLoopMenuOpen(false);
+                            }}
+                            className={`h-8 w-10 rounded-full text-[11px] font-medium ${
+                                sentenceLoop && loopMode === 'infinite'
+                                    ? 'bg-[#1a1a1a] text-white shadow-md'
+                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            }`}
+                        >
+                          ♾️
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+              )}
+
               {/* 2. 悬浮玻璃岛本体：
                - 替换了原有的 island-container/island-body class
                - 使用 Flex 布局实现 5 点对称
@@ -2621,11 +2891,14 @@ export default function WatchPage() {
                 </span>
                 </button>
 
-                {/* Button 2: 左中 - 单句循环 */}
+                {/* Button 2: 左中 - 单句循环（点击弹出循环次数浮层） */}
                 <button
                     type="button"
                     className="group flex flex-1 items-center justify-center active:scale-95 transition-transform"
-                    onClick={() => handleRowLoop(currentSubtitleIndex)}
+                    onClick={() => {
+                      if (isTrial && trialEnded) return;
+                      setIsLoopMenuOpen(v => !v);
+                    }}
                     disabled={isTrial && trialEnded}
                     aria-label="单句循环"
                 >
@@ -2634,13 +2907,30 @@ export default function WatchPage() {
                           ? 'bg-black/5 text-gray-900'
                           : 'text-gray-400 group-active:bg-black/5'
                   }`}>
-                    {/* 使用更精致的 SVG 线条 */}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
-                      <path d="M17 2l4 4-4 4" />
-                      <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
-                      <path d="M7 22l-4-4 4-4" />
-                      <path d="M21 13v1a4 4 0 0 1-4 4H3" />
-                    </svg>
+                    {!sentenceLoop ? (
+                      // 未开启循环：显示默认的循环图标
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-[20px] w-[20px]"
+                      >
+                        <path d="M17 2l4 4-4 4" />
+                        <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                        <path d="M7 22l-4-4 4-4" />
+                        <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                      </svg>
+                    ) : (
+                      // 已开启循环：次数模式显示数字，∞ 模式显示符号
+                      <span className="text-[13px] font-semibold">
+                        {loopMode === 'count'
+                          ? Math.max(1, loopCount)
+                          : '♾️'}
+                      </span>
+                    )}
                   </div>
                 </button>
 
