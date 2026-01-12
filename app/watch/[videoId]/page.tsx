@@ -1730,6 +1730,10 @@ export default function WatchPage() {
   const activeSubtitle =
     videoData.subtitles[currentSubtitleIndex] ?? null;
 
+  // 根据当前语言模式控制“当前句放大面板”中英展示
+  const showActiveEn = scriptMode === 'both' || scriptMode === 'en';
+  const showActiveCn = scriptMode === 'both' || scriptMode === 'cn';
+
   const currentTimeLabel = formatDuration(currentTime);
   const totalTimeLabel = formatDuration(videoData.duration ?? 0);
   const deckProgressPercent =
@@ -1959,14 +1963,34 @@ export default function WatchPage() {
                       </span>
                     </button>
 
-                    {/* 跟读 */}
+                    {/* 跟读：对齐移动端交互，支持录音 / 回放状态视觉反馈 */}
                     <button
                       type="button"
-                      className="h-11 px-4 bg-white border-2 border-stone-100 text-stone-500 rounded-2xl text-xs font-bold flex items-center gap-2 hover:border-rose-400 hover:text-rose-500 transition-all"
+                      className={`group h-11 px-4 rounded-2xl text-xs font-bold flex items-center gap-2 border-2 transition-all ${
+                        shadowSubtitleIndex === currentSubtitleIndex &&
+                        shadowMode === 'recording'
+                          ? 'bg-rose-50 border-rose-400 text-rose-600'
+                          : shadowSubtitleIndex === currentSubtitleIndex &&
+                            shadowMode === 'reviewing'
+                          ? 'bg-blue-50 border-blue-400 text-blue-600'
+                          : 'bg-white border-stone-100 text-stone-500 hover:border-rose-400 hover:text-rose-500'
+                      }`}
                       onClick={() => handleRowMic(currentSubtitleIndex)}
                       disabled={isTrial && trialEnded}
                     >
-                      <IconMic className="h-[16px] w-[16px]" />
+                      {shadowSubtitleIndex === currentSubtitleIndex &&
+                      shadowMode === 'reviewing' ? (
+                        <IconReplay className="h-[16px] w-[16px]" />
+                      ) : (
+                        <IconMic
+                          className={`h-[16px] w-[16px] ${
+                            shadowSubtitleIndex === currentSubtitleIndex &&
+                            shadowMode === 'recording'
+                              ? 'animate-pulse'
+                              : ''
+                          }`}
+                        />
+                      )}
                       <span>跟读</span>
                     </button>
                   </div>
@@ -1978,45 +2002,49 @@ export default function WatchPage() {
               <div className="hidden min-h-[6rem] flex-col justify-center gap-2 border-t border-gray-100 bg-gray-50/80 px-8 py-3 lg:flex">
                 {activeSubtitle ? (
                   <>
-                    <div className="text-[17px] font-semibold text-gray-900">
-                      {buildHighlightSegments(
-                        activeSubtitle.text_en,
-                        videoData.cards ?? []
-                      ).map((segment, segIndex) => {
-                        if (!segment.card) {
-                          return (
-                            <span key={segIndex}>{segment.text}</span>
-                          );
-                        }
+                    {showActiveEn && (
+                      <div className="text-[17px] font-semibold text-gray-900">
+                        {buildHighlightSegments(
+                          activeSubtitle.text_en,
+                          videoData.cards ?? []
+                        ).map((segment, segIndex) => {
+                          if (!segment.card) {
+                            return (
+                              <span key={segIndex}>{segment.text}</span>
+                            );
+                          }
 
-                        const type = segment.card.data.type;
-                        return (
-                          <span
-                            key={segIndex}
-                            className={getHighlightClassNames(type)}
-                            style={getHighlightInlineStyle(type)}
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleWordClick(
-                                segment.card!.trigger_word,
-                                e.currentTarget as HTMLElement
-                              );
-                            }}
-                          >
-                            {segment.text}
-                          </span>
-                        );
-                      })}
-                    </div>
-                    <div
-                      className={`text-sm ${
-                        maskChinese
-                          ? 'text-transparent bg-gray-200/90 rounded-[4px] px-2 py-0.5'
-                          : 'text-gray-600'
-                      }`}
-                    >
-                      {activeSubtitle.text_cn}
-                    </div>
+                          const type = segment.card.data.type;
+                          return (
+                            <span
+                              key={segIndex}
+                              className={getHighlightClassNames(type)}
+                              style={getHighlightInlineStyle(type)}
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleWordClick(
+                                  segment.card!.trigger_word,
+                                  e.currentTarget as HTMLElement
+                                );
+                              }}
+                            >
+                              {segment.text}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {showActiveCn && (
+                      <div
+                        className={`text-sm ${
+                          maskChinese
+                            ? 'text-transparent bg-gray-200/90 rounded-[4px] px-2 py-0.5'
+                            : 'text-gray-600'
+                        }`}
+                      >
+                        {activeSubtitle.text_cn}
+                      </div>
+                    )}
                     {/*<div className="mt-2 flex flex-wrap gap-3 text-[11px] text-gray-600">*/}
                     {/*  <button*/}
                     {/*    type="button"*/}
