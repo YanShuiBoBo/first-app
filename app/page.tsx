@@ -542,10 +542,10 @@ export default function Home() {
                       <button
                         key={tab.value}
                         type="button"
-                        className={`whitespace-nowrap rounded-full px-4 py-1.5 ${
+                        className={`whitespace-nowrap rounded-full border px-4 py-1.5 text-[11px] ${
                           isActive
-                            ? 'bg-gray-900 text-white font-medium'
-                            : 'bg-gray-100 text-gray-600 font-medium'
+                            ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] font-semibold shadow-sm shadow-[rgba(0,0,0,0.04)]'
+                            : 'border-transparent bg-stone-50 text-neutral-600 hover:bg-stone-100 hover:text-neutral-900 font-medium'
                         }`}
                         onClick={() => setActiveCategory(tab.value)}
                       >
@@ -559,7 +559,7 @@ export default function Home() {
               {/* 筛选按钮：始终固定在右侧，不随标签滚动 */}
               <button
                 type="button"
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600"
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-500 shadow-sm hover:border-[var(--accent)] hover:text-[var(--accent)]"
                 onClick={() => setIsFilterSheetOpen(true)}
                 aria-label="筛选"
               >
@@ -901,10 +901,10 @@ export default function Home() {
                           <button
                             key={opt.value}
                             type="button"
-                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 ${
+                            className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 ${
                               isActive
-                                ? 'bg-[#FFEDF0] text-[#BE185D] border border-[#FF2442]'
-                                : 'bg-stone-50 text-stone-600 hover:bg-stone-100'
+                                ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)]'
+                                : 'border-transparent bg-stone-50 text-stone-600 hover:bg-stone-100'
                             }`}
                             onClick={() =>
                               setDifficultyFilter(opt.value)
@@ -928,10 +928,10 @@ export default function Home() {
                         {/* 仅看未学 */}
                         <button
                           type="button"
-                          className={`rounded-full px-3 py-1 ${
+                          className={`rounded-full border px-3 py-1 ${
                             statusFilter === 'unlearned'
-                              ? 'bg-[#FFEDF0] text-[#BE185D] border border-[#FF2442]'
-                              : 'bg-stone-50 text-stone-600 hover:bg-stone-100'
+                              ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)]'
+                              : 'border-transparent bg-stone-50 text-stone-600 hover:bg-stone-100'
                           }`}
                           onClick={() =>
                             setStatusFilter(
@@ -946,10 +946,10 @@ export default function Home() {
                         {/* 仅看已学完 */}
                         <button
                           type="button"
-                          className={`rounded-full px-3 py-1 ${
+                          className={`rounded-full border px-3 py-1 ${
                             statusFilter === 'completed'
-                              ? 'bg-[#FFEDF0] text-[#BE185D] border border-[#FF2442]'
-                              : 'bg-stone-50 text-stone-600 hover:bg-stone-100'
+                              ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)]'
+                              : 'border-transparent bg-stone-50 text-stone-600 hover:bg-stone-100'
                           }`}
                           onClick={() =>
                             setStatusFilter(
@@ -1135,7 +1135,7 @@ export default function Home() {
                       const baseClasses =
                         'flex flex-col items-center justify-center rounded-xl border px-2 py-3 text-[11px] transition-colors';
                       const activeClasses =
-                        'border-[#FF2442] bg-[#FFEDF0] text-[#BE185D]';
+                        'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)]';
                       const inactiveClasses =
                         'border-neutral-200 bg-neutral-50 text-neutral-600';
 
@@ -1153,7 +1153,7 @@ export default function Home() {
                             <svg
                               className={`mb-1 h-5 w-5 ${
                                 isActive
-                                  ? 'stroke-[#FF2442]'
+                                  ? 'stroke-[var(--accent)]'
                                   : 'stroke-gray-400'
                               }`}
                               viewBox="0 0 24 24"
@@ -1170,7 +1170,7 @@ export default function Home() {
                             <svg
                               className={`mb-1 h-5 w-5 ${
                                 isActive
-                                  ? 'stroke-[#FF2442]'
+                                  ? 'stroke-[var(--accent)]'
                                   : 'stroke-gray-400'
                               }`}
                               viewBox="0 0 24 24"
@@ -1188,7 +1188,7 @@ export default function Home() {
                             <svg
                               className={`mb-1 h-5 w-5 ${
                                 isActive
-                                  ? 'stroke-[#FF2442]'
+                                  ? 'stroke-[var(--accent)]'
                                   : 'stroke-gray-400'
                               }`}
                               viewBox="0 0 24 24"
@@ -1215,7 +1215,7 @@ export default function Home() {
                   {authorOptions.length > 6 && (
                     <button
                       type="button"
-                      className="flex items-center gap-1 text-[11px] text-[#FF2442]"
+                      className="flex items-center gap-1 text-[11px] text-[var(--accent)]"
                       onClick={() => setShowAllAuthors((v) => !v)}
                     >
                       <span>
@@ -1240,10 +1240,10 @@ export default function Home() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className={`flex items-center gap-2 rounded-full px-3 py-1 ${
+                    className={`flex items-center gap-2 rounded-full border px-3 py-1 ${
                       authorFilter === 'all'
-                        ? 'bg-[#FFEDF0] text-[#BE185D] border border-[#FF2442]'
-                        : 'bg-neutral-100 text-neutral-600'
+                        ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                        : 'border-transparent bg-neutral-100 text-neutral-600'
                     }`}
                     onClick={() => setAuthorFilter('all')}
                   >
@@ -1259,16 +1259,16 @@ export default function Home() {
                       <button
                         key={name}
                         type="button"
-                        className={`flex items-center gap-2 rounded-full px-3 py-1 ${
+                        className={`flex items-center gap-2 rounded-full border px-3 py-1 ${
                           isActive
-                            ? 'bg-[#FFEDF0] text-[#BE185D] border border-[#FF2442]'
-                            : 'bg-neutral-100 text-neutral-600'
+                            ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                            : 'border-transparent bg-neutral-100 text-neutral-600'
                         }`}
                         onClick={() => setAuthorFilter(name)}
                       >
                         <span
                           className={`flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-[10px] ${
-                            isActive ? 'ring-2 ring-[#FF2442]' : ''
+                            isActive ? 'ring-2 ring-[var(--accent)]' : ''
                           }`}
                         >
                           {name.charAt(0).toUpperCase()}
@@ -1291,7 +1291,7 @@ export default function Home() {
                     type="button"
                     className={`flex h-5 w-10 items-center rounded-full px-0.5 transition-colors ${
                       statusFilter === 'unlearned'
-                        ? 'bg-[#FF2442]'
+                        ? 'bg-[var(--accent)]'
                         : 'bg-gray-200'
                     }`}
                     onClick={() =>
@@ -1329,7 +1329,7 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
-                  className="pointer-events-auto flex-1 rounded-full bg-[#FF2442] py-2.5 text-center text-xs font-medium text-white shadow-[0_0_20px_rgba(255,36,66,0.5)] active:scale-95"
+                  className="pointer-events-auto flex-1 rounded-full bg-[var(--accent)] py-2.5 text-center text-xs font-medium text-white shadow-[0_0_16px_rgba(232,141,147,0.55)] active:scale-95"
                   onClick={() => setIsFilterSheetOpen(false)}
                 >
                   确认显示 ({filteredVideos.length})

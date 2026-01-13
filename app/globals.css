@@ -1,39 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  /* Creamy Aesthetic 配色体系 */
-  --bg-body: #efefef;
-  --bg-shell: #faf9f6;
-  --bg-card: #ffffff;
+  /* Creamy Aesthetic 配色体系（干枯玫瑰 + 奶油米白） */
+  --bg-body: #fafaf8; /* 页面整体背景 */
+  --bg-shell: #f5f5f0; /* 模块/侧栏背景 */
+  --bg-card: #ffffff; /* 卡片背景 */
 
   --glass-bg: rgba(255, 255, 255, 0.75);
   --glass-border: rgba(255, 255, 255, 0.8);
 
-  --shadow-island: 0 20px 50px rgba(100, 80, 60, 0.08);
-  --shadow-card: 0 8px 20px rgba(166, 160, 150, 0.08);
+  --shadow-island: 0 20px 50px rgba(100, 80, 60, 0.06);
+  --shadow-card: 0 8px 20px rgba(166, 160, 150, 0.06);
 
-  --primary-black: #2a2a2a;
-  --text-main: #444444;
-  --text-sub: #999999;
+  --primary-black: #2d2d2d;
+  --text-main: #2d2d2d;
+  --text-sub: #888888;
   --icon-stroke: #555555;
 
+  /* 荧光笔高亮（紫 + 玫瑰粉） */
   --hl-purple-bg: #f3e8ff;
   --hl-purple-text: #7e22ce;
-  --hl-pink-bg: #fce7f3;
-  --hl-pink-text: #be185d;
+  --hl-pink-bg: #fceeef;
+  --hl-pink-text: #e88d93;
 
-  --accent: #7c3aed;
-  --badge-red: #ff5e57;
+  /* 品牌点缀色：干枯玫瑰粉 */
+  --accent: #e88d93;
+  --accent-soft: #fceeef;
 
-  /* 首页品牌胶囊配色 */
-  --color-brand-pink-bg: #fce7f3;
-  --color-brand-pink-text: #be185d;
+  /* 红点/徽标统一用柔和玫瑰色 */
+  --badge-red: #e88d93;
+
+  /* 首页品牌胶囊配色（保持向后兼容） */
+  --color-brand-pink-bg: #fceeef;
+  --color-brand-pink-text: #e88d93;
   --color-brand-black: #111111;
 }
 
 body {
-  background: var(--bg-body); /* 暖奶白背景 */
-  color: #171717;
+  background: var(--bg-body);
+  color: var(--text-main);
   font-family: -apple-system, BlinkMacSystemFont, system-ui, -system-ui, "Segoe UI",
     sans-serif;
 }
@@ -59,8 +64,8 @@ body {
 
 /* 生词本：标记为“不认识”的词，使用淡红色底作为额外语义高亮 */
 .hl-unknown {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: rgba(232, 141, 147, 0.2);
+  color: #c0666b;
 }
 
 .hl:hover {
@@ -88,6 +93,12 @@ body {
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* 生词与知识卡片：英语单词使用衬线体，营造杂志感 */
+.vocab-word {
+  font-family: "Playfair Display", "Times New Roman", serif;
+  letter-spacing: 0.01em;
 }
 
 .card {

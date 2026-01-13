@@ -2221,9 +2221,9 @@ export default function WatchPage() {
   // 页面渲染
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8F8F8] text-gray-700">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-shell)] text-gray-700">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#FF2442]/30 border-t-[#FF2442]" />
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#E88D93]/30 border-t-[#E88D93]" />
           <p className="text-sm text-gray-500">正在加载精读内容...</p>
         </div>
       </div>
@@ -2232,7 +2232,7 @@ export default function WatchPage() {
 
   if (error || !videoData) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8F8F8] text-gray-900">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-shell)] text-gray-900">
         <div className="rounded-2xl border border-red-100 bg-white px-6 py-5 text-center text-sm shadow-sm shadow-red-100/60">
           <p className="mb-2 text-base font-semibold">获取视频数据失败</p>
           <p className="text-xs text-gray-500">{error || '未知错误'}</p>
@@ -2415,7 +2415,7 @@ export default function WatchPage() {
                     {/* 重听按钮 */}
                     <button
                       type="button"
-                      className="h-11 px-5 bg-rose-50 text-rose-600 rounded-2xl text-sm font-bold flex items-center gap-2 hover:bg-rose-100 transition-colors border border-rose-100/50"
+                      className="h-11 px-5 rounded-2xl border border-[var(--accent-soft)] bg-[var(--accent-soft)] text-sm font-bold text-[var(--accent)] flex items-center gap-2 hover:bg-[var(--accent-soft)]/90 transition-colors"
                       onClick={() => handleRowReplay(currentSubtitleIndex)}
                       disabled={isTrial && trialEnded}
                     >
@@ -2426,10 +2426,10 @@ export default function WatchPage() {
                     <div className="relative">
                       <button
                         type="button"
-                        className={`h-11 w-11 flex items-center justify-center rounded-2xl transition-all font-bold ${
+                        className={`h-11 w-11 flex items-center justify-center rounded-2xl border transition-all font-bold ${
                           sentenceLoop
-                            ? 'bg-rose-500 text-white shadow-md shadow-rose-200'
-                            : 'bg-stone-50 text-stone-400 hover:bg-stone-100 hover:text-stone-600'
+                            ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.06)]'
+                            : 'border-transparent bg-stone-50 text-stone-400 hover:bg-stone-100 hover:text-stone-600'
                         }`}
                         title="单句循环"
                         onClick={() => {
@@ -2455,7 +2455,7 @@ export default function WatchPage() {
                                   sentenceLoop &&
                                   loopMode === 'count' &&
                                   loopCount === count
-                                    ? 'bg-rose-500 text-white shadow-sm'
+                                    ? 'bg-[var(--accent)] text-white shadow-sm shadow-[rgba(0,0,0,0.05)]'
                                     : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
                                 }`}
                                 onClick={() => {
@@ -2501,7 +2501,7 @@ export default function WatchPage() {
                               type="button"
                               className={`h-7 w-7 rounded-full text-[11px] font-medium ${
                                 sentenceLoop && loopMode === 'infinite'
-                                  ? 'bg-rose-500 text-white shadow-sm'
+                                  ? 'bg-[var(--accent)] text-white shadow-sm shadow-[rgba(0,0,0,0.05)]'
                                   : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
                               }`}
                               onClick={() => {
@@ -2583,11 +2583,11 @@ export default function WatchPage() {
                       className={`group h-11 px-4 rounded-2xl text-xs font-bold flex items-center gap-2 border-2 transition-all ${
                         shadowSubtitleIndex === currentSubtitleIndex &&
                         shadowMode === 'recording'
-                          ? 'bg-rose-50 border-rose-400 text-rose-600'
+                          ? 'bg-[var(--accent-soft)] border-[var(--accent)] text-[var(--accent)]'
                           : shadowSubtitleIndex === currentSubtitleIndex &&
                             shadowMode === 'reviewing'
                           ? 'bg-blue-50 border-blue-400 text-blue-600'
-                          : 'bg-white border-stone-100 text-stone-500 hover:border-rose-400 hover:text-rose-500'
+                          : 'bg-white border-stone-100 text-stone-500 hover:border-[var(--accent)] hover:text-[var(--accent)]'
                       }`}
                       onClick={() => handleRowMic(currentSubtitleIndex)}
                       disabled={isTrial && trialEnded}
@@ -2799,7 +2799,7 @@ export default function WatchPage() {
                       <IconVocab className="h-3.5 w-3.5" />
                       <span>生词</span>
                       {user && vocabUnknownCount > 0 && (
-                        <span className="ml-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[#FF2442] px-1 text-[10px] font-semibold text-white">
+                        <span className="ml-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-semibold text-white">
                           {vocabUnknownCount}
                         </span>
                       )}
@@ -2810,7 +2810,7 @@ export default function WatchPage() {
                   {/* 视图模式：中 / 双语 / 英 —— 仅在字幕模式下展示 */}
                   {panelMode === 'transcript' ? (
                     <>
-                      <div className="flex items-center rounded-xl border border-stone-100 bg-stone-50 p-1">
+                    <div className="flex items-center rounded-xl border border-stone-100 bg-stone-50 p-1">
                         {(
                           [
                             { value: 'cn', label: '中' },
@@ -2825,7 +2825,7 @@ export default function WatchPage() {
                               type="button"
                               className={`flex items-center justify-center rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all ${
                                 active
-                                  ? 'bg-white text-rose-600 shadow-sm shadow-rose-100 border border-rose-300'
+                                  ? 'bg-white text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.03)] border border-[var(--accent-soft)]'
                                   : 'bg-transparent text-stone-500 hover:bg-stone-100 hover:text-stone-900'
                               }`}
                               onClick={() => setScriptMode(mode.value)}
@@ -2839,7 +2839,7 @@ export default function WatchPage() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-transparent text-stone-400 hover:bg-stone-100 hover:text-rose-500"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-transparent text-stone-400 hover:bg-stone-100 hover:text-[var(--accent)]"
                           onClick={handleExportTranscript}
                           aria-label="打印字幕"
                         >
@@ -2854,13 +2854,13 @@ export default function WatchPage() {
                         type="button"
                         className={`inline-flex items-center rounded-full px-3 py-1.5 text-[11px] font-medium ${
                           vocabItems.length > 0
-                            ? 'bg-rose-500 text-white shadow-sm shadow-rose-200 hover:bg-rose-600'
+                            ? 'bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)] hover:bg-[var(--accent-soft)]/90'
                             : 'bg-stone-100 text-stone-400 cursor-not-allowed'
                         }`}
                         disabled={vocabItems.length === 0}
                         onClick={handleMarkRestKnown}
                       >
-                        ✨ 全部标记为认识
+                        全部标记为认识
                       </button>
                     </div>
                   )}
@@ -2908,8 +2908,8 @@ export default function WatchPage() {
                             type="button"
                             className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${
                               likedSubtitles.has(index)
-                                ? 'text-[#FF2442]'
-                                : 'text-gray-300 hover:text-[#FF2442]'
+                                ? 'text-[var(--accent)]'
+                                : 'text-gray-300 hover:text-[var(--accent)]'
                             }`}
                             onClick={e => {
                               e.stopPropagation();
@@ -2994,7 +2994,7 @@ export default function WatchPage() {
                             className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
                               shadowSubtitleIndex === index &&
                               shadowMode === 'recording'
-                                ? 'text-[#FF2442]'
+                                ? 'text-[var(--accent)]'
                                 : 'text-gray-400 hover:text-gray-600'
                             }`}
                             title="跟读"
@@ -3066,7 +3066,7 @@ export default function WatchPage() {
                               type="button"
                               className={`rounded-full px-3 py-1 ${
                                 active
-                                  ? 'bg-rose-500 text-white shadow-sm shadow-rose-200'
+                                  ? 'bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)]'
                                   : 'bg-stone-50 text-stone-600 hover:bg-stone-100 hover:text-stone-900'
                               }`}
                               onClick={() => setVocabKindFilter(tab.value)}
@@ -3089,9 +3089,9 @@ export default function WatchPage() {
                           })
                           .map(item => {
                             const base =
-                              'relative rounded-2xl border px-3 py-2.5 text-[11px] transition-all cursor-pointer';
+                              'group relative rounded-2xl border px-4 py-3 text-[11px] transition-all cursor-pointer';
                             const stateClass =
-                              'border-gray-100 bg-white shadow-sm hover:border-gray-200 hover:bg-gray-50';
+                              'border-gray-100 bg-white shadow-sm hover:border-gray-200 hover:bg-gray-50 hover:-translate-y-[1px]';
 
                             return (
                               <div
@@ -3103,7 +3103,7 @@ export default function WatchPage() {
                                   <div className="flex-1">
                                     <div className="flex items-baseline justify-between gap-2">
                                       <div className="flex flex-wrap items-baseline gap-1">
-                                        <span className="text-[15px] font-semibold text-gray-900">
+                                        <span className="vocab-word text-[16px] font-semibold text-gray-900">
                                           {item.headword}
                                         </span>
                                         {item.ipa && (
@@ -3119,16 +3119,16 @@ export default function WatchPage() {
                                           {item.pos}
                                         </span>
                                       )}
-                                      <span className="text-rose-700">
+                                      <span className="text-[var(--accent)]">
                                         {item.definition || item.paraphrase}
                                       </span>
                                     </div>
 
                                     {(item.source?.sentence_en ||
                                       item.source?.sentence_cn) && (
-                                      <div className="mt-1 border-l border-gray-200 pl-2 text-[10px] text-gray-600">
+                                      <div className="mt-2 border-l border-gray-200 pl-2 text-[10px] text-gray-600">
                                         {item.source?.sentence_en && (
-                                          <div className="italic">
+                                          <div className="italic text-[11px] text-gray-800">
                                             {item.source.sentence_en}
                                           </div>
                                         )}
@@ -3143,7 +3143,7 @@ export default function WatchPage() {
                                   <div className="ml-1 flex flex-col items-end gap-1">
                                     <button
                                       type="button"
-                                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
+                                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-400 hover:border-[var(--accent)] hover:text-[var(--accent)]"
                                       onClick={e => {
                                         e.stopPropagation();
                                         handlePlayVocabClip(item);
@@ -3154,10 +3154,10 @@ export default function WatchPage() {
                                     </button>
                                   </div>
                                 </div>
-                                <div className="mt-2 flex gap-2">
+                                <div className="mt-2 flex justify-end">
                                   <button
                                     type="button"
-                                    className="flex-1 rounded-full border px-2 py-1 text-[11px] font-medium border-rose-400 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-500"
+                                    className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-medium text-gray-600 hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
                                     onClick={e => {
                                       e.stopPropagation();
                                       handleUpdateVocabStatus(
@@ -3166,7 +3166,8 @@ export default function WatchPage() {
                                       );
                                     }}
                                   >
-                                    ✓ 认识
+                                    <span className="mr-1 text-[12px]">✓</span>
+                                    <span>认识</span>
                                   </button>
                                 </div>
                               </div>
@@ -3226,7 +3227,7 @@ export default function WatchPage() {
                   <div className="mb-1 flex items-start justify-between gap-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-gray-900">
+                        <span className="vocab-word text-[17px] font-semibold text-gray-900">
                           {normalized.headword ||
                             cardPopover.card.trigger_word}
                         </span>
@@ -3242,7 +3243,7 @@ export default function WatchPage() {
                             {normalized.pos}
                           </span>
                         )}
-                        <span className="text-rose-700">
+                        <span className="text-[var(--accent)]">
                           {normalized.def}
                         </span>
                       </div>
@@ -3256,7 +3257,7 @@ export default function WatchPage() {
                       {normalized.ipa && (
                         <button
                           type="button"
-                          className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
+                          className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-[var(--accent)] hover:text-[var(--accent)]"
                           onClick={e => {
                             e.stopPropagation();
                             playCardAudio(cardPopover.card);
@@ -3352,8 +3353,8 @@ export default function WatchPage() {
                     type="button"
                     className={`flex-1 rounded-full border px-2 py-1 text-[11px] font-medium ${
                       isUnknown
-                        ? 'border-orange-500 bg-orange-500 text-white'
-                        : 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
+                        ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]'
                     }`}
                     onClick={e => {
                       e.stopPropagation();
@@ -3399,7 +3400,7 @@ export default function WatchPage() {
                     <div className="mb-3 flex items-center justify-between">
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2">
-                          <div className="text-sm font-semibold text-gray-900">
+                          <div className="vocab-word text-[18px] font-semibold text-gray-900">
                             {normalized.headword ||
                               activeCard.trigger_word}
                           </div>
@@ -3415,7 +3416,7 @@ export default function WatchPage() {
                               {normalized.pos}
                             </span>
                           )}
-                          <span className="text-rose-700">
+                          <span className="text-[var(--accent)]">
                             {normalized.def}
                           </span>
                         </div>
@@ -3433,7 +3434,7 @@ export default function WatchPage() {
                         <span>{normalized.ipa}</span>
                         <button
                           type="button"
-                          className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
+                          className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-[var(--accent)] hover:text-[var(--accent)]"
                           onClick={() => playCardAudio(activeCard)}
                           aria-label="播放单词读音"
                         >
@@ -3514,8 +3515,8 @@ export default function WatchPage() {
                       type="button"
                       className={`flex-1 rounded-full border px-3 py-2 text-[12px] font-medium ${
                         isUnknown
-                          ? 'border-orange-500 bg-orange-500 text-white'
-                          : 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
+                          ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]'
                       }`}
                       onClick={() => {
                         handleUpdateVocabStatus(vocabKey, 'unknown');
@@ -3787,11 +3788,13 @@ export default function WatchPage() {
                     disabled={isTrial && trialEnded}
                     aria-label="影子跟读"
                 >
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
                       shadowSubtitleIndex === currentSubtitleIndex && shadowMode === 'recording'
-                          ? 'text-[#FF2442] bg-[#FF2442]/5'
-                          : 'text-gray-400 group-active:bg-black/5'
-                  }`}>
+                        ? 'text-[var(--accent)] bg-[var(--accent-soft)]'
+                        : 'text-gray-400 group-active:bg-black/5'
+                    }`}
+                  >
                     {shadowSubtitleIndex === currentSubtitleIndex &&
                     shadowMode === 'reviewing' ? (
                         <IconReplay className="h-[22px] w-[22px] text-blue-500" />
@@ -3869,7 +3872,7 @@ export default function WatchPage() {
                   {panelMode === 'transcript' &&
                     user &&
                     vocabUnknownCount > 0 && (
-                      <span className="absolute right-3 top-1.5 min-w-[16px] rounded-full bg-[#FF2442] px-1 text-[10px] font-semibold leading-none text-white">
+                      <span className="absolute right-3 top-1.5 min-w-[16px] rounded-full bg-[var(--accent)] px-1 text-[10px] font-semibold leading-none text-white">
                         {vocabUnknownCount}
                       </span>
                     )}
@@ -3922,7 +3925,7 @@ export default function WatchPage() {
               <button
                 type="button"
                 onClick={() => router.push('/login')}
-                className="w-full rounded-full bg-[#FF2442] px-3 py-2 font-medium text-white shadow-sm shadow-[#FF2442]/40 hover:bg-[#ff4a61]"
+                className="w-full rounded-full bg-[var(--accent)] px-3 py-2 font-medium text-white shadow-sm shadow-[rgba(232,141,147,0.5)] hover:bg-[#e27980]"
               >
                 去登录 / 注册
               </button>
