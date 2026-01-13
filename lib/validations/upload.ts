@@ -22,12 +22,22 @@ export const KnowledgeCardSchema = z.object({
     pos: z.string().optional(),              // 词性（如 v./n./adj.）
     collocations: z.array(z.string()).optional(), // 常见搭配
     synonyms: z.array(z.string()).optional(),     // 近义词
+    antonyms: z.array(z.string()).optional(),     // 反义词
+    derived_form: z.string().optional(),          // 关联词形
     difficulty_level: z.string().optional(),      // 难度标签（保留字段）
     structure: z.string().optional(),             // 短语 / 短语动词结构
     register: z.string().optional(),              // 语体（口语/正式等）
     paraphrase: z.string().optional(),            // 英文释义或同义改写
     function_label: z.string().optional(),        // 功能标签（如“缓和语气”）
     scenario: z.string().optional(),              // 典型使用场景描述
+    note: z.string().optional(),                  // 使用提示（情绪、禁忌等）
+    response_guide: z.string().optional(),        // 接话指南
+    example: z
+      .object({
+        en: z.string().optional(),
+        cn: z.string().optional()
+      })
+      .optional(),                                // 额外例句（非原句）
     source: z
       .object({
         sentence_en: z.string().optional(),       // 完整英文原句

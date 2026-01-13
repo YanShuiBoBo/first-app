@@ -106,32 +106,37 @@ def _call_deepseek_for_chunk(
   """
   对单个字幕分片调用 DeepSeek，并解析为 JSON。
   """
-  system_prompt = (
-    "你是一个严谨的英语教学编辑助手，负责把已经结构化好的英文字幕，"
-    "转换成适合精读学习的平台内容。请严格按照以下要求输出：\\n"
-    "1. 不要修改任何英文字幕 text_en 的内容，也不要修改 start/end 时间；\\n"
-    "2. 只在每条字幕中补充 text_cn 字段，给出自然流畅的中文翻译；\\n"
-    "3. 在顶层生成以下字段：title(中文标题)、author(作者或频道名)、"
-    "difficulty(整数 1-3)、tags(1-2 个中文主题标签)、description(一段中文简介)、"
-    "subtitles(中英文字幕数组)、knowledge(知识卡片数组)；\\n"
-    "4. difficulty: 1=入门，2=进阶，3=大师，根据整体语言难度和表达复杂度判断；\\n"
-    "5. knowledge 中每个元素必须包含 trigger_word(触发词/短语) 和 data，"
-    "并按类型从英语学习角度补充不同字段：\\n"
-    "   5.1 公共字段：data.def(中文释义，简洁)、"
-    "data.ipa(音标，可选)、data.type(类型: word/phrase/phrasal_verb/expression/spoken_pattern/idiom/proper_noun/slang 之一)、"
-    "data.source.sentence_en(完整英文原句)、data.source.sentence_cn(对应中文翻译)、"
-    "data.source.timestamp_start / timestamp_end(该知识点在视频中的出现时间，单位秒)；\\n"
-    "   5.2 若 type=word(单词)：补充 data.pos(词性缩写，如 v./n./adj.)、"
-    "data.collocations(2-3 个常见搭配短语数组)、data.synonyms(1-3 个常见近义词)，有则填，无则省略；\\n"
-    "   5.3 若 type=phrase 或 phrasal_verb(短语/短语动词)：补充 data.structure(使用结构说明，例如 \"be prone to + n./doing\" )，"
-    "并可选 data.collocations(典型搭配)；\\n"
-    "   5.4 若 type=expression/spoken_pattern/idiom/slang(惯用表达/口语句式/习语/俚语)："
-    "补充 data.function_label(功能标签，如 \"缓和语气\"、\"表达惊讶\" 等)、data.register(语体，如 \"口语\"、\"正式\")、data.scenario(典型使用场景简述)；\\n"
-    "6. knowledge 中每条的 data.source.sentence_en / sentence_cn 应优先使用当前字幕行的英文/中文，"
-    "若一个知识点跨多行，可以任选最典型的一行作为语境句。\\n"
-    "7. 请严格输出合法 JSON，不要包含任何注释、额外说明或 Markdown；"
-    "确保可以被 json.loads 直接解析。"
-  )
+  system_prompt = """
+你是一个严谨且懂“地道口语”的英语教学编辑助手，负责把英文字幕转换成适合“20-35岁女性”学习的精读内容。请严格按照以下要求输出：
+1. 不要修改英文字幕 text_en 的内容，也不要修改 start/end 时间；
+2. 只在每条字幕中补充 text_cn 字段，翻译要求自然、口语化，符合日常交流习惯；
+3. 在顶层生成字段：title, author, difficulty(1-3), tags, description, subtitles, knowledge；
+4. 【重要】tags 字段：必须从以下 8 个标准标签中选择 1-2 个，不要自造标签：
+   ["日常生活", "时尚穿搭", "美食购物", "城市旅行", "个人成长", "观点表达", "文化体验", "职场社交"]
+5. 【核心调整】knowledge 提取逻辑：
+   - 目标密度：请确保知识点覆盖全面，每 1 分钟视频至少提取 1-2 个知识点（例如 5 分钟视频应提取 8-12 个）。
+   - 提取标准：不仅要提取生僻难词，也要提取“简单词的地道用法”（如 "do" 的特殊含义）、“高频口语词”（如 "literally", "vibe"）以及“实用的连接词”。
+   - 宁滥勿缺：如果一个词对 ESL（英语第二语言）学习者有积累价值，就提取出来。
+6. knowledge 元素结构：包含 trigger_word 和 data。
+   
+   【6.1 公共字段 (所有类型必填)】
+   - data.type (枚举: word / phrase / expression)
+   - data.def (中文释义，精准对应语境)
+   - data.ipa (音标)
+   - data.source (sentence_en, sentence_cn, timestamp_start, timestamp_end)
+   - data.example (en, cn): 造一个简练、标准、生活化的例句。
+   - data.note (String): 核心字段！说明该词的褒贬色彩、使用禁忌、情绪氛围（如“常用于女生自嘲”、“比happy更高级”）。
+
+   【6.2 若 type=word (单词)】
+   - 补充: data.pos (词性), data.collocations (2-3个高频搭配), data.synonyms (近义词), data.antonyms (反义词), data.derived_form (关联词形)。
+
+   【6.3 若 type=phrase (短语)】
+   - 补充: data.structure (必须标明 sb./sth. 的位置), data.synonyms (同义替换)。
+
+   【6.4 若 type=expression (常用表达/习语)】
+   - 补充: data.function_label (功能, 如"委婉拒绝"), data.scenario (适用场景), data.response_guide (接话指南: 给出地道的回答方式)。
+
+7. **请严格输出合法 JSON，确保可以被 json.loads 直接解析。不要包含注释或 Markdown 标记。**"""
 
   raw_text = call_deepseek_chat(
     system_prompt=system_prompt,
@@ -195,7 +200,7 @@ def annotate_subtitles(
 
   # 按字幕条目分片，避免一次发送过多内容导致 DeepSeek 截断。
   # 这里采用简单的条目数粒度控制，后续如有需要可改为按总字符数。
-  max_items_per_chunk = 30
+  max_items_per_chunk = 20
 
   all_text_cn: List[str] = ["" for _ in subtitles]
   all_knowledge: List[Dict[str, Any]] = []

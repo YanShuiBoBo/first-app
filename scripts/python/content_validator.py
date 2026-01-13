@@ -198,7 +198,7 @@ def normalize_knowledge(raw: Any) -> List[Dict[str, Any]]:
       if pos:
         card_data["pos"] = pos
 
-    # 搭配 / 近义
+    # 搭配 / 近义 / 反义
     collocations = _normalize_string_list(data.get("collocations"))
     if collocations:
       card_data["collocations"] = collocations
@@ -206,6 +206,10 @@ def normalize_knowledge(raw: Any) -> List[Dict[str, Any]]:
     synonyms = _normalize_string_list(data.get("synonyms"))
     if synonyms:
       card_data["synonyms"] = synonyms
+
+    antonyms = _normalize_string_list(data.get("antonyms"))
+    if antonyms:
+      card_data["antonyms"] = antonyms
 
     # 其他文本字段
     difficulty_level_raw = data.get("difficulty_level")
@@ -243,6 +247,44 @@ def normalize_knowledge(raw: Any) -> List[Dict[str, Any]]:
       scenario = scenario_raw.strip()
       if scenario:
         card_data["scenario"] = scenario
+
+    # derived_form：关联词形
+    derived_form_raw = data.get("derived_form")
+    if isinstance(derived_form_raw, str):
+      derived_form = derived_form_raw.strip()
+      if derived_form:
+        card_data["derived_form"] = derived_form
+
+    # note：使用提示
+    note_raw = data.get("note")
+    if isinstance(note_raw, str):
+      note = note_raw.strip()
+      if note:
+        card_data["note"] = note
+
+    # response_guide：接话指南（主要针对表达类）
+    response_guide_raw = data.get("response_guide")
+    if isinstance(response_guide_raw, str):
+      response_guide = response_guide_raw.strip()
+      if response_guide:
+        card_data["response_guide"] = response_guide
+
+    # example：额外例句（en/cn）
+    example_raw = data.get("example")
+    if isinstance(example_raw, dict):
+      ex_obj: Dict[str, Any] = {}
+      ex_en_raw = example_raw.get("en")
+      if isinstance(ex_en_raw, str):
+        ex_en = ex_en_raw.strip()
+        if ex_en:
+          ex_obj["en"] = ex_en
+      ex_cn_raw = example_raw.get("cn")
+      if isinstance(ex_cn_raw, str):
+        ex_cn = ex_cn_raw.strip()
+        if ex_cn:
+          ex_obj["cn"] = ex_cn
+      if ex_obj:
+        card_data["example"] = ex_obj
 
     # sentence（英文原句，兼容老数据）
     sentence_raw = data.get("sentence")

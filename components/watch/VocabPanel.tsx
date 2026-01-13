@@ -22,11 +22,18 @@ export interface VocabItem {
   definition: string;
   collocations?: string[];
   synonyms?: string[];
+  antonyms?: string[];
   structure?: string;
   register?: string;
   paraphrase?: string;
   scenario?: string;
   functionLabel?: string;
+  difficultyLevel?: string;
+  note?: string;
+  derivedForm?: string;
+  exampleEn?: string;
+  exampleCn?: string;
+  responseGuide?: string;
   source?: VocabSource;
   status: VocabStatus;
 }
@@ -299,13 +306,22 @@ const VocabCard: React.FC<VocabCardProps> = ({
   const isUnknown = item.status === 'unknown';
 
   const base =
-    'relative rounded-2xl border px-3 py-2.5 text-[11px] transition-all';
+    'relative rounded-2xl border px-3.5 py-3 text-[12px] transition-all';
+
+  let kindBg = '';
+  if (item.kind === 'word') {
+    kindBg = 'bg-violet-50 border-violet-100';
+  } else if (item.kind === 'phrase') {
+    kindBg = 'bg-rose-50 border-rose-100';
+  } else {
+    kindBg = 'bg-amber-50 border-amber-100';
+  }
 
   const stateClass = isUnknown
-    ? 'border-orange-300 bg-orange-50'
+    ? `${kindBg} shadow-sm`
     : isKnown
-    ? 'border-transparent bg-green-50 opacity-60'
-    : 'border-gray-100 bg-white shadow-sm hover:border-gray-200 hover:bg-gray-50';
+    ? `${kindBg} opacity-60`
+    : `${kindBg} shadow-sm hover:shadow-md`;
 
   return (
     <div className={`${base} ${stateClass}`}>
@@ -314,11 +330,11 @@ const VocabCard: React.FC<VocabCardProps> = ({
           {/* Row 1: 头部 + 标签 */}
           <div className="flex items-baseline justify-between gap-2">
             <div className="flex flex-wrap items-baseline gap-1">
-              <span className="text-[15px] font-semibold text-gray-900">
+              <span className="text-[16px] font-semibold text-gray-900">
                 {item.headword}
               </span>
               {item.ipa && (
-                <span className="font-serif text-[11px] text-gray-500">
+                <span className="font-serif text-[12px] text-gray-600">
                   {item.ipa}
                 </span>
               )}
@@ -331,7 +347,7 @@ const VocabCard: React.FC<VocabCardProps> = ({
           </div>
 
           {/* Row 2: 词性 + 义项 / 功能 */}
-          <div className="mt-1 text-[11px]">
+          <div className="mt-1 text-[12px] font-medium text-gray-800">
             {item.pos && (
               <span className="mr-1 font-medium text-gray-700">
                 {item.pos}
@@ -342,40 +358,124 @@ const VocabCard: React.FC<VocabCardProps> = ({
             </span>
           </div>
 
-          {/* Row 3: Collocations / Structure / Scenario */}
-          {item.collocations && item.collocations.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-1">
-              {item.collocations.map(col => (
-                <span
-                  key={col}
-                  className="rounded-md bg-slate-100 px-2 py-[2px] text-[10px] text-slate-600"
-                >
-                  {col}
-                </span>
-              ))}
+          {/* Row 3: 按类型展示额外属性（同步知识卡片字段） */}
+          {item.kind === 'word' && (
+            <div className="mt-1 space-y-0.5 text-[11px] text-gray-700">
+              {item.collocations && item.collocations.length > 0 && (
+                <div>
+                  <span className="mr-1 text-gray-500">搭配：</span>
+                  <span>{item.collocations.join(' · ')}</span>
+                </div>
+              )}
+              {item.synonyms && item.synonyms.length > 0 && (
+                <div>
+                  <span className="mr-1 text-gray-500">近义：</span>
+                  <span>{item.synonyms.join(' · ')}</span>
+                </div>
+              )}
+              {item.antonyms && item.antonyms.length > 0 && (
+                <div>
+                  <span className="mr-1 text-gray-500">反义：</span>
+                  <span>{item.antonyms.join(' · ')}</span>
+                </div>
+              )}
+              {item.derivedForm && (
+                <div>
+                  <span className="mr-1 text-gray-500">词形：</span>
+                  <span>{item.derivedForm}</span>
+                </div>
+              )}
+              {item.note && (
+                <div>
+                  <span className="mr-1 text-gray-500">用法：</span>
+                  <span>{item.note}</span>
+                </div>
+              )}
             </div>
           )}
 
-          {item.structure && (
-            <div className="mt-1 font-mono text-[10px] text-indigo-600">
-              structure: {item.structure}
+          {item.kind === 'phrase' && (
+            <div className="mt-1 space-y-0.5 text-[11px] text-gray-700">
+              {item.structure && (
+                <div className="font-mono text-indigo-600">
+                  结构：{item.structure}
+                </div>
+              )}
+              {item.synonyms && item.synonyms.length > 0 && (
+                <div>
+                  <span className="mr-1 text-gray-500">同义：</span>
+                  <span>{item.synonyms.join(' · ')}</span>
+                </div>
+              )}
+              {item.note && (
+                <div>
+                  <span className="mr-1 text-gray-500">用法：</span>
+                  <span>{item.note}</span>
+                </div>
+              )}
             </div>
           )}
 
-          {item.scenario && (
-            <div className="mt-1 text-[10px] text-gray-500">
-              {item.scenario}
+          {item.kind === 'expression' && (
+            <div className="mt-1 space-y-0.5 text-[11px] text-gray-700">
+              {item.functionLabel && (
+                <div>
+                  <span className="mr-1 text-gray-500">功能：</span>
+                  <span>{item.functionLabel}</span>
+                </div>
+              )}
+              {item.scenario && (
+                <div>
+                  <span className="mr-1 text-gray-500">场景：</span>
+                  <span>{item.scenario}</span>
+                </div>
+              )}
+              {item.responseGuide && (
+                <div>
+                  <span className="mr-1 text-gray-500">接话：</span>
+                  <span>{item.responseGuide}</span>
+                </div>
+              )}
+              {item.note && (
+                <div>
+                  <span className="mr-1 text-gray-500">用法：</span>
+                  <span>{item.note}</span>
+                </div>
+              )}
             </div>
           )}
 
           {/* Row 4: Source sentence */}
           {(item.source?.sentence_en || item.source?.sentence_cn) && (
-            <div className="mt-1 border-l border-gray-200 pl-2 text-[10px] text-gray-600">
+            <div className="mt-1 border-l border-gray-200 pl-2 text-[11px] text-gray-700">
               {item.source.sentence_en && (
-                <div className="italic">{item.source.sentence_en}</div>
+                <div className="italic text-[12px] text-gray-900">
+                  {item.source.sentence_en}
+                </div>
               )}
               {item.source.sentence_cn && (
-                <div className="mt-0.5">{item.source.sentence_cn}</div>
+                <div className="mt-0.5 text-[11px] text-gray-600">
+                  {item.source.sentence_cn}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Row 5: 额外例句（example） */}
+          {(item.exampleEn || item.exampleCn) && (
+            <div className="mt-1 text-[11px] text-gray-700">
+              <div className="mb-0.5 text-[10px] text-gray-500">
+                例句
+              </div>
+              {item.exampleEn && (
+                <div className="italic text-[11px] text-gray-800">
+                  {item.exampleEn}
+                </div>
+              )}
+              {item.exampleCn && (
+                <div className="mt-0.5 text-[10px] text-gray-500">
+                  {item.exampleCn}
+                </div>
               )}
             </div>
           )}
