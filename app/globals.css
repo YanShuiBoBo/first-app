@@ -2,8 +2,8 @@
 
 :root {
   /* Creamy Aesthetic 配色体系 */
-  --bg-body: #fafaf8;       /* 暖米白页面背景 */
-  --bg-shell: #f5f5f0;      /* 面板 / 侧栏背景 */
+  --bg-body: #efefef;
+  --bg-shell: #faf9f6;
   --bg-card: #ffffff;
 
   --glass-bg: rgba(255, 255, 255, 0.75);
@@ -12,19 +12,18 @@
   --shadow-island: 0 20px 50px rgba(100, 80, 60, 0.08);
   --shadow-card: 0 8px 20px rgba(166, 160, 150, 0.08);
 
-  --primary-black: #2d2d2d; /* 炭黑，不用纯黑 */
-  --text-main: #2d2d2d;
-  --text-sub: #888888;
+  --primary-black: #2a2a2a;
+  --text-main: #444444;
+  --text-sub: #999999;
   --icon-stroke: #555555;
 
-  /* 干枯玫瑰色系 */
-  --hl-purple-bg: rgba(232, 141, 147, 0.22);
-  --hl-purple-text: #c0666b;
-  --hl-pink-bg: rgba(232, 141, 147, 0.22);
-  --hl-pink-text: #c0666b;
+  --hl-purple-bg: #f3e8ff;
+  --hl-purple-text: #7e22ce;
+  --hl-pink-bg: #fce7f3;
+  --hl-pink-text: #be185d;
 
-  --accent: #e88d93;        /* 品牌主色：干枯玫瑰粉 */
-  --badge-red: #e88d93;     /* 通知红点使用同一色系 */
+  --accent: #7c3aed;
+  --badge-red: #ff5e57;
 
   /* 首页品牌胶囊配色 */
   --color-brand-pink-bg: #fce7f3;
@@ -34,45 +33,39 @@
 
 body {
   background: var(--bg-body); /* 暖奶白背景 */
-  color: var(--text-main);
+  color: #171717;
   font-family: -apple-system, BlinkMacSystemFont, system-ui, -system-ui, "Segoe UI",
     sans-serif;
 }
 
-/* 高亮词：马克笔 / 荧光笔风格，避免厚重色块 */
+/* 高亮词：对齐 HTML demo 的荧光笔风格 */
 .hl {
-  display: inline;
-  position: relative;
-  padding: 0 3px;
-  border-radius: 4px;
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 6px;
   cursor: pointer;
-  background-image: linear-gradient(
-    120deg,
-    rgba(232, 141, 147, 0) 0%,
-    rgba(232, 141, 147, 0.22) 100%
-  );
-  background-repeat: no-repeat;
-  background-size: 100% 55%;
-  background-position: 0 88%;
-  transition: background-color 0.15s ease, transform 0.15s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .hl-p {
+  background: var(--hl-purple-bg);
   color: var(--hl-purple-text);
 }
 
 .hl-y {
+  background: var(--hl-pink-bg);
   color: var(--hl-pink-text);
 }
 
 /* 生词本：标记为“不认识”的词，使用淡红色底作为额外语义高亮 */
 .hl-unknown {
-  background-color: rgba(232, 141, 147, 0.18);
-  color: #b34049;
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .hl:hover {
   transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
 /* 字幕列表：对齐 HTML demo 的 feed-list 和 card 样式 */
@@ -171,8 +164,8 @@ body {
 @media (min-width: 1024px) {
   .card.subtitle-card.active {
     background-color: #ffffff;
-    border-color: rgba(232, 141, 147, 0.28);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+    border-color: rgba(255, 36, 66, 0.18);
+    box-shadow: 0 6px 20px rgba(255, 36, 66, 0.12);
   }
 }
 

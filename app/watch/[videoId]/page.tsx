@@ -2221,9 +2221,9 @@ export default function WatchPage() {
   // 页面渲染
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FAFAF8] text-gray-700">
+      <div className="flex min-h-screen items-center justify-center bg-[#F8F8F8] text-gray-700">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[rgba(232,141,147,0.35)] border-t-[#E88D93]" />
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#FF2442]/30 border-t-[#FF2442]" />
           <p className="text-sm text-gray-500">正在加载精读内容...</p>
         </div>
       </div>
@@ -2232,8 +2232,8 @@ export default function WatchPage() {
 
   if (error || !videoData) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FAFAF8] text-gray-900">
-        <div className="rounded-2xl border border-rose-100 bg-white px-6 py-5 text-center text-sm shadow-sm shadow-rose-100/60">
+      <div className="flex min-h-screen items-center justify-center bg-[#F8F8F8] text-gray-900">
+        <div className="rounded-2xl border border-red-100 bg-white px-6 py-5 text-center text-sm shadow-sm shadow-red-100/60">
           <p className="mb-2 text-base font-semibold">获取视频数据失败</p>
           <p className="text-xs text-gray-500">{error || '未知错误'}</p>
         </div>
@@ -2799,7 +2799,7 @@ export default function WatchPage() {
                       <IconVocab className="h-3.5 w-3.5" />
                       <span>生词</span>
                       {user && vocabUnknownCount > 0 && (
-                        <span className="ml-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[#E88D93] px-1 text-[10px] font-semibold text-white">
+                        <span className="ml-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[#FF2442] px-1 text-[10px] font-semibold text-white">
                           {vocabUnknownCount}
                         </span>
                       )}
@@ -2908,8 +2908,8 @@ export default function WatchPage() {
                             type="button"
                             className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${
                               likedSubtitles.has(index)
-                                ? 'text-[#E88D93]'
-                                : 'text-gray-300 hover:text-[#E88D93]'
+                                ? 'text-[#FF2442]'
+                                : 'text-gray-300 hover:text-[#FF2442]'
                             }`}
                             onClick={e => {
                               e.stopPropagation();
@@ -2994,7 +2994,7 @@ export default function WatchPage() {
                             className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
                               shadowSubtitleIndex === index &&
                               shadowMode === 'recording'
-                                ? 'text-[#E88D93]'
+                                ? 'text-[#FF2442]'
                                 : 'text-gray-400 hover:text-gray-600'
                             }`}
                             title="跟读"
@@ -3143,7 +3143,7 @@ export default function WatchPage() {
                                   <div className="ml-1 flex flex-col items-end gap-1">
                                     <button
                                       type="button"
-                                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#E88D93]"
+                                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
                                       onClick={e => {
                                         e.stopPropagation();
                                         handlePlayVocabClip(item);
@@ -3256,7 +3256,7 @@ export default function WatchPage() {
                       {normalized.ipa && (
                         <button
                           type="button"
-                          className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#E88D93]"
+                          className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
                           onClick={e => {
                             e.stopPropagation();
                             playCardAudio(cardPopover.card);
@@ -3433,7 +3433,7 @@ export default function WatchPage() {
                         <span>{normalized.ipa}</span>
                         <button
                           type="button"
-                          className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#E88D93]"
+                          className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-[#FF2442]"
                           onClick={() => playCardAudio(activeCard)}
                           aria-label="播放单词读音"
                         >
@@ -3789,7 +3789,7 @@ export default function WatchPage() {
                 >
                   <div className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
                       shadowSubtitleIndex === currentSubtitleIndex && shadowMode === 'recording'
-                          ? 'text-[#E88D93] bg-[#E88D93]/8'
+                          ? 'text-[#FF2442] bg-[#FF2442]/5'
                           : 'text-gray-400 group-active:bg-black/5'
                   }`}>
                     {shadowSubtitleIndex === currentSubtitleIndex &&
@@ -3866,10 +3866,10 @@ export default function WatchPage() {
                     )}
                   </div>
                   {/* 只有在字幕模式且存在生词时显示红点数量 */}
-                                  {panelMode === 'transcript' &&
+                  {panelMode === 'transcript' &&
                     user &&
                     vocabUnknownCount > 0 && (
-                      <span className="absolute right-3 top-1.5 min-w-[16px] rounded-full bg-[#E88D93] px-1 text-[10px] font-semibold leading-none text-white">
+                      <span className="absolute right-3 top-1.5 min-w-[16px] rounded-full bg-[#FF2442] px-1 text-[10px] font-semibold leading-none text-white">
                         {vocabUnknownCount}
                       </span>
                     )}
@@ -3922,7 +3922,7 @@ export default function WatchPage() {
               <button
                 type="button"
                 onClick={() => router.push('/login')}
-                className="w-full rounded-full bg-[#E88D93] px-3 py-2 font-medium text-white shadow-sm shadow-[#E88D93]/40 hover:bg-[#d97379]"
+                className="w-full rounded-full bg-[#FF2442] px-3 py-2 font-medium text-white shadow-sm shadow-[#FF2442]/40 hover:bg-[#ff4a61]"
               >
                 去登录 / 注册
               </button>
