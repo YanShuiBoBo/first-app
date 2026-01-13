@@ -1341,62 +1341,62 @@ export default function Home() {
       )}
 
       {/* 移动端底部导航栏：iOS 风格毛玻璃悬浮条；当筛选/统计弹窗打开时隐藏 */}
-      {!isFilterSheetOpen && !isStatsSheetOpen && (
-        <nav className="fixed bottom-5 left-1/2 z-40 -translate-x-1/2 md:hidden">
-          <div className="flex h-[52px] w-[230px] items-center justify-between rounded-full border border-white/20 bg-white/80 px-3 text-[11px] text-slate-500 shadow-lg backdrop-blur-md">
-            {/* 首页 */}
-            <button
-              type="button"
-              className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[#FF2442]"
-              aria-label="回到首页"
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FF2442]/5 text-[#FF2442]">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.7}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M3 11.5 12 4l9 7.5" />
-                  <path d="M5 10.5v9h5v-5h4v5h5v-9" />
-                </svg>
-              </div>
-              <span className="text-[10px] font-semibold tracking-wide">
-                首页
-              </span>
-            </button>
+      {/*{!isFilterSheetOpen && !isStatsSheetOpen && (*/}
+      {/*  <nav className="fixed bottom-5 left-1/2 z-40 -translate-x-1/2 md:hidden">*/}
+      {/*    <div className="flex h-[52px] w-[230px] items-center justify-between rounded-full border border-white/20 bg-white/80 px-3 text-[11px] text-slate-500 shadow-lg backdrop-blur-md">*/}
+      {/*      /!* 首页 *!/*/}
+      {/*      <button*/}
+      {/*        type="button"*/}
+      {/*        className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[#FF2442]"*/}
+      {/*        aria-label="回到首页"*/}
+      {/*      >*/}
+      {/*        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FF2442]/5 text-[#FF2442]">*/}
+      {/*          <svg*/}
+      {/*            viewBox="0 0 24 24"*/}
+      {/*            className="h-5 w-5"*/}
+      {/*            fill="none"*/}
+      {/*            stroke="currentColor"*/}
+      {/*            strokeWidth={1.7}*/}
+      {/*            strokeLinecap="round"*/}
+      {/*            strokeLinejoin="round"*/}
+      {/*          >*/}
+      {/*            <path d="M3 11.5 12 4l9 7.5" />*/}
+      {/*            <path d="M5 10.5v9h5v-5h4v5h5v-9" />*/}
+      {/*          </svg>*/}
+      {/*        </div>*/}
+      {/*        <span className="text-[10px] font-semibold tracking-wide">*/}
+      {/*          首页*/}
+      {/*        </span>*/}
+      {/*      </button>*/}
 
-            {/* 分割线 */}
-            <div className="h-8 w-px bg-slate-200/80" />
+      {/*      /!* 分割线 *!/*/}
+      {/*      <div className="h-8 w-px bg-slate-200/80" />*/}
 
-            {/* 生词本 */}
-            <button
-              type="button"
-              className="flex flex-1 flex-col items-center justify-center gap-0.5 text-slate-500"
-              aria-label="打开生词本（即将上线）"
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.7}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
-                </svg>
-              </div>
-              <span className="text-[10px] font-medium">笔记本</span>
-            </button>
-          </div>
-        </nav>
-      )}
+      {/*      /!* 生词本 *!/*/}
+      {/*      <button*/}
+      {/*        type="button"*/}
+      {/*        className="flex flex-1 flex-col items-center justify-center gap-0.5 text-slate-500"*/}
+      {/*        aria-label="打开生词本（即将上线）"*/}
+      {/*      >*/}
+      {/*        <div className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500">*/}
+      {/*          <svg*/}
+      {/*            viewBox="0 0 24 24"*/}
+      {/*            className="h-5 w-5"*/}
+      {/*            fill="none"*/}
+      {/*            stroke="currentColor"*/}
+      {/*            strokeWidth={1.7}*/}
+      {/*            strokeLinecap="round"*/}
+      {/*            strokeLinejoin="round"*/}
+      {/*          >*/}
+      {/*            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />*/}
+      {/*            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />*/}
+      {/*          </svg>*/}
+      {/*        </div>*/}
+      {/*        <span className="text-[10px] font-medium">笔记本</span>*/}
+      {/*      </button>*/}
+      {/*    </div>*/}
+      {/*  </nav>*/}
+      {/*)}*/}
 
       {/* 移动端学习数据 Bottom Sheet */}
       {isStatsSheetOpen && (
