@@ -200,7 +200,7 @@ def annotate_subtitles(
 
   # 按字幕条目分片，避免一次发送过多内容导致 DeepSeek 截断。
   # 这里采用简单的条目数粒度控制，后续如有需要可改为按总字符数。
-  max_items_per_chunk = 20
+  max_items_per_chunk = 10
 
   all_text_cn: List[str] = ["" for _ in subtitles]
   all_knowledge: List[Dict[str, Any]] = []
