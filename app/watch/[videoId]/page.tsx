@@ -3011,21 +3011,21 @@ export default function WatchPage() {
                               <IconMic className="h-4 w-4" />
                             )}
                           </button>
-                          <button
-                            type="button"
-                            className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${
-                              likedSubtitles.has(index)
-                                ? 'text-[#E88D93]'
-                                : 'text-gray-400 hover:text-gray-600'
-                            }`}
-                            title="收藏"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleToggleLike(index);
-                            }}
-                          >
-                            <IconLike className="h-4 w-4" />
-                          </button>
+                          {/*<button*/}
+                          {/*  type="button"*/}
+                          {/*  className={`inline-flex h-5 w-5 items-center justify-center text-[13px] ${*/}
+                          {/*    likedSubtitles.has(index)*/}
+                          {/*      ? 'text-[#E88D93]'*/}
+                          {/*      : 'text-gray-400 hover:text-gray-600'*/}
+                          {/*  }`}*/}
+                          {/*  title="收藏"*/}
+                          {/*  onClick={e => {*/}
+                          {/*    e.stopPropagation();*/}
+                          {/*    handleToggleLike(index);*/}
+                          {/*  }}*/}
+                          {/*>*/}
+                          {/*  <IconLike className="h-4 w-4" />*/}
+                          {/*</button>*/}
                         </div>
 
                         {/* 工具栏：移动端仅当前行展开（仅图标） */}
