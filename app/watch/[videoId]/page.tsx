@@ -109,15 +109,38 @@ interface KnowledgeCard {
   };
 }
 
-// 不同类型卡片在气泡中展示的中文标签
+// 不同类型卡片在气泡中展示的中文标签（仅保留三大类：单词 / 短语 / 表达）
 const getCardTypeLabel = (
   type: KnowledgeCard['data']['type'] | undefined
 ): string | null => {
   switch (type) {
     case 'word':
+    case 'proper_noun':
       return '单词';
     case 'phrase':
+    case 'phrasal_verb':
       return '短语';
+    case 'expression':
+    case 'spoken_pattern':
+    case 'idiom':
+    case 'slang':
+      return '表达';
+    default:
+      return null;
+  }
+};
+
+// 更细粒度的原始类型标签（专有名词 / 习语 / 俚语等），放在知识卡片正文下方的“类别”行里展示
+const getRawTypeLabel = (
+  type: KnowledgeCard['data']['type'] | undefined
+): string | null => {
+  switch (type) {
+    case 'word':
+      return '普通词汇';
+    case 'proper_noun':
+      return '专有名词';
+    case 'phrase':
+      return '固定短语';
     case 'phrasal_verb':
       return '短语动词';
     case 'expression':
@@ -127,8 +150,6 @@ const getCardTypeLabel = (
     case 'idiom':
     case 'slang':
       return '习语 / 俚语';
-    case 'proper_noun':
-      return '专有名词';
     default:
       return null;
   }
@@ -151,8 +172,8 @@ const getHighlightClassNames = (
     case 'spoken_pattern':
     case 'idiom':
     case 'slang':
-      // 惯用表达/口语句式/习语：默认使用粉色荧光
-      return 'hl hl-y';
+      // 惯用表达/口语句式/习语：第三种暖杏色荧光
+      return 'hl hl-e';
     // 默认：紫色荧光
     default:
       return 'hl hl-p';
@@ -2263,6 +2284,16 @@ export default function WatchPage() {
     item => item.status === 'unknown'
   ).length;
 
+  // 移动端 / 桌面端左上角返回按钮：优先使用 history.back 提升返回速度，
+  // 没有历史记录时再回退到首页路径，避免在 App 内嵌 WebView 中每次都重新加载首页。
+  const handleBackToHome = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/');
+    }
+  };
+
   return (
     <div className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[var(--bg-shell)] text-gray-900 lg:h-screen lg:overflow-hidden lg:bg-[var(--bg-body)]">
       {/* 桌面端顶部导航栏：移动端在视频上方单独实现 */}
@@ -2270,7 +2301,7 @@ export default function WatchPage() {
         <button
           type="button"
           className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
-          onClick={() => router.push('/')}
+          onClick={handleBackToHome}
           aria-label="返回上一页"
         >
           <IconArrowLeft className="h-3.5 w-3.5" />
@@ -2346,7 +2377,7 @@ export default function WatchPage() {
                         <button
                           type="button"
                           className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/40"
-                          onClick={() => router.push('/')}
+                          onClick={handleBackToHome}
                           aria-label="回到首页"
                         >
                           <IconArrowLeft className="h-3.5 w-3.5" />
@@ -2854,7 +2885,7 @@ export default function WatchPage() {
                         type="button"
                         className={`inline-flex items-center rounded-full px-3 py-1.5 text-[11px] font-medium ${
                           vocabItems.length > 0
-                            ? 'bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)] hover:bg-[var(--accent-soft)]/90'
+                            ? 'bg-emerald-50 text-emerald-700 shadow-sm shadow-[rgba(16,185,129,0.25)] hover:bg-emerald-100'
                             : 'bg-stone-100 text-stone-400 cursor-not-allowed'
                         }`}
                         disabled={vocabItems.length === 0}
@@ -3157,7 +3188,7 @@ export default function WatchPage() {
                                 <div className="mt-2 flex justify-end">
                                   <button
                                     type="button"
-                                    className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-medium text-gray-600 hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                                    className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700 hover:border-emerald-400 hover:bg-emerald-100"
                                     onClick={e => {
                                       e.stopPropagation();
                                       handleUpdateVocabStatus(
@@ -3216,6 +3247,9 @@ export default function WatchPage() {
               const typeLabel = getCardTypeLabel(
                 cardPopover.card.data.type
               );
+              const rawTypeLabel = getRawTypeLabel(
+                cardPopover.card.data.type
+              );
 
               const isWord = normalized.kind === 'word';
               const isPhrase = normalized.kind === 'phrase';
@@ -3271,6 +3305,14 @@ export default function WatchPage() {
                   </div>
 
                   {/* 类型相关的补充信息 */}
+                  {rawTypeLabel && (
+                    <div className="mt-1 text-[10px] text-gray-500">
+                      <span className="mr-1 text-gray-400">
+                        类别：
+                      </span>
+                      <span>{rawTypeLabel}</span>
+                    </div>
+                  )}
                   {isWord && normalized.collocations && (
                     <div className="mt-1 text-[10px] text-gray-600">
                       <span className="mr-1 text-gray-500">
@@ -3353,8 +3395,8 @@ export default function WatchPage() {
                     type="button"
                     className={`flex-1 rounded-full border px-2 py-1 text-[11px] font-medium ${
                       isUnknown
-                        ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]'
+                        ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm shadow-[rgba(0,0,0,0.12)]'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)]'
                     }`}
                     onClick={e => {
                       e.stopPropagation();
@@ -3390,6 +3432,9 @@ export default function WatchPage() {
                 const typeLabel = getCardTypeLabel(
                   activeCard.data.type
                 );
+                const rawTypeLabel = getRawTypeLabel(
+                  activeCard.data.type
+                );
 
                 const isWord = normalized.kind === 'word';
                 const isPhrase = normalized.kind === 'phrase';
@@ -3420,6 +3465,14 @@ export default function WatchPage() {
                             {normalized.def}
                           </span>
                         </div>
+                        {rawTypeLabel && (
+                          <div className="mt-0.5 text-[10px] text-gray-500">
+                            <span className="mr-1 text-gray-400">
+                              类别：
+                            </span>
+                            <span>{rawTypeLabel}</span>
+                          </div>
+                        )}
                       </div>
                       <button
                         className="text-xs text-gray-400 hover:text-gray-700"
@@ -3515,8 +3568,8 @@ export default function WatchPage() {
                       type="button"
                       className={`flex-1 rounded-full border px-3 py-2 text-[12px] font-medium ${
                         isUnknown
-                          ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]'
+                          ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm shadow-[rgba(0,0,0,0.12)]'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)]'
                       }`}
                       onClick={() => {
                         handleUpdateVocabStatus(vocabKey, 'unknown');

@@ -20,8 +20,9 @@
   /* 荧光笔高亮（紫 + 玫瑰粉） */
   --hl-purple-bg: #f3e8ff;
   --hl-purple-text: #7e22ce;
-  --hl-pink-bg: #fceeef;
-  --hl-pink-text: #e88d93;
+  /* 短语用稍深一点的蜜桃粉，和页面背景拉开对比 */
+  --hl-pink-bg: #fad4e5;
+  --hl-pink-text: #d44872;
 
   /* 品牌点缀色：干枯玫瑰粉 */
   --accent: #e88d93;
@@ -43,7 +44,7 @@ body {
     sans-serif;
 }
 
-/* 高亮词：对齐 HTML demo 的荧光笔风格 */
+/* 高亮词：不同类型使用不同颜色的底色（荧光笔效果） */
 .hl {
   display: inline-block;
   padding: 2px 6px;
@@ -55,11 +56,20 @@ body {
 .hl-p {
   background: var(--hl-purple-bg);
   color: var(--hl-purple-text);
+  text-decoration: none;
 }
 
 .hl-y {
   background: var(--hl-pink-bg);
   color: var(--hl-pink-text);
+  text-decoration: none;
+}
+
+/* 表达类高亮：暖杏色底，和紫/粉形成第三档区分 */
+.hl-e {
+  background: #fff4e5;
+  color: #c56a2d;
+  text-decoration: none;
 }
 
 /* 生词本：标记为“不认识”的词，使用淡红色底作为额外语义高亮 */
