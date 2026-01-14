@@ -114,7 +114,7 @@ def _call_deepseek_for_chunk(
 4. 【重要】tags 字段：必须从以下 8 个标准标签中选择 1-2 个，不要自造标签：
    ["日常生活", "时尚穿搭", "美食购物", "城市旅行", "个人成长", "观点表达", "文化体验", "职场社交"]
 5. 【核心调整】knowledge 提取逻辑：
-   - 目标密度：请确保知识点覆盖全面，每 1 分钟视频至少提取 1-2 个知识点（例如 5 分钟视频应提取 8-12 个）。
+   - 目标密度：请确保知识点覆盖全面。
    - 提取标准：不仅要提取生僻难词，也要提取“简单词的地道用法”（如 "do" 的特殊含义）、“高频口语词”（如 "literally", "vibe"）以及“实用的连接词”。
    - 宁滥勿缺：如果一个词对 ESL（英语第二语言）学习者有积累价值，就提取出来。
 6. knowledge 元素结构：包含 trigger_word 和 data。
@@ -136,7 +136,7 @@ def _call_deepseek_for_chunk(
    【6.4 若 type=expression (常用表达/习语)】
    - 补充: data.function_label (功能, 如"委婉拒绝"), data.scenario (适用场景), data.response_guide (接话指南: 给出地道的回答方式)。
 
-7. **请严格输出合法 JSON，确保可以被 json.loads 直接解析。不要包含注释或 Markdown 标记。**"""
+7. 请严格输出合法 JSON，确保可以被 **json.loads 直接解析**。不要包含注释或 Markdown 标记。"""
 
   raw_text = call_deepseek_chat(
     system_prompt=system_prompt,
