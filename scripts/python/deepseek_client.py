@@ -136,7 +136,11 @@ def _call_deepseek_for_chunk(
    【6.4 若 type=expression (常用表达/习语)】
    - 补充: data.function_label (功能, 如"委婉拒绝"), data.scenario (适用场景), data.response_guide (接话指南: 给出地道的回答方式)。
 
-7. 请严格输出合法 JSON，确保可以被 **json.loads 直接解析**。不要包含注释或 Markdown 标记。"""
+【输出要求】
+7. 请严格输出合法 JSON，确保可以被 **json.loads() 直接解析**
+8. **绝对不要包含任何注释、Markdown标记、或额外说明文字**
+9. **仔细核对每个字符串格式，确保不会出现漏引号的情况**
+"""
 
   raw_text = call_deepseek_chat(
     system_prompt=system_prompt,
@@ -145,6 +149,7 @@ def _call_deepseek_for_chunk(
     temperature=temperature,
   )
 
+  print(f"{raw_text}")
   # 先尝试直接解析
   try:
     return json.loads(raw_text)
