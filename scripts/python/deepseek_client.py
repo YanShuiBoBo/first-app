@@ -105,63 +105,135 @@ def _call_deepseek_for_chunk(
 ) -> Dict[str, Any]:
   """
   对单个字幕分片调用 DeepSeek，并解析为 JSON。
+  - DeepSeek 只负责「翻译 + 语言学属性 + 元信息」，不负责时间轴等可本地计算的信息；
+  - 字幕部分仅返回一个精简的 subtitles 对象数组：每项只包含 start + text_cn，
+    其余字段全部由脚本基于 skeleton 填充。
   """
   system_prompt = """
-你是一个严谨且懂“地道口语”的英语教学编辑助手，负责把英文字幕转换成适合“20-35岁女性”学习的精读内容。请严格按照以下要求输出：
-1. 不要修改英文字幕 text_en 的内容，也不要修改 start/end 时间；
-2. 只在每条字幕中补充 text_cn 字段，翻译要求自然、口语化，符合日常交流习惯；
-3. 在顶层生成字段：title, author, difficulty(1-3), tags, description, subtitles, knowledge；
-4. 【重要】tags 字段：必须从以下 8 个标准标签中选择 1-2 个，不要自造标签：
+你是一个严谨且懂“地道口语”的英语教学编辑助手，负责把英文字幕转换成适合“20-35岁女性”学习的精读内容。
+
+【整体目标】
+- 输入：一段英文字幕骨架 (subtitles 数组，仅包含 start/end/text_en 等字段)；
+- 输出：只在需要模型理解的地方动脑，包括：
+  1) 每条字幕对应的中文字幕 subtitles；
+  2) 视频级别的元信息：title, author, difficulty, tags, description；
+  3) 知识卡片数组 knowledge（围绕词汇/短语/表达的精读信息）。
+- 时间戳、原句等结构性信息由调用方本地计算，你不需要重复返回。
+
+【1. 字幕翻译 subtitles】
+1. 不要修改英文字幕 text_en 的内容，也不要修改 start/end 时间（这些都由调用方管理）；
+2. 只需要为每条字幕生成一个中文翻译，要求自然、口语化，符合 20-35 岁女性日常交流习惯；
+3. 请在顶层生成字段 subtitles，它是一个对象数组：
+   - subtitles[i] 必须严格对应输入 subtitles[i]；
+   - 每个对象的结构必须是：
+       { "start": <原样照抄输入 subtitles[i].start 的值>, "text_cn": "这一行的中文字幕" }
+   - 数组长度必须与输入 subtitles 完全一致，不能多也不能少；
+   - text_cn 必须是非空字符串，不能省略也不能留空。
+
+【2. 元信息 meta】
+4. 在顶层生成字段：title, author, difficulty(1-3), tags, description；
+5. tags 字段：必须从以下 8 个标准标签中选择 1-2 个，不要自造标签：
    ["日常生活", "时尚穿搭", "美食购物", "城市旅行", "个人成长", "观点表达", "文化体验", "职场社交"]
-5. 【核心调整】knowledge 提取逻辑：
-   - 目标密度：请确保知识点覆盖全面。
-   - 提取标准：不仅要提取生僻难词，也要提取“简单词的地道用法”（如 "do" 的特殊含义）、“高频口语词”（如 "literally", "vibe"）以及“实用的连接词”。
-   - 宁滥勿缺：如果一个词对 ESL（英语第二语言）学习者有积累价值，就提取出来。
-6. knowledge 元素结构：包含 trigger_word 和 data。
-   
-   【6.1 公共字段 (所有类型必填)】
-   - data.type (枚举: word / phrase / expression)
-   - data.def (中文释义，精准对应语境)
-   - data.ipa (音标)
-   - data.source (sentence_en, sentence_cn, timestamp_start, timestamp_end)
-   - data.example (en, cn): 造一个简练、标准、生活化的例句。
-   - data.note (String): 核心字段！说明该词的褒贬色彩、使用禁忌、情绪氛围（如“常用于女生自嘲”、“比happy更高级”）。
 
-   【6.2 若 type=word (单词)】
-   - 补充: data.pos (词性), data.collocations (2-3个高频搭配), data.synonyms (近义词), data.antonyms (反义词), data.derived_form (关联词形)。
+【3. 知识卡片 knowledge】
+6. 目标密度：请确保知识点覆盖全面。
+   - 不仅提取生僻难词，也要提取：
+     - 简单词的地道用法（如 "do" 的特殊含义）；
+     - 高频口语词（如 "literally", "vibe"）；
+     - 实用连接词和口语表达。
+   - 只要对 ESL 学习者有积累价值，就可以提取。
 
-   【6.3 若 type=phrase (短语)】
-   - 补充: data.structure (必须标明 sb./sth. 的位置), data.synonyms (同义替换)。
+7. knowledge 应该是数组，每个元素包含：
+   - trigger_word: 触发词（单词 / 短语 / 表达的原文）；
+   - data: 对应的详细信息。
 
-   【6.4 若 type=expression (常用表达/习语)】
-   - 补充: data.function_label (功能, 如"委婉拒绝"), data.scenario (适用场景), data.response_guide (接话指南: 给出地道的回答方式)。
+  【7.1 公共字段 (所有类型必填)】
+   data.type  (枚举: "word" / "phrase" / "expression")
+   data.def   (中文释义，精准对应当前语境)
+   data.ipa   (音标)
+   data.example (对象): 
+     - en: 一个简练、标准、生活化的额外例句（不要照抄字幕原句）；
+     - cn: 上面例句的自然中文翻译；
+   data.note  (字符串): 说明褒贬色彩、使用禁忌、情绪氛围（如“常用于女生自嘲”、“比 happy 更高级”）。
 
-【输出要求】
-7. 请严格输出合法 JSON，确保可以被 **json.loads() 直接解析**
-8. **绝对不要包含任何注释、Markdown标记、或额外说明文字**
-9. **仔细核对每个字符串格式，确保不会出现漏引号的情况**
+  【7.2 若 type = "word" (单词)】
+   - 补充:
+     data.pos          (词性)
+     data.collocations (2-3 个高频搭配)
+     data.synonyms     (近义词)
+     data.antonyms     (反义词)
+     data.derived_form (关联词形，如名词/形容词形式)
+
+  【7.3 若 type = "phrase" (短语)】
+   - 补充:
+     data.structure (必须标明 sb./sth. 的位置)
+     data.synonyms  (同义替换)
+
+  【7.4 若 type = "expression" (常用表达/习语)】
+   - 补充:
+     data.function_label  (功能, 如 "委婉拒绝"、"表达惊讶")
+     data.scenario        (适用场景)
+     data.response_guide  (接话指南：给出 1-2 个地道回答方式)
+
+【重要约束】
+8. 不要返回 data.source、sentence 或任何带时间戳的字段；
+   - 原字幕英文句子、中文翻译以及时间戳由调用方根据 trigger_word 与字幕本地匹配生成。
+
+【输出格式】
+9. 顶层必须返回一个严格的 JSON 对象（不要包含 Markdown / 注释），结构如下：
+   {
+     "title": "...",
+     "author": "...",
+     "difficulty": 2,
+     "tags": ["日常生活"],
+     "description": "...",
+     "subtitles": [
+       { "start": "...", "text_cn": "句1的中文" },
+       { "start": "...", "text_cn": "句2的中文" }
+     ],
+     "knowledge": [ { "trigger_word": "...", "data": { ... } }, ... ]
+   }
+
+10. **请确保返回内容可以被 json.loads() 直接解析，
+    字符串必须正确加引号，不能有多余逗号。**
 """
 
-  raw_text = call_deepseek_chat(
-    system_prompt=system_prompt,
-    user_payload=payload,
-    model=model,
-    temperature=temperature,
-  )
+  # 为了兼容偶尔因为符号/转义导致的 JSON 解析失败，这里做有限次数的重试。
+  max_attempts = 3
+  last_exc: Optional[Exception] = None
 
-  print(f"{raw_text}")
-  # 先尝试直接解析
-  try:
-    return json.loads(raw_text)
-  except Exception:
-    # 再尝试从中提取 JSON 代码块
-    json_block = _extract_json_block(raw_text)
+  for attempt in range(1, max_attempts + 1):
+    raw_text = call_deepseek_chat(
+      system_prompt=system_prompt,
+      user_payload=payload,
+      model=model,
+      temperature=temperature,
+    )
+
+    print(f"{raw_text}")
+
     try:
-      return json.loads(json_block)
-    except Exception as exc:
-      raise RuntimeError(
-        "无法从 DeepSeek 输出中解析出合法 JSON，请检查 Prompt 或返回内容"
-      ) from exc
+      # 先尝试直接解析
+      return json.loads(raw_text)
+    except Exception:
+      try:
+        # 再尝试从中提取 JSON 代码块
+        json_block = _extract_json_block(raw_text)
+        return json.loads(json_block)
+      except Exception as exc:
+        last_exc = exc
+        # 如果还没到最大次数，打印告警并重试
+        if attempt < max_attempts:
+          print(
+            f"[DEEPSEEK_RETRY] 第 {attempt} 次 JSON 解析失败，"
+            f"正在重试 {attempt + 1}/{max_attempts} ..."
+          )
+          continue
+        # 超过最大次数则抛出错误
+        raise RuntimeError(
+          "多次重试后仍无法从 DeepSeek 输出中解析出合法 JSON，"
+          "请检查 Prompt 或返回内容。"
+        ) from last_exc
 
 
 def annotate_subtitles(
@@ -205,7 +277,7 @@ def annotate_subtitles(
 
   # 按字幕条目分片，避免一次发送过多内容导致 DeepSeek 截断。
   # 这里采用简单的条目数粒度控制，后续如有需要可改为按总字符数。
-  max_items_per_chunk = 10
+  max_items_per_chunk = 30
 
   all_text_cn: List[str] = ["" for _ in subtitles]
   all_knowledge: List[Dict[str, Any]] = []
@@ -245,8 +317,13 @@ def annotate_subtitles(
       meta_tags = chunk_result.get("tags") or chunk_payload["tags"]
       meta_description = chunk_result.get("description") or chunk_payload["description"]
 
-    # 合并字幕中文翻译
+    # 合并字幕中文翻译：从 subtitles 对象数组中读取 text_cn。
     llm_subs: List[Dict[str, Any]] = chunk_result.get("subtitles") or []
+    if len(llm_subs) != len(chunk_subs):
+      print(
+        f"[WARN] DeepSeek 返回的 subtitles 数量({len(llm_subs)}) "
+        f"与输入分片数量({len(chunk_subs)}) 不一致，将按索引尽量对齐。"
+      )
 
     for local_i in range(len(chunk_subs)):
       global_i = start_idx + local_i
@@ -262,14 +339,13 @@ def annotate_subtitles(
     if isinstance(chunk_kn, list):
       all_knowledge.extend(chunk_kn)
 
-  # 组装整体 subtitles 结构，start/end/text_en 仍以 skeleton 为准
+  # 组装整体 subtitles 结构：这里只需要把「每条字幕的中文」带回去，
+  # start/end/text_en 仍由后续脚本基于 skeleton 统一合并。
   merged_subtitles: List[Dict[str, Any]] = []
   for idx, base in enumerate(subtitles):
     merged_subtitles.append(
       {
         "start": base.get("start"),
-        "end": base.get("end"),
-        "text_en": base.get("text_en", ""),
         "text_cn": all_text_cn[idx],
       }
     )

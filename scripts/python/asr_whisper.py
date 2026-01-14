@@ -89,9 +89,9 @@ def generate_subtitles_from_audio(
       }
     )
 
-  # 第二步：按句号/问号/感叹号将相邻片段合并为「一句话」级别的时间片，
-  # 但时间轴仍然来自 ASR 的最早 start 与最晚 end，保证整体口型对齐。
-  return _merge_segments_into_sentences(raw_segments)
+  # 直接使用 ASR regroup 之后的时间片，不再做二次「按句号合并」，
+  # 避免出现极长的一条字幕。每个片段已经是 Whisper 认为自然的语句片段。
+  return raw_segments
 
 
 def _is_sentence_end(text: str) -> bool:

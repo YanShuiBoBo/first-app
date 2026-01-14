@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple
+import re
 
 # 与后端 Zod 校验保持一致的类型集合
 ALLOWED_KNOWLEDGE_TYPES: Set[str] = {
@@ -286,45 +287,6 @@ def normalize_knowledge(raw: Any) -> List[Dict[str, Any]]:
       if ex_obj:
         card_data["example"] = ex_obj
 
-    # sentence（英文原句，兼容老数据）
-    sentence_raw = data.get("sentence")
-    sentence = sentence_raw.strip() if isinstance(sentence_raw, str) else ""
-
-    # source：语境 + 时间戳
-    source_obj: Dict[str, Any] = {}
-    source_raw = data.get("source")
-    if isinstance(source_raw, dict):
-      sent_en_raw = source_raw.get("sentence_en")
-      if isinstance(sent_en_raw, str):
-        sent_en = sent_en_raw.strip()
-        if sent_en:
-          source_obj["sentence_en"] = sent_en
-
-      sent_cn_raw = source_raw.get("sentence_cn")
-      if isinstance(sent_cn_raw, str):
-        sent_cn = sent_cn_raw.strip()
-        if sent_cn:
-          source_obj["sentence_cn"] = sent_cn
-
-      ts_start_raw = source_raw.get("timestamp_start")
-      if isinstance(ts_start_raw, (int, float)):
-        source_obj["timestamp_start"] = float(ts_start_raw)
-
-      ts_end_raw = source_raw.get("timestamp_end")
-      if isinstance(ts_end_raw, (int, float)):
-        source_obj["timestamp_end"] = float(ts_end_raw)
-
-    # 若没有显式的 source.sentence_en，但存在 sentence 字段，则把 sentence 视为英文原句
-    if sentence and "sentence_en" not in source_obj:
-      source_obj["sentence_en"] = sentence
-
-    if source_obj:
-      card_data["source"] = source_obj
-
-    # 为兼容前端旧逻辑，保留一份平铺的 sentence（与 source.sentence_en 对齐）
-    if "sentence_en" in source_obj:
-      card_data["sentence"] = source_obj["sentence_en"]
-
     normalized.append(
       {
         "trigger_word": trigger_word,
@@ -333,6 +295,144 @@ def normalize_knowledge(raw: Any) -> List[Dict[str, Any]]:
     )
 
   return normalized
+
+
+def attach_source_from_subtitles(
+  knowledge: List[Dict[str, Any]],
+  subtitles: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+  """
+  基于 trigger_word 与原始字幕做本地匹配，为每条知识卡片补充 source：
+    - sentence_en / sentence_cn
+    - timestamp_start / timestamp_end
+
+  设计原则：
+  - 不再依赖 LLM 提供的 data.source 或 sentence 字段；
+  - 仅使用 skeleton/合并后的 subtitles 作为唯一时间轴与原句来源。
+  """
+  if not knowledge or not subtitles:
+    return knowledge
+
+  # 预处理字幕，方便多次匹配
+  prepared_subs: List[Dict[str, Any]] = []
+  for sub in subtitles:
+    if not isinstance(sub, dict):
+      continue
+    text_en_raw = sub.get("text_en") or ""
+    if not isinstance(text_en_raw, str):
+      text_en = str(text_en_raw)
+    else:
+      text_en = text_en_raw
+
+    text_cn_raw = sub.get("text_cn") or ""
+    if not isinstance(text_cn_raw, str):
+      text_cn = str(text_cn_raw)
+    else:
+      text_cn = text_cn_raw
+
+    try:
+      start_val = float(sub.get("start")) if sub.get("start") is not None else None
+    except Exception:
+      start_val = None
+    try:
+      end_val = float(sub.get("end")) if sub.get("end") is not None else None
+    except Exception:
+      end_val = None
+
+    prepared_subs.append(
+      {
+        "text_en": text_en,
+        "text_en_lower": text_en.lower(),
+        "text_cn": text_cn,
+        "start": start_val,
+        "end": end_val,
+      }
+    )
+
+  if not prepared_subs:
+    return knowledge
+
+  for item in knowledge:
+    if not isinstance(item, dict):
+      continue
+    trigger_raw = item.get("trigger_word") or ""
+    if not isinstance(trigger_raw, str):
+      trigger = str(trigger_raw).strip()
+    else:
+      trigger = trigger_raw.strip()
+    if not trigger:
+      continue
+
+    data = item.get("data")
+    if not isinstance(data, dict):
+      continue
+
+    # 若已有 source，则不重复覆盖（兼容手工修正的情况）
+    if isinstance(data.get("source"), dict):
+      continue
+
+    type_raw = data.get("type") or ""
+    type_str = str(type_raw).strip() if isinstance(type_raw, str) else ""
+
+    headword_raw = data.get("headword") or ""
+    if isinstance(headword_raw, str):
+      headword = headword_raw.strip()
+    else:
+      headword = str(headword_raw).strip() if headword_raw else ""
+
+    # 选择用于匹配的关键字符串：优先更长的那个
+    candidate = headword if len(headword) > len(trigger) else trigger
+    candidate_lower = candidate.lower()
+    if not candidate_lower:
+      continue
+
+    # word 类型尽量使用单词边界匹配，phrase/expression 使用子串匹配
+    pattern: Optional[re.Pattern[str]] = None
+    use_regex = False
+    if type_str == "word":
+      # 非严格 NLP，简单使用空格和非字母作为边界
+      pattern = re.compile(r"\b" + re.escape(candidate_lower) + r"\b")
+      use_regex = True
+
+    matched_sub: Optional[Dict[str, Any]] = None
+    for sub in prepared_subs:
+      text_en_lower = sub["text_en_lower"]
+      if not text_en_lower:
+        continue
+
+      if use_regex and pattern is not None:
+        if pattern.search(text_en_lower):
+          matched_sub = sub
+          break
+      else:
+        if candidate_lower in text_en_lower:
+          matched_sub = sub
+          break
+
+    if matched_sub is None:
+      continue
+
+    source_obj: Dict[str, Any] = {}
+    sent_en = matched_sub["text_en"].strip()
+    if sent_en:
+      source_obj["sentence_en"] = sent_en
+
+    sent_cn = matched_sub["text_cn"].strip()
+    if sent_cn:
+      source_obj["sentence_cn"] = sent_cn
+
+    if matched_sub["start"] is not None:
+      source_obj["timestamp_start"] = matched_sub["start"]
+    if matched_sub["end"] is not None:
+      source_obj["timestamp_end"] = matched_sub["end"]
+
+    if source_obj:
+      data["source"] = source_obj
+      # 为兼容前端旧逻辑，保留一份 sentence（与 sentence_en 对齐）
+      if "sentence" not in data and "sentence_en" in source_obj:
+        data["sentence"] = source_obj["sentence_en"]
+
+  return knowledge
 
 
 def validate_and_merge(
@@ -395,6 +495,8 @@ def validate_and_merge(
   # 3) 知识卡片
   knowledge_raw = llm_output.get("knowledge") or []
   knowledge = normalize_knowledge(knowledge_raw)
+  # 基于最终字幕补充 source（原句 + 时间戳），不再依赖 LLM 的 data.source
+  knowledge = attach_source_from_subtitles(knowledge, subtitles)
 
   meta = {
     "title": title,
