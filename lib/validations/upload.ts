@@ -5,7 +5,9 @@ export const SubtitleItemSchema = z.object({
   start: z.number().min(0, '开始时间必须大于等于 0'),
   end: z.number().min(0, '结束时间必须大于等于 0'),
   text_en: z.string().min(1, '英文字幕不能为空'),
-  text_cn: z.string().min(1, '中文字幕不能为空')
+  // 中文字幕允许为空：有少量未翻译行时不再阻塞导入流程，
+  // 前端可根据空字符串判定“暂无中文”。
+  text_cn: z.string().default('')
 }).refine(
   data => data.end > data.start,
   { message: '结束时间必须大于开始时间' }
