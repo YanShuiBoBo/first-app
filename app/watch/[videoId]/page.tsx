@@ -2332,14 +2332,9 @@ export default function WatchPage() {
     item => item.status === 'unknown'
   ).length;
 
-  // 移动端 / 桌面端左上角返回按钮：优先使用 history.back 提升返回速度，
-  // 没有历史记录时再回退到首页路径，避免在 App 内嵌 WebView 中每次都重新加载首页。
+  // 精读页返回按钮：统一返回首页，避免从不同入口进入时产生跳转混乱
   const handleBackToHome = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push('/');
-    }
+    router.push('/');
   };
 
   return (
