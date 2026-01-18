@@ -693,6 +693,8 @@ export default function WatchPage() {
   const [likedSubtitles, setLikedSubtitles] = useState<Set<number>>(
     () => new Set()
   );
+  // 不存在 / 已下线视频标记（用于区分「视频不存在」和其它错误）
+  const [notFound, setNotFound] = useState(false);
   // 右侧面板 / 底部内容区模式：字幕流 or 生词流
   const [panelMode, setPanelMode] = useState<'transcript' | 'vocab'>(
     'transcript'
@@ -914,7 +916,19 @@ export default function WatchPage() {
         setVideoData(normalized);
       } catch (err) {
         console.error('获取视频数据失败:', err);
-        setError(err instanceof Error ? err.message : '获取视频数据失败');
+        const message =
+          err instanceof Error ? err.message : '获取视频数据失败';
+
+        // 明确是“视频不存在 / 数据为空”这类情况时，打上 notFound 标记
+        if (
+          message.includes('未找到') ||
+          message.includes('不存在') ||
+          message.includes('视频数据为空')
+        ) {
+          setNotFound(true);
+        }
+
+        setError(message);
       } finally {
         setIsLoading(false);
       }
@@ -922,6 +936,13 @@ export default function WatchPage() {
 
     fetchVideoData();
   }, [videoId, supabase]);
+
+  // 非试看链接且视频不存在时，自动跳转回首页，避免停留在错误页
+  useEffect(() => {
+    if (!isTrial && notFound) {
+      router.replace('/');
+    }
+  }, [isTrial, notFound, router]);
 
   // 计算当前视频真正用到的知识卡片 key（基于字幕高亮结果）
   const usedVocabKeys = useMemo(() => {
@@ -2297,6 +2318,11 @@ export default function WatchPage() {
         </div>
       </div>
     );
+  }
+
+  // 非试看链接 + 视频不存在：等待 useEffect 完成重定向时不再渲染错误提示
+  if (!isTrial && notFound) {
+    return null;
   }
 
   if (error || !videoData) {
