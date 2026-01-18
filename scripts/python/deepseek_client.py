@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Any, Dict, Optional, List
+import re
 
 import requests
 from dotenv import load_dotenv
@@ -96,6 +97,57 @@ def _extract_json_block(text: str) -> str:
   if start == -1 or end == -1 or end <= start:
     raise ValueError("未在 LLM 输出中找到有效 JSON 块")
   return text[start : end + 1]
+
+
+def _sanitize_deepseek_response(raw: str) -> str:
+  """
+  针对 DeepSeek 偶尔输出的「字符串值缺少引号」情况做一次轻量清洗。
+
+  常见问题示例：
+    "response_guide": 通常在屏幕上用点赞/订阅按钮作为回应，口语上可以回应“You know I always do!”"
+
+  这里 value 没有用双引号包裹，且内部还含有英文双引号，导致 json.loads 失败。
+
+  通用处理策略（尽量温和）：
+    - 匹配形如 `"key": <token>` 的片段，直到遇到逗号/右括号/换行；
+    - 只有在 <token> 不以 `{`/`[`/`"` 开头，且也不是数值/布尔/null 时，
+      才认为它是“缺少引号的字符串”；
+    - 对于这类 token：
+        * 去掉尾部多余的英文 `"`；
+        * 将内部英文 `"` 换成单引号；
+        * 外层重新加上 JSON 字符串引号。
+  """
+
+  def _repl(match: re.Match[str]) -> str:
+    key = match.group(1)
+    value_part = match.group(2)
+    if value_part is None:
+      return match.group(0)
+
+    raw_val = value_part.strip()
+    if not raw_val:
+      return match.group(0)
+
+    # 合法 JSON 值的几种开头：对象/数组/字符串/数字/bool/null
+    if raw_val[0] in "{[\"":
+      return match.group(0)
+    if raw_val[0] in "-0123456789":
+      return match.group(0)
+    if raw_val in {"true", "false", "null"}:
+      return match.group(0)
+
+    # 认为是未加引号的字符串，做修复
+    # 去掉尾部多余的英文 "
+    if raw_val.endswith('"'):
+      raw_val = raw_val[:-1].rstrip()
+
+    # 将内部英文双引号替换为单引号，避免破坏 JSON
+    safe_val = raw_val.replace('"', "'")
+    return f'"{key}": "{safe_val}"'
+
+  # key 目前都是 ASCII 标识符（如 response_guide / note / scenario 等）
+  pattern = re.compile(r'"([A-Za-z0-9_]+)"\s*:\s*([^,\]\}\n]+)')
+  return pattern.sub(_repl, raw)
 
 
 def _call_deepseek_for_chunk(
@@ -209,6 +261,9 @@ def _call_deepseek_for_chunk(
       model=model,
       temperature=temperature,
     )
+
+    # 先做一层简单的字符串级清洗，修正部分字段（如 response_guide）缺少引号的问题
+    raw_text = _sanitize_deepseek_response(raw_text)
 
     print(f"{raw_text}")
 
