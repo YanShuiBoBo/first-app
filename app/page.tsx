@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import StatsCard from '@/components/dashboard/StatsCard';
@@ -149,12 +149,15 @@ export default function Home() {
   const [isDesktopFilterExpanded, setIsDesktopFilterExpanded] =
     useState(false);
 
-  // Supabase 客户端只在浏览器端初始化
+  // Supabase 客户端只在浏览器端初始化（用于学习统计等交互，不再直接用于首页列表查询）
   const [supabase, setSupabase] =
     useState<ReturnType<typeof createBrowserClient> | null>(null);
 
   // 登录状态
   const { initialize, user } = useAuthStore();
+
+  // 学习统计是否已加载（避免重复请求）
+  const [hasLoadedStats, setHasLoadedStats] = useState(false);
 
   // 首次在浏览器端挂载时初始化 Supabase 客户端
   useEffect(() => {
@@ -164,25 +167,20 @@ export default function Home() {
 
   // 获取视频数据
   const fetchVideos = useCallback(async () => {
-    if (!supabase) return;
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from('videos')
-        .select(
-          'id, cf_video_id, title, poster, duration, status, author, description, difficulty, tags, cover_image_id, view_count'
-        )
-        .eq('status', 'published')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setVideos(data || []);
+      const res = await fetch('/api/home/videos');
+      if (!res.ok) {
+        throw new Error(`加载视频列表失败: ${res.status}`);
+      }
+      const payload = (await res.json()) as { videos?: VideoCard[] };
+      setVideos(payload.videos || []);
     } catch (err) {
       console.error('获取视频数据失败:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [supabase]);
+  }, []);
 
   // 获取当前用户的学习统计（已学习数量 + 当月学习日历）
   const fetchStudyStats = useCallback(
@@ -260,9 +258,40 @@ export default function Home() {
 
   // 登录用户与视频列表就绪后，获取学习统计
   useEffect(() => {
+    if (hasLoadedStats) return;
     if (!user?.email || videos.length === 0) return;
-    fetchStudyStats(user.email);
-  }, [user?.email, videos.length, fetchStudyStats]);
+
+    let canceled = false;
+
+    const run = () => {
+      if (canceled) return;
+      void fetchStudyStats(user.email as string)
+        .then(() => {
+          if (!canceled) {
+            setHasLoadedStats(true);
+          }
+        })
+        .catch(() => {
+          // 统计失败不影响首页核心体验，下次进入页面可重试
+        });
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = (window as any).requestIdleCallback(run);
+      return () => {
+        canceled = true;
+        if ((window as any).cancelIdleCallback) {
+          (window as any).cancelIdleCallback(id);
+        }
+      };
+    }
+
+    const timeoutId = setTimeout(run, 300);
+    return () => {
+      canceled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [user?.email, videos.length, fetchStudyStats, hasLoadedStats]);
 
   // 工具函数：难度映射到档位
   const getDifficultyLevel = (
@@ -363,6 +392,12 @@ export default function Home() {
     (_, index) => index + 1
   );
 
+  // 列表懒加载：先渲染前 N 条，减少初次渲染压力
+  const INITIAL_VISIBLE_COUNT = 20;
+  const [visibleCount, setVisibleCount] =
+    useState<number>(INITIAL_VISIBLE_COUNT);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
   // 过滤视频
   const filteredVideos = videos
     .filter((video) => {
@@ -408,6 +443,51 @@ export default function Home() {
       }
       return 0;
     });
+
+  const visibleVideos = filteredVideos.slice(0, visibleCount);
+
+  // 当筛选条件变化时重置可见数量，避免旧的滚动状态影响新结果
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE_COUNT);
+  }, [
+    searchQuery,
+    activeCategory,
+    difficultyFilter,
+    authorFilter,
+    sortOrder,
+    statusFilter,
+    activeThemeTag
+  ]);
+
+  // 监听底部 sentinel，滚动到接近底部时自动增加可见数量
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const target = loadMoreRef.current;
+    if (!target) return;
+    if (visibleCount >= filteredVideos.length) return;
+
+    const observer = new IntersectionObserver(
+      entries => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+        setVisibleCount(prev =>
+          Math.min(prev + INITIAL_VISIBLE_COUNT, filteredVideos.length)
+        );
+      },
+      {
+        root: null,
+        // 提前一些触发，避免用户看到明显的“空白等待”
+        rootMargin: '0px 0px 400px 0px',
+        threshold: 0.1
+      }
+    );
+
+    observer.observe(target);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [visibleCount, filteredVideos.length]);
 
   const displayName =
     (user?.email && user.email.split('@')[0]) || '朋友';
@@ -669,6 +749,7 @@ export default function Home() {
                   <div className="absolute inset-0">
                     <Image
                       unoptimized
+                      priority
                       src={getCoverSrc(
                         heroVideo,
                         '/images/hero-placeholder-960x540.png'
@@ -738,6 +819,7 @@ export default function Home() {
                 <div className="relative aspect-[16/9] w-full">
                   <Image
                     unoptimized
+                    priority
                     src={getCoverSrc(
                       heroVideo,
                       '/images/hero-placeholder-960x540.png'
@@ -1017,76 +1099,87 @@ export default function Home() {
                 暂无视频数据，稍后再来看看～
               </div>
             ) : (
-              filteredVideos.map((video) => (
-                <Link
-                  key={video.id}
-                  href={`/watch/${video.cf_video_id}`}
-                  className="group mb-4 flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md [break-inside:avoid]"
-                >
-                  <div className="relative aspect-[3/4] w-full overflow-hidden">
-                    <Image
-                      unoptimized
-                      src={getCoverSrc(
-                        video,
-                        '/images/card-placeholder-640x360.png'
-                      )}
-                      alt={video.title}
-                      fill
-                      className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                    />
-                    {/* 左上角难度 Badge */}
-                    {video.difficulty && (
-                      <span
-                        className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${getDifficultyStyle(
-                          video.difficulty,
-                          'card'
-                        )}`}
-                      >
-                        {renderDifficultyLabel(video.difficulty)}
-                      </span>
-                    )}
-                    {/* 右上角已学习角标 */}
-                    {completedSet.has(video.id) && (
-                      <span className="absolute right-2 top-2 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
-                        已学完
-                      </span>
-                    )}
-                    {/* 右下角时长 Badge */}
-                    <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-                      {formatDuration(video.duration)}
-                    </span>
-                  </div>
-                  <div className="flex flex-1 flex-col justify-between gap-2 p-3">
-                    <div className="space-y-1.5">
-                      <h3 className="line-clamp-2 text-sm font-bold leading-tight text-slate-800">
-                        {video.title}
-                      </h3>
-                      {video.tags && video.tags.length > 0 && (
-                        <span className="inline-flex max-w-full items-center rounded-md bg-[var(--color-brand-pink-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-brand-pink-text)]">
-                          #{video.tags[0]}
+              <>
+                {visibleVideos.map((video) => (
+                  <Link
+                    key={video.id}
+                    href={`/watch/${video.cf_video_id}`}
+                    className="group mb-4 flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md [break-inside:avoid]"
+                  >
+                    <div className="relative aspect-[3/4] w-full overflow-hidden">
+                      <Image
+                        unoptimized
+                        src={getCoverSrc(
+                          video,
+                          '/images/card-placeholder-640x360.png'
+                        )}
+                        alt={video.title}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                      />
+                      {/* 左上角难度 Badge */}
+                      {video.difficulty && (
+                        <span
+                          className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${getDifficultyStyle(
+                            video.difficulty,
+                            'card'
+                          )}`}
+                        >
+                          {renderDifficultyLabel(video.difficulty)}
                         </span>
                       )}
-                      {video.author && (
-                        <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500">
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-600">
-                              {(video.author || '英')
-                                .charAt(0)
-                                .toUpperCase()}
-                            </div>
-                            <span>{video.author}</span>
-                          </div>
-                          {/* 右侧观看数 */}
-                          <div className="flex items-center gap-1.5">
-                            <IconHeart />
-                            <span>{video.view_count ?? 0}</span>
-                          </div>
-                        </div>
+                      {/* 右上角已学习角标 */}
+                      {completedSet.has(video.id) && (
+                        <span className="absolute right-2 top-2 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
+                          已学完
+                        </span>
                       )}
+                      {/* 右下角时长 Badge */}
+                      <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                        {formatDuration(video.duration)}
+                      </span>
                     </div>
+                    <div className="flex flex-1 flex-col justify-between gap-2 p-3">
+                      <div className="space-y-1.5">
+                        <h3 className="line-clamp-2 text-sm font-bold leading-tight text-slate-800">
+                          {video.title}
+                        </h3>
+                        {video.tags && video.tags.length > 0 && (
+                          <span className="inline-flex max-w-full items-center rounded-md bg-[var(--color-brand-pink-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-brand-pink-text)]">
+                            #{video.tags[0]}
+                          </span>
+                        )}
+                        {video.author && (
+                          <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500">
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-600">
+                                {(video.author || '英')
+                                  .charAt(0)
+                                  .toUpperCase()}
+                              </div>
+                              <span>{video.author}</span>
+                            </div>
+                            {/* 右侧观看数 */}
+                            <div className="flex items-center gap-1.5">
+                              <IconHeart />
+                              <span>{video.view_count ?? 0}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+
+                {visibleCount < filteredVideos.length && (
+                  <div
+                    ref={loadMoreRef}
+                    className="col-span-full mt-2 flex justify-center py-2 text-[11px] text-neutral-500"
+                  >
+                    正在为你预加载更多精读视频...
                   </div>
-                </Link>
-              ))
+                )}
+              </>
             )}
           </div>
         </section>
