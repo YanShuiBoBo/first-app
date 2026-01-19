@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { verifyToken } from '@/lib/auth';
 
 // 定义用户类型
 export interface User {
@@ -14,7 +15,7 @@ interface AuthState {
   isLoggedIn: boolean;
 
   // 登录
-  login: (user: User, token: string) => void;
+  login: (user: User, token: string, rememberMe?: boolean) => void;
 
   // 登出
   logout: () => void;
@@ -30,9 +31,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoggedIn: false,
 
   // 登录
-  login: (user, token) => {
+  login: (user, token, rememberMe = false) => {
+    // 根据是否勾选“保持登录”设置不同的过期时间（默认 24 小时，保持登录为 30 天）
+    const maxAgeSeconds = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24;
+
     // 保存到 cookie
-    document.cookie = `auth-token=${token}; path=/; max-age=86400;`;
+    document.cookie = `auth-token=${token}; path=/; max-age=${maxAgeSeconds};`;
 
     // 更新状态
     set({
@@ -64,27 +68,20 @@ export const useAuthStore = create<AuthState>((set) => ({
       ?.split('=')[1];
 
     if (token) {
-      try {
-        // 解码 token 获取用户信息
-        const decoded = JSON.parse(atob(token));
+      const decoded = verifyToken(token);
 
-        // 检查 token 是否过期
-        if (decoded.exp > Date.now() / 1000) {
-          set({
-            user: {
-              email: decoded.email,
-              role: decoded.role,
-              name: decoded.name
-            },
-            token,
-            isLoggedIn: true
-          });
-        } else {
-          // 清除过期 token
-          document.cookie = 'auth-token=; path=/; max-age=0;';
-        }
-      } catch (error) {
-        // 无效 token，清除
+      if (decoded) {
+        set({
+          user: {
+            email: decoded.email,
+            role: decoded.role,
+            name: decoded.name
+          },
+          token,
+          isLoggedIn: true
+        });
+      } else {
+        // 无效或已过期 token，清除
         document.cookie = 'auth-token=; path=/; max-age=0;';
       }
     }

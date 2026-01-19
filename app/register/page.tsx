@@ -78,6 +78,7 @@ export default function RegisterPage() {
       const result = await register(email, password, inviteCode, {
         nickname,
         phone,
+        rememberMe: true,
       });
 
       if (!result.success) {
@@ -87,7 +88,8 @@ export default function RegisterPage() {
       }
 
       if (result.user) {
-        loginAction(result.user, result.token);
+        // 注册完成默认视为“在这台设备上保持登录”
+        loginAction(result.user, result.token, true);
       }
 
       router.push(redirect);

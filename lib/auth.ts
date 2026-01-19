@@ -16,22 +16,34 @@ export const defaultAdminUser = {
 };
 
 // 生成前端自用 token（base64(JSON)）
-function createToken(user: { email: string; role: string; name: string }) {
+function createToken(
+  user: { email: string; role: string; name: string },
+  options?: { rememberMe?: boolean }
+) {
+  const rememberMe = options?.rememberMe ?? false;
+  // 默认 24 小时，有“保持登录”时延长到 30 天
+  const ttlSeconds = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24;
+
   return Buffer.from(
     JSON.stringify({
       email: user.email,
       role: user.role,
       name: user.name,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 // 24小时后过期
+      exp: Math.floor(Date.now() / 1000) + ttlSeconds
     })
   ).toString('base64');
 }
 
 // 登录函数：支持管理员 + 存储在 app_users 表中的普通用户
-export const login = async (email: string, password: string) => {
+export const login = async (
+  email: string,
+  password: string,
+  options?: { rememberMe?: boolean }
+) => {
+  const rememberMe = options?.rememberMe ?? false;
   // 优先匹配管理员账号
   if (email === defaultAdminUser.email && password === defaultAdminUser.password) {
-    const token = createToken(defaultAdminUser);
+    const token = createToken(defaultAdminUser, { rememberMe });
     return {
       success: true,
       token,
@@ -76,7 +88,7 @@ export const login = async (email: string, password: string) => {
     role: data.role || "user"
   };
 
-  const token = createToken(user);
+  const token = createToken(user, { rememberMe });
 
   return {
     success: true,
@@ -93,11 +105,13 @@ export const register = async (
   options?: {
     nickname?: string;
     phone?: string;
+    rememberMe?: boolean;
   }
 ) => {
   const code = inviteCode.trim();
   const nickname = options?.nickname?.trim() || "";
   const phone = options?.phone?.trim() || "";
+  const rememberMe = options?.rememberMe ?? false;
 
   if (!code) {
     return {
@@ -241,7 +255,7 @@ export const register = async (
       role: createdUser.role || "user"
     };
 
-    const token = createToken(user);
+    const token = createToken(user, { rememberMe });
 
     return {
       success: true,

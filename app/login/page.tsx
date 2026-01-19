@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const loginAction = useAuthStore(state => state.login);
 
@@ -35,7 +36,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, { rememberMe });
 
       if (!result.success) {
         setError(result.error || '登录失败');
@@ -44,7 +45,7 @@ export default function LoginPage() {
       }
 
       if (result.user) {
-        loginAction(result.user, result.token);
+        loginAction(result.user, result.token, rememberMe);
       }
 
       if (result.user?.role === 'admin' && redirect === '/') {
@@ -251,6 +252,8 @@ export default function LoginPage() {
                     name="remember-me"
                     type="checkbox"
                     className="h-3.5 w-3.5 rounded border-neutral-300 text-[#FF2442] focus:ring-[#FF2442]/20"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
                   />
                   <label htmlFor="remember-me" className="select-none">
                     在这台设备上保持登录
