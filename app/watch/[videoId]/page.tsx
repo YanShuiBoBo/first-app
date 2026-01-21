@@ -2544,7 +2544,7 @@ export default function WatchPage() {
                             : '∞'}
                         </span>
                       </button>
-                      {isLoopMenuOpen && !isTrial && !trialEnded && (
+                      {isLoopMenuOpen && !trialEnded && (
                         <div className="absolute left-0 top-[120%] z-20 rounded-2xl border border-stone-100 bg-white/98 px-2 py-1.5 text-[11px] shadow-lg shadow-black/5">
                           <div className="flex items-center gap-1">
                             {[1, 2, 3, 5, 10].map(count => (
@@ -2894,7 +2894,6 @@ export default function WatchPage() {
                           : 'text-stone-500 hover:text-stone-900'
                       }`}
                       onClick={() => setPanelMode('vocab')}
-                      disabled={!user || vocabItems.length === 0}
                     >
                       <IconVocab className="h-3.5 w-3.5" />
                       <span>生词</span>
@@ -3913,7 +3912,7 @@ export default function WatchPage() {
             <div className="relative w-full max-w-[414px] px-5 pb-4">
 
               {/* 倍速 / 字幕设置 Popover */}
-              {isSpeedMenuOpen && !isTrial && !trialEnded && (
+              {isSpeedMenuOpen && !trialEnded && (
                   <div className="pointer-events-auto absolute bottom-[88px] left-1/2 w-[280px] -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-200">
                     <div className="flex flex-col gap-4 rounded-[24px] border border-white/60 bg-white/90 p-5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] backdrop-blur-xl">
                       {/* ... Popover 内容保持逻辑不变，仅优化样式 ... */}
@@ -3965,7 +3964,7 @@ export default function WatchPage() {
               )}
 
               {/* 移动端：单句循环次数 Popover */}
-              {isLoopMenuOpen && !isTrial && !trialEnded && (
+              {isLoopMenuOpen && !trialEnded && (
                   <div className="pointer-events-auto absolute bottom-[88px] left-1/2 w-[220px] -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-200">
                     <div className="flex flex-col gap-2 rounded-[20px] border border-white/60 bg-white/95 p-3 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] backdrop-blur-xl">
                       <div className="text-[11px] font-medium text-gray-500">
@@ -4182,9 +4181,9 @@ export default function WatchPage() {
                   type="button"
                   className="group relative flex flex-1 items-center justify-center active:scale-95 transition-transform"
                   onClick={() => {
-                    // 没有登录或没有生词时，不允许进入生词模式
+                    // 无论当前是否已有生词，都可以切换到生词视图；
+                    // 若当前暂无生词，右侧面板会给出友好提示。
                     if (panelMode === 'transcript') {
-                      if (!user || vocabItems.length === 0) return;
                       setPanelMode('vocab');
                     } else {
                       setPanelMode('transcript');
