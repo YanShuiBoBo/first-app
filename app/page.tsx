@@ -167,6 +167,22 @@ export default function Home() {
   // 复制微信号后的提示文案（用于移动端反馈面板）
   const [wechatCopyHint, setWeChatCopyHint] = useState('');
 
+  // 当任意首页面板（筛选 / 学习数据 / 通知）打开时，锁定页面滚动，避免误滚动到素材列表
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const body = document.body;
+    const previousOverflow = body.style.overflow;
+
+    if (isFilterSheetOpen || isStatsSheetOpen || isNotificationSheetOpen) {
+      body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      body.style.overflow = previousOverflow;
+    };
+  }, [isFilterSheetOpen, isStatsSheetOpen, isNotificationSheetOpen]);
+
   // 首次在浏览器端挂载时初始化 Supabase 客户端
   useEffect(() => {
     const client = createBrowserClient();
