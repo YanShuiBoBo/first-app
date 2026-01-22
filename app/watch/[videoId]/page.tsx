@@ -2410,11 +2410,11 @@ export default function WatchPage() {
       <header className="hidden h-11 items-center justify-between bg-white/95 px-6 text-xs text-gray-700 shadow-sm shadow-black/5 lg:fixed lg:inset-x-0 lg:top-0 lg:z-30 lg:flex">
         <button
           type="button"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
           onClick={handleBackToHome}
           aria-label="返回上一页"
         >
-          <IconArrowLeft className="h-3.5 w-3.5" />
+          <IconArrowLeft className="h-4 w-4" />
         </button>
         <div className="mx-2 flex-1 truncate text-center text-[13px] font-semibold text-gray-900">
           {videoData.title}
@@ -2486,24 +2486,24 @@ export default function WatchPage() {
                       <div className="absolute inset-x-0 top-0 z-20 flex h-11 items-center justify-between px-4 text-xs text-white lg:hidden">
                         <button
                           type="button"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/40"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/40"
                           onClick={handleBackToHome}
                           aria-label="回到首页"
                         >
-                          <IconArrowLeft className="h-3.5 w-3.5" />
+                          <IconArrowLeft className="h-4 w-4" />
                         </button>
                         <div className="mx-2 flex-1 truncate text-center text-[13px] font-semibold">
                           {videoData.title}
                         </div>
                         <button
                           type="button"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/40"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/40"
                           aria-label="更多操作"
                           onClick={() => {
                             // 预留：后续接入打印脚本 / 查看完整简介 / 举报等
                           }}
                         >
-                          <IconMore className="h-3.5 w-3.5" />
+                          <IconMore className="h-4 w-4" />
                         </button>
                       </div>
 
