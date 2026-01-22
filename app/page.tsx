@@ -1228,7 +1228,7 @@ export default function Home() {
           />
 
           {/* 抽屉面板 */}
-          <div className="relative mt-auto max-h-[70vh] w-full rounded-t-3xl bg-white px-4 pt-4 pb-20 shadow-lg">
+          <div className="relative mt-auto max-h-[80vh] w-full rounded-t-3xl bg-white px-4 pt-4 pb-4 shadow-lg">
             {/* 顶部把手 + 标题行 */}
             <div className="mb-3">
               <div className="mb-2 flex justify-center">
@@ -1252,7 +1252,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="space-y-5 overflow-y-auto text-xs text-neutral-700">
+            <div className="space-y-5 overflow-y-auto pb-24 text-xs text-neutral-700">
               {/* 难度：3 列 Grid，简洁胶囊样式 */}
               <div>
                 <div className="mb-2 font-medium">按难度</div>
@@ -1268,8 +1268,23 @@ export default function Home() {
                       const isActive = difficultyFilter === level;
                       const baseClasses =
                         'flex items-center justify-center rounded-full border px-3 py-2 text-[11px] transition-colors';
-                      const activeClasses =
+
+                      // 不同难度使用不同的柔和色系，让筛选区更有层次感
+                      let activeClasses =
                         'border-transparent bg-[var(--accent)] text-white shadow-[0_8px_22px_rgba(255,36,66,0.48)]';
+                      if (level === 'easy') {
+                        activeClasses =
+                          'border-transparent bg-emerald-50 text-emerald-700 shadow-[0_6px_16px_rgba(16,185,129,0.35)]';
+                      }
+                      if (level === 'medium') {
+                        activeClasses =
+                          'border-transparent bg-sky-50 text-sky-700 shadow-[0_6px_16px_rgba(56,189,248,0.35)]';
+                      }
+                      if (level === 'hard') {
+                        activeClasses =
+                          'border-transparent bg-rose-50 text-rose-700 shadow-[0_8px_22px_rgba(244,63,94,0.4)]';
+                      }
+
                       const inactiveClasses =
                         'border-neutral-200 bg-neutral-50 text-neutral-600';
 
