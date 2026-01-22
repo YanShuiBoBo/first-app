@@ -787,9 +787,21 @@ export default function WatchPage() {
 
       mr.onstop = () => {
         try {
-          const blob = new Blob(recordedChunksRef.current, {
-            type: 'audio/webm'
-          });
+          const chunks = recordedChunksRef.current.slice();
+          if (!chunks.length) {
+            console.warn('未采集到有效的录音数据');
+            setShadowMode('idle');
+            return;
+          }
+
+          // 优先使用浏览器实际提供的音频类型，避免在部分移动端浏览器上因类型不匹配导致无法播放
+          let mimeType = 'audio/webm';
+          const firstChunk = chunks[0] as Blob;
+          if (firstChunk && typeof firstChunk.type === 'string' && firstChunk.type) {
+            mimeType = firstChunk.type;
+          }
+
+          const blob = new Blob(chunks, { type: mimeType });
           const url = URL.createObjectURL(blob);
           setShadowAudioUrl(url);
           setShadowMode('reviewing');
@@ -2038,7 +2050,11 @@ export default function WatchPage() {
         setShadowMode('idle');
         setShadowSubtitleIndex(null);
       };
-      void audio.play();
+      void audio.play().catch(err => {
+        console.error('播放本地录音失败:', err);
+        setShadowMode('idle');
+        setShadowSubtitleIndex(null);
+      });
       return;
     }
 
