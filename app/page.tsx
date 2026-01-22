@@ -1175,11 +1175,18 @@ export default function Home() {
                         <h3 className="line-clamp-2 text-sm font-bold leading-tight text-slate-800">
                           {video.title}
                         </h3>
-                        {video.tags && video.tags.length > 0 && (
-                          <span className="inline-flex max-w-full items-center rounded-md bg-[var(--color-brand-pink-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-brand-pink-text)]">
-                            #{video.tags[0]}
-                          </span>
-                        )}
+	                        {video.tags && video.tags.length > 0 && (
+	                          <div className="flex flex-wrap gap-1.5">
+	                            {video.tags.map(tag => (
+	                              <span
+	                                key={tag}
+	                                className="inline-flex max-w-full items-center rounded-md bg-[var(--color-brand-pink-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-brand-pink-text)]"
+	                              >
+	                                #{tag}
+	                              </span>
+	                            ))}
+	                          </div>
+	                        )}
                         {video.author && (
                           <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500">
                             <div className="flex items-center gap-2">
