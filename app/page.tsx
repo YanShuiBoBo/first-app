@@ -544,15 +544,8 @@ export default function Home() {
     return fallback;
   };
 
-  // 首页推荐视频：使用点击量最高的视频作为推荐来源（如果有数据）
-  const heroVideo =
-    videos.length > 0
-      ? videos.reduce((best, v) => {
-          const bestViews = best.view_count ?? 0;
-          const currentViews = v.view_count ?? 0;
-          return currentViews > bestViews ? v : best;
-        }, videos[0])
-      : null;
+  // 首页推荐视频：直接使用最新发布的一条（接口已按 created_at 降序返回）
+  const heroVideo = videos.length > 0 ? videos[0] : null;
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-neutral-900">
