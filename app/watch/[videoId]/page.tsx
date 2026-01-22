@@ -1653,8 +1653,8 @@ export default function WatchPage() {
     const viewportHeight = window.innerHeight;
 
     const bubbleWidth = 320;
-    // 由于卡片内容较丰富，预估一个略大的高度，结合后续 clamp 确保不被截断
-    const bubbleHeight = 260;
+    // 与 Popover 的 max-h 保持一致：按照视口高度的 70% 预估整体高度，保证卡片完整出现在视口内
+    const bubbleHeight = viewportHeight * 0.7;
     const margin = 16;
 
     // 默认在单词下方
@@ -3438,7 +3438,7 @@ export default function WatchPage() {
         >
           <div
             data-card-popover="true"
-            className="pointer-events-auto absolute w-[340px] rounded-3xl border border-white/60 bg-white/95 px-4 py-3.5 text-[12px] text-gray-900 shadow-[0_18px_45px_rgba(15,23,42,0.22)] backdrop-blur-xl"
+            className="pointer-events-auto absolute w-[340px] max-h-[70vh] overflow-y-auto rounded-3xl border border-white/60 bg-white/95 px-4 py-3.5 text-[12px] text-gray-900 shadow-[0_18px_45px_rgba(15,23,42,0.22)] backdrop-blur-xl"
             style={{
               top: cardPopover.top,
               left: cardPopover.left
