@@ -93,9 +93,14 @@ function BookOpenIcon() {
 interface HeaderProps {
   searchQuery?: string;
   onSearchChange?: (value: string) => void;
+  onNotificationClick?: () => void;
 }
 
-export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
+export default function Header({
+  searchQuery,
+  onSearchChange,
+  onNotificationClick,
+}: HeaderProps) {
   const { user, isLoggedIn } = useAuthStore();
 
   return (
@@ -169,9 +174,10 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
               <button
                 type="button"
                 className="hidden h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-base shadow-sm shadow-gray-100 transition-colors hover:border-gray-300 hover:bg-gray-50 sm:flex"
+                onClick={onNotificationClick}
+                aria-label="查看通知"
               >
                 <BellIcon />
-                <span className="sr-only">查看通知</span>
               </button>
 
               {/* 用户头像 */}

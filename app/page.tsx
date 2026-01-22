@@ -561,6 +561,10 @@ export default function Home() {
         <Header
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          onNotificationClick={() => {
+            setNotificationMode('notices');
+            setIsNotificationSheetOpen(true);
+          }}
         />
       </div>
 
@@ -1639,15 +1643,15 @@ export default function Home() {
         </div>
       )}
 
-      {/* 移动端官方通知 / 反馈面板：从顶部下拉，贴近导航区域 */}
+      {/* 官方通知 / 反馈面板：从顶部下拉，贴近导航区域（移动端 + PC 复用） */}
       {isNotificationSheetOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/20 md:hidden"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/20"
           onClick={() => setIsNotificationSheetOpen(false)}
         >
-          {/* 顶部下拉面板本体：靠近导航，从上往下出现 */}
+          {/* 顶部下拉面板本体：靠近导航，从上往下出现；PC 端限制最大宽度 */}
           <div
-            className="mx-4 mt-16 flex max-h-[70vh] flex-col rounded-2xl bg-white px-4 pt-4 pb-5 shadow-lg"
+            className="mx-4 mt-16 flex w-full max-w-md max-h-[70vh] flex-col rounded-2xl bg-white px-4 pt-4 pb-5 shadow-lg"
             onClick={event => event.stopPropagation()}
           >
             <div className="mb-3 flex flex-shrink-0 items-center justify-between">
