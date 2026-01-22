@@ -160,6 +160,9 @@ export default function Home() {
   // 学习统计是否已加载（避免重复请求）
   const [hasLoadedStats, setHasLoadedStats] = useState(false);
 
+  // 复制微信号后的提示文案（用于移动端反馈面板）
+  const [wechatCopyHint, setWeChatCopyHint] = useState('');
+
   // 首次在浏览器端挂载时初始化 Supabase 客户端
   useEffect(() => {
     const client = createBrowserClient();
@@ -1723,6 +1726,7 @@ export default function Home() {
                   </p>
                   <div className="rounded-2xl bg-neutral-50 p-3">
                     <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+                      WeChat
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
@@ -1743,13 +1747,37 @@ export default function Home() {
                                 };
                               };
                               if (nav.clipboard?.writeText) {
-                                void nav.clipboard.writeText('WeiWeiLad');
+                                void nav.clipboard
+                                  .writeText('WeiWeiLad')
+                                  .then(() => {
+                                    setWeChatCopyHint(
+                                      '已复制微信号，打开微信搜索添加即可（记得备注「网站反馈」）。'
+                                    );
+                                  })
+                                  .catch(() => {
+                                    setWeChatCopyHint(
+                                      '复制可能没有成功，可以长按微信号手动复制。'
+                                    );
+                                  });
+                              } else {
+                                setWeChatCopyHint(
+                                  '复制可能没有成功，可以长按微信号手动复制。'
+                                );
                               }
+                            } else {
+                              setWeChatCopyHint(
+                                '复制可能没有成功，可以长按微信号手动复制。'
+                              );
                             }
                           }}
                         >
                           <span>复制微信号</span>
                         </button>
+                        {wechatCopyHint && (
+                          <p className="mt-2 text-[11px] text-[var(--accent)]">
+                            {wechatCopyHint}
+                          </p>
+                        )}
                       </div>
                       <div className="flex-shrink-0">
                         <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-1">
