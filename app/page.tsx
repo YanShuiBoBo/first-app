@@ -1227,8 +1227,8 @@ export default function Home() {
             aria-label="关闭筛选"
           />
 
-          {/* 抽屉面板 */}
-          <div className="relative mt-auto max-h-[80vh] w-full rounded-t-3xl bg-white px-4 pt-4 pb-4 shadow-lg">
+          {/* 抽屉面板：使用 flex 布局，让中间内容区域成为真正的滚动容器 */}
+          <div className="relative mt-auto flex max-h-[80vh] w-full flex-col rounded-t-3xl bg-white px-4 pt-4 pb-3 shadow-lg">
             {/* 顶部把手 + 标题行 */}
             <div className="mb-3">
               <div className="mb-2 flex justify-center">
@@ -1252,7 +1252,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="space-y-5 overflow-y-auto pb-24 text-xs text-neutral-700">
+            <div className="flex-1 space-y-5 overflow-y-auto pb-24 text-xs text-neutral-700">
               {/* 难度：3 列 Grid，简洁胶囊样式 */}
               <div>
                 <div className="mb-2 font-medium">按难度</div>
