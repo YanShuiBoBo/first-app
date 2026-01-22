@@ -142,6 +142,10 @@ export default function Home() {
   const [activeThemeTag] = useState<string | null>(null);
   const [showAllAuthors, setShowAllAuthors] = useState(false);
 
+  // 首页通知是否有“未读”提示（当前简单按本次会话是否打开过通知面板来判断）
+  const [hasUnreadNotifications, setHasUnreadNotifications] =
+    useState(true);
+
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isStatsSheetOpen, setIsStatsSheetOpen] = useState(false);
   const [isNotificationSheetOpen, setIsNotificationSheetOpen] =
@@ -611,6 +615,7 @@ export default function Home() {
               onClick={() => {
                 setNotificationMode('notices');
                 setIsNotificationSheetOpen(true);
+                setHasUnreadNotifications(false);
               }}
             >
               <svg
@@ -625,7 +630,9 @@ export default function Home() {
                 <path d="M12 4a4 4 0 0 0-4 4v2.8c0 .5-.2 1-.6 1.3L6 14h12l-1.4-1.9a2 2 0 0 1-.6-1.3V8a4 4 0 0 0-4-4Z" />
                 <path d="M10 18a2 2 0 0 0 4 0" />
               </svg>
-              <span className="absolute right-1 top-1 h-2 w-2 rounded-full border border-white bg-[#FF2442]" />
+              {hasUnreadNotifications && (
+                <span className="absolute right-1 top-1 h-2 w-2 rounded-full border border-white bg-[#FF2442]" />
+              )}
             </button>
           </div>
 
