@@ -1061,8 +1061,15 @@ export default function WatchPage() {
   }, [subtitlesForHighlight, cardsForHighlight]);
 
   // 根据当前视频的 knowledge_cards 构建词汇项列表，并与全局状态合并
-	  const vocabItems: VocabItem[] = useMemo(() => {
-	    if (!videoData?.cards || videoData.cards.length === 0) return [];
+  // 语义约定：
+  // - vocabStatusMap[key] === 'unknown'   => 用户明确标记为「不认识」，保留在单词本中；
+  // - vocabStatusMap[key] === 'known'     => 用户明确标记为「认识」，从单词本中移除；
+  // - vocabStatusMap[key] === undefined   => 默认视为「在单词本中，状态为未确认」，用于初次预览。
+  //
+  // 因此 vocabItems 默认展示所有高亮词汇（status !== 'known'），
+  // 单词卡中的「认识」操作会写入 'known' 并使该词从列表中消失。
+  const vocabItems: VocabItem[] = useMemo(() => {
+    if (!videoData?.cards || videoData.cards.length === 0) return [];
 
     const items: VocabItem[] = [];
     const seen = new Set<string>();
@@ -1084,12 +1091,14 @@ export default function WatchPage() {
       if (seen.has(key)) continue;
       seen.add(key);
 
-      // 默认视为「认识」，只有明确点了“不认识”的词才进入生词本
-      const status = vocabStatusMap[key] || 'known';
-      // 只展示「不认识」的生词
-      if (status !== 'unknown') {
+      const rawStatus = vocabStatusMap[key]; // 'known' | 'unknown' | undefined
+      // 明确标记为 known 的词：认为已经从单词本中移除，不再出现在列表中
+      if (rawStatus === 'known') {
         continue;
       }
+
+      // 列表中展示的词要么是用户标记为 unknown，要么尚未确认（默认按 unknown 处理）
+      const status: VocabStatus = rawStatus ?? 'unknown';
 
       const source =
         normalized.sourceSentenceEn || normalized.sourceSentenceCn
@@ -1909,17 +1918,25 @@ export default function WatchPage() {
     [user?.email, vocabItems, videoData]
   );
 
-  // 单词本：一键将当前类型下所有「未标记」词标记为认识
+  // 单词本：一键将当前类别下所有词标记为「认识」，根据当前 vocabKindFilter 做限定
   const handleMarkRestKnown = useCallback(() => {
-    const unmarkedKeys = vocabItems
-      .filter(item => item.status === 'unknown')
+    // 只操作当前筛选类别下的词：
+    // - 全部：all => 所有 vocabItems
+    // - 单词：word => 仅 item.kind === 'word'
+    // - 短语：phrase => 仅 item.kind === 'phrase'
+    // - 表达：expression => 仅 item.kind === 'expression'
+    const keysToMark = vocabItems
+      .filter(item => {
+        if (vocabKindFilter === 'all') return true;
+        return item.kind === vocabKindFilter;
+      })
       .map(item => item.key);
 
-    if (unmarkedKeys.length === 0) return;
+    if (keysToMark.length === 0) return;
 
     setVocabStatusMap(prev => {
       const next = { ...prev };
-      for (const key of unmarkedKeys) {
+      for (const key of keysToMark) {
         next[key] = 'known';
       }
       return next;
@@ -1936,11 +1953,11 @@ export default function WatchPage() {
     void fetch('/api/vocab/status/batch-known', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ words: unmarkedKeys, context })
+      body: JSON.stringify({ words: keysToMark, context })
     }).catch(err => {
       console.error('批量标记词汇状态失败:', err);
     });
-  }, [vocabItems, user?.email, videoData]);
+  }, [vocabItems, vocabKindFilter, user?.email, videoData]);
 
   // 行内工具栏：重听当前句（播放原声）
   const handleRowReplay = (index: number) => {
@@ -3172,33 +3189,76 @@ export default function WatchPage() {
 
                   {vocabItems.length > 0 && (
                     <>
-                      {/* 类型分类：单词 / 短语 / 表达 */}
-                      <div className="mb-2 flex items-center gap-2 text-[11px]">
-                        {[
-                          { label: '全部', value: 'all' as const },
-                          { label: '单词', value: 'word' as const },
-                          { label: '短语', value: 'phrase' as const },
-                          { label: '表达', value: 'expression' as const }
-                        ].map(tab => {
-                          const active = vocabKindFilter === tab.value;
-                          return (
-                            <button
-                              key={tab.value}
-                              type="button"
-                              className={`rounded-full px-3 py-1 ${
-                                active
-                                  ? 'bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)]'
-                                  : 'bg-stone-50 text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                              }`}
-                              onClick={() => setVocabKindFilter(tab.value)}
-                            >
-                              {tab.label}
-                            </button>
-                          );
-                        })}
+                      {/* 类型分类：单词 / 短语 / 表达 + 移动端「全部标记为认识」图标按钮 */}
+                      <div className="mb-2 flex items-center gap-2 text-[12px]">
+                        {/* 左侧：类别 Tabs（可横向滚动，避免挤在一行） */}
+                        <div className="flex flex-1 items-center gap-2 overflow-x-auto no-scrollbar">
+                          {[
+                            { label: '全部', value: 'all' as const },
+                            { label: '单词', value: 'word' as const },
+                            { label: '短语', value: 'phrase' as const },
+                            { label: '表达', value: 'expression' as const }
+                          ].map(tab => {
+                            const active = vocabKindFilter === tab.value;
+                            return (
+                              <button
+                                key={tab.value}
+                                type="button"
+                                className={`whitespace-nowrap rounded-full px-3 py-1.5 transition-colors ${
+                                  active
+                                    ? 'bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)] border border-white/80 backdrop-blur-[2px]'
+                                    : 'bg-white/80 text-stone-500 border border-stone-200 hover:bg-white hover:text-stone-900 hover:border-stone-300'
+                                }`}
+                                onClick={() => setVocabKindFilter(tab.value)}
+                              >
+                                {tab.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* 右侧：移动端「全部标记为认识」图标按钮（按当前类别生效） */}
+                        <div className="flex items-center lg:hidden">
+                          {(() => {
+                            const hasAnyInFilter = vocabItems.some(item => {
+                              if (vocabKindFilter === 'all') return true;
+                              return item.kind === vocabKindFilter;
+                            });
+
+                            return (
+                              <button
+                                type="button"
+                                className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-[11px] ${
+                                  hasAnyInFilter
+                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm shadow-[rgba(16,185,129,0.25)] hover:bg-emerald-100'
+                                    : 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed'
+                                }`}
+                                disabled={!hasAnyInFilter}
+                                onClick={handleMarkRestKnown}
+                                aria-label="将当前类别全部标记为认识"
+                              >
+                                {/* 简单对勾图标，表示批量完成 */}
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-4 w-4"
+                                >
+                                  <path
+                                    d="M5 13l4 4L19 7"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </button>
+                            );
+                          })()}
+                        </div>
                       </div>
 
-                      {/* 生词卡片列表（仅展示「不认识」的生词） */}
+                      {/* 生词卡片列表：展示当前类别下所有「未标记为认识」的词汇 */}
                       <div className="space-y-2">
                         {vocabItems
                           .filter(item => {
