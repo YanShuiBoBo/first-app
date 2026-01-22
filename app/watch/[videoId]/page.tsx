@@ -1046,9 +1046,23 @@ export default function WatchPage() {
     void fetchVocabStatus();
   }, [usedVocabKeys, videoData?.cards, videoData?.id, videoData, user?.email]);
 
+  // 预计算每一句字幕对应的高亮分段，避免在每次渲染时重复执行匹配逻辑
+  const subtitlesForHighlight = videoData?.subtitles;
+  const cardsForHighlight = videoData?.cards;
+
+  const subtitleHighlightSegments: HighlightSegment[][] = useMemo(() => {
+    if (!subtitlesForHighlight || !cardsForHighlight) {
+      return [];
+    }
+
+    return subtitlesForHighlight.map(sub =>
+      buildHighlightSegments(sub.text_en, cardsForHighlight)
+    );
+  }, [subtitlesForHighlight, cardsForHighlight]);
+
   // 根据当前视频的 knowledge_cards 构建词汇项列表，并与全局状态合并
-  const vocabItems: VocabItem[] = useMemo(() => {
-    if (!videoData?.cards || videoData.cards.length === 0) return [];
+	  const vocabItems: VocabItem[] = useMemo(() => {
+	    if (!videoData?.cards || videoData.cards.length === 0) return [];
 
     const items: VocabItem[] = [];
     const seen = new Set<string>();
@@ -1115,8 +1129,8 @@ export default function WatchPage() {
       items.push(item);
     }
 
-    return items;
-  }, [videoData?.cards, usedVocabKeys, vocabStatusMap]);
+	    return items;
+	  }, [videoData?.cards, videoData?.subtitles, usedVocabKeys, vocabStatusMap]);
 
   // 未登录用户：在前端本地持久化当前视频的生词状态，便于刷新后恢复
   useEffect(() => {
@@ -1639,7 +1653,8 @@ export default function WatchPage() {
     const viewportHeight = window.innerHeight;
 
     const bubbleWidth = 260;
-    const bubbleHeight = 140;
+    // 由于卡片内容较丰富，预估一个略大的高度，结合后续 clamp 确保不被截断
+    const bubbleHeight = 260;
     const margin = 16;
 
     // 默认在单词下方
@@ -1660,6 +1675,15 @@ export default function WatchPage() {
     }
     if (left < margin) {
       left = margin;
+    }
+
+    // 纵向也做一次 clamp，尽量保证整个卡片处于视口内
+    const maxTop = viewportHeight - bubbleHeight - margin;
+    if (top > maxTop) {
+      top = maxTop;
+    }
+    if (top < margin) {
+      top = margin;
     }
 
     setCardPopover({
@@ -2718,9 +2742,8 @@ export default function WatchPage() {
                   <>
                     {showActiveEn && (
                       <div className="text-[17px] font-semibold text-gray-900">
-                        {buildHighlightSegments(
-                          activeSubtitle.text_en,
-                          videoData.cards ?? []
+                        {(subtitleHighlightSegments[currentSubtitleIndex] ??
+                          [{ text: activeSubtitle.text_en }]
                         ).map((segment, segIndex) => {
                           if (!segment.card) {
                             return (
@@ -3023,9 +3046,8 @@ export default function WatchPage() {
                         {/* 英文行：根据 scriptMode 控制显示 */}
                         {showEn && (
                           <div className="en text-[16px] lg:text-[10px]">
-                            {buildHighlightSegments(
-                              subtitle.text_en,
-                              videoData.cards ?? []
+                            {(subtitleHighlightSegments[index] ??
+                              [{ text: subtitle.text_en }]
                             ).map((segment, segIndex) => {
                               if (!segment.card) {
                                 return (
@@ -3221,6 +3243,13 @@ export default function WatchPage() {
                                             {item.ipa}
                                           </span>
                                         )}
+                                        <span className="ml-1 rounded-full bg-white/70 px-2 py-[2px] text-[10px] text-gray-700">
+                                          {item.kind === 'word'
+                                            ? '单词'
+                                            : item.kind === 'phrase'
+                                            ? '短语'
+                                            : '表达'}
+                                        </span>
                                       </div>
                                     </div>
                                     <div className="mt-1 text-[12px] text-gray-800">
@@ -3229,40 +3258,40 @@ export default function WatchPage() {
                                           {item.pos}
                                         </span>
                                       )}
-                                      <span className="text-[var(--accent)]">
+                                      <span className="rounded-full bg-[var(--accent-soft)] px-2 py-[1px] font-semibold text-[var(--accent)]">
                                         {item.definition || item.paraphrase}
                                       </span>
                                     </div>
-                                    {/* 额外属性：根据类型展示，与知识卡片保持一致 */}
+                                    {/* 额外属性：根据类型展示，视觉风格与知识卡片保持一致 */}
                                     {item.kind === 'word' && (
                                       <div className="mt-1 space-y-0.5 text-[11px] text-gray-700">
                                         {item.collocations && item.collocations.length > 0 && (
                                           <div>
-                                            <span className="mr-1 text-gray-500">搭配：</span>
+                                            <span className="mr-1 text-violet-700">搭配：</span>
                                             <span>{item.collocations.join(' · ')}</span>
                                           </div>
                                         )}
                                         {item.synonyms && item.synonyms.length > 0 && (
                                           <div>
-                                            <span className="mr-1 text-gray-500">近义：</span>
+                                            <span className="mr-1 text-violet-700">近义：</span>
                                             <span>{item.synonyms.join(' · ')}</span>
                                           </div>
                                         )}
                                         {item.antonyms && item.antonyms.length > 0 && (
                                           <div>
-                                            <span className="mr-1 text-gray-500">反义：</span>
+                                            <span className="mr-1 text-violet-700">反义：</span>
                                             <span>{item.antonyms.join(' · ')}</span>
                                           </div>
                                         )}
                                         {item.derivedForm && (
                                           <div>
-                                            <span className="mr-1 text-gray-500">词形：</span>
+                                            <span className="mr-1 text-violet-700">词形：</span>
                                             <span>{item.derivedForm}</span>
                                           </div>
                                         )}
                                         {item.note && (
                                           <div>
-                                            <span className="mr-1 text-gray-500">用法：</span>
+                                            <span className="mr-1 text-violet-700">用法：</span>
                                             <span>{item.note}</span>
                                           </div>
                                         )}
@@ -3271,19 +3300,20 @@ export default function WatchPage() {
                                     {item.kind === 'phrase' && (
                                       <div className="mt-1 space-y-0.5 text-[11px] text-gray-700">
                                         {item.structure && (
-                                          <div className="font-mono text-indigo-600">
-                                            结构：{item.structure}
+                                          <div className="font-mono text-[11px] text-indigo-700">
+                                            <span className="mr-1 text-indigo-700">结构：</span>
+                                            <span>{item.structure}</span>
                                           </div>
                                         )}
                                         {item.synonyms && item.synonyms.length > 0 && (
                                           <div>
-                                            <span className="mr-1 text-gray-500">同义：</span>
+                                            <span className="mr-1 text-indigo-700">同义：</span>
                                             <span>{item.synonyms.join(' · ')}</span>
                                           </div>
                                         )}
                                         {item.note && (
                                           <div>
-                                            <span className="mr-1 text-gray-500">用法：</span>
+                                            <span className="mr-1 text-indigo-700">用法：</span>
                                             <span>{item.note}</span>
                                           </div>
                                         )}
@@ -3293,25 +3323,25 @@ export default function WatchPage() {
                                       <div className="mt-1 space-y-0.5 text-[11px] text-gray-700">
                                         {item.functionLabel && (
                                           <div>
-                                            <span className="mr-1 text-gray-500">功能：</span>
+                                            <span className="mr-1 text-amber-700">功能：</span>
                                             <span>{item.functionLabel}</span>
                                           </div>
                                         )}
                                         {item.scenario && (
                                           <div className="text-gray-600">
-                                            <span className="mr-1 text-gray-500">场景：</span>
+                                            <span className="mr-1 text-amber-700">场景：</span>
                                             <span>{item.scenario}</span>
                                           </div>
                                         )}
                                         {item.responseGuide && (
                                           <div>
-                                            <span className="mr-1 text-gray-500">接话：</span>
+                                            <span className="mr-1 text-amber-700">接话：</span>
                                             <span>{item.responseGuide}</span>
                                           </div>
                                         )}
                                         {item.note && (
                                           <div>
-                                            <span className="mr-1 text-gray-500">用法：</span>
+                                            <span className="mr-1 text-amber-700">用法：</span>
                                             <span>{item.note}</span>
                                           </div>
                                         )}
@@ -3320,14 +3350,17 @@ export default function WatchPage() {
 
                                     {(item.source?.sentence_en ||
                                       item.source?.sentence_cn) && (
-                                      <div className="mt-2 border-l border-gray-200 pl-2 text-[11px] text-gray-700">
+                                      <div className="mt-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-900">
+                                        <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                                          视频原句
+                                        </div>
                                         {item.source?.sentence_en && (
-                                          <div className="italic text-[12px] text-gray-900">
+                                          <div className="italic text-[12px] text-slate-900">
                                             {item.source.sentence_en}
                                           </div>
                                         )}
                                         {item.source?.sentence_cn && (
-                                          <div className="mt-0.5 text-[11px] text-gray-600">
+                                          <div className="mt-0.5 text-[11px] text-slate-600">
                                             {item.source.sentence_cn}
                                           </div>
                                         )}
@@ -3335,17 +3368,17 @@ export default function WatchPage() {
                                     )}
 
                                     {(item.exampleEn || item.exampleCn) && (
-                                      <div className="mt-1 text-[11px] text-gray-700">
-                                        <div className="mb-0.5 text-[10px] text-gray-500">
+                                      <div className="mt-2 rounded-xl bg-sky-50 px-3 py-2 text-[11px] text-sky-900">
+                                        <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-600">
                                           例句
                                         </div>
                                         {item.exampleEn && (
-                                          <div className="italic text-[11px] text-gray-800">
+                                          <div className="italic text-[11px] text-sky-900">
                                             {item.exampleEn}
                                           </div>
                                         )}
                                         {item.exampleCn && (
-                                          <div className="mt-0.5 text-[10px] text-gray-500">
+                                          <div className="mt-0.5 text-[10px] text-sky-700">
                                             {item.exampleCn}
                                           </div>
                                         )}
@@ -3406,7 +3439,7 @@ export default function WatchPage() {
         >
           <div
             data-card-popover="true"
-            className="pointer-events-auto absolute w-[280px] rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-[12px] text-gray-800 shadow-lg shadow-black/15"
+            className="pointer-events-auto absolute w-[300px] rounded-3xl border border-white/60 bg-white/95 px-4 py-3.5 text-[12px] text-gray-900 shadow-[0_18px_45px_rgba(15,23,42,0.22)] backdrop-blur-xl"
             style={{
               top: cardPopover.top,
               left: cardPopover.left
@@ -3414,7 +3447,7 @@ export default function WatchPage() {
           >
             {/* 小三角 */}
             <div
-              className={`absolute h-2 w-2 rotate-45 border border-gray-200 bg-white ${
+              className={`absolute h-2.5 w-2.5 rotate-45 border border-white/60 bg-white/95 shadow-[0_4px_12px_rgba(15,23,42,0.16)] ${
                 cardPopover.placement === 'bottom'
                   ? 'left-1/2 -translate-x-1/2 -top-1 border-b-0 border-r-0'
                   : 'left-1/2 -translate-x-1/2 -bottom-1 border-t-0 border-l-0'
@@ -3436,22 +3469,13 @@ export default function WatchPage() {
               const isPhrase = normalized.kind === 'phrase';
               const isExpression = normalized.kind === 'expression';
 
-              const metaLabelParts: string[] = [];
-              if (rawTypeLabel) {
-                metaLabelParts.push(rawTypeLabel);
-              }
-              if (normalized.difficultyLevel) {
-                metaLabelParts.push(normalized.difficultyLevel);
-              }
-              const metaLabel =
-                metaLabelParts.length > 0
-                  ? metaLabelParts.join(' · ')
-                  : null;
+              // PC 顶部仅展示难度等级，类型信息交给右上角的 type pill 负责，避免冲突
+              const metaLabel = normalized.difficultyLevel || null;
 
               return (
                 <>
-                  {/* 头部：单词 + IPA + 类型标签 */}
-                  <div className="mb-2 flex items-start justify-between gap-2">
+                  {/* 头部：单词 + IPA + 类型标签 + 简单类别行 */}
+                  <div className="mb-2 flex items-start justify-between gap-2 border-b border-stone-100 pb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="vocab-word text-[18px] font-semibold text-gray-900">
@@ -3470,10 +3494,15 @@ export default function WatchPage() {
                             {normalized.pos}
                           </span>
                         )}
-                        <span className="font-semibold text-[var(--accent)]">
+                        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-[1px] font-semibold text-[var(--accent)]">
                           {normalized.def}
                         </span>
                       </div>
+                      {metaLabel && (
+                        <div className="mt-0.5 text-[11px] text-gray-500">
+                          {metaLabel}
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       {typeLabel && (
@@ -3497,47 +3526,74 @@ export default function WatchPage() {
                     </div>
                   </div>
 
-                  {/* 类型相关的补充信息 */}
-                  {metaLabel && (
-                    <div className="mt-1 text-[11px] text-gray-600">
-                      <span className="mr-1 text-gray-500">
-                        类别：
-                      </span>
-                      <span>{metaLabel}</span>
-                    </div>
-                  )}
-                  {isWord && normalized.collocations && (
-                    <div className="mt-1 text-[11px] text-gray-700">
-                      <span className="mr-1 text-gray-600">
-                        常见搭配：
-                      </span>
-                      <span>
-                        {normalized.collocations.join(' · ')}
-                      </span>
-                    </div>
-                  )}
-                  {isWord && normalized.synonyms && (
-                    <div className="mt-1 text-[11px] text-gray-700">
-                      <span className="mr-1 text-gray-600">
-                        近义：
-                      </span>
-                      <span>
-                        {normalized.synonyms.join(' · ')}
-                      </span>
-                    </div>
-                  )}
+                  {/* 类型相关信息 & 搭配等分区展示，避免信息挤在一起 */}
+                  {(isWord || isPhrase) &&
+                    (normalized.collocations ||
+                      normalized.synonyms ||
+                      normalized.antonyms ||
+                      normalized.derivedForm) && (
+                      <div className="mt-2 rounded-xl bg-violet-50 px-3 py-2 text-[11px] text-violet-900">
+                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-violet-600">
+                          搭配 · 近义 · 反义
+                        </div>
+                        {normalized.collocations && (
+                          <div className="mb-0.5">
+                            <span className="mr-1 text-violet-700">
+                              搭配：
+                            </span>
+                            <span>
+                              {normalized.collocations.join(' · ')}
+                            </span>
+                          </div>
+                        )}
+                        {normalized.synonyms && (
+                          <div className="mb-0.5">
+                            <span className="mr-1 text-gray-500">
+                              近义：
+                            </span>
+                            <span>
+                              {normalized.synonyms.join(' · ')}
+                            </span>
+                          </div>
+                        )}
+                        {normalized.antonyms && (
+                          <div className="mb-0.5">
+                            <span className="mr-1 text-gray-500">
+                              反义：
+                            </span>
+                            <span>
+                              {normalized.antonyms.join(' · ')}
+                            </span>
+                          </div>
+                        )}
+                        {normalized.derivedForm && (
+                          <div>
+                            <span className="mr-1 text-gray-500">
+                              词形：
+                            </span>
+                            <span>{normalized.derivedForm}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                   {isPhrase && normalized.structure && (
-                    <div className="mt-1 font-mono text-[11px] text-indigo-600">
-                      结构：{normalized.structure}
+                    <div className="mt-2 rounded-xl bg-indigo-50 px-3 py-2 text-[11px] text-indigo-800">
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-indigo-600">
+                        结构
+                      </div>
+                      <div className="font-mono">{normalized.structure}</div>
                     </div>
                   )}
 
                   {isExpression && (
-                    <div className="mt-1 space-y-0.5 text-[11px] text-gray-700">
+                    <div className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                        口语用法
+                      </div>
                       {normalized.functionLabel && (
-                        <div>
-                          <span className="mr-1 text-gray-600">
+                        <div className="mb-0.5">
+                          <span className="mr-1 text-gray-500">
                             功能：
                           </span>
                           <span>{normalized.functionLabel}</span>
@@ -3546,7 +3602,7 @@ export default function WatchPage() {
                       {(normalized.register || normalized.scenario) && (
                         <div className="flex flex-wrap items-center gap-1">
                           {normalized.register && (
-                            <span className="rounded-full border border-stone-200 bg-stone-50 px-1.5 py-[1px] text-[9px] uppercase tracking-wide text-stone-600">
+                            <span className="rounded-full border border-amber-100 bg-white px-1.5 py-[1px] text-[9px] uppercase tracking-wide text-amber-700">
                               {normalized.register}
                             </span>
                           )}
@@ -3555,70 +3611,53 @@ export default function WatchPage() {
                           )}
                         </div>
                       )}
+                      {normalized.responseGuide && (
+                        <div className="mt-1">
+                          <span className="mr-1 text-gray-500">
+                            接话：
+                          </span>
+                          <span>{normalized.responseGuide}</span>
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {/* 额外例句（区别于原字幕句） */}
                   {(normalized.exampleEn || normalized.exampleCn) && (
-                    <div className="mt-1 text-[11px] text-gray-800">
-                      <span className="mr-1 text-gray-600">
-                        例句：
-                      </span>
+                    <div className="mt-2 rounded-xl bg-sky-50 px-3 py-2 text-[11px] text-sky-900">
+                      <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-600">
+                        额外例句
+                      </div>
                       {normalized.exampleEn && (
-                        <span className="italic">
+                        <div className="italic">
                           {normalized.exampleEn}
-                        </span>
+                        </div>
                       )}
                       {normalized.exampleCn && (
-                        <div className="mt-0.5 text-[11px] text-gray-600">
+                        <div className="mt-0.5 text-gray-600">
                           {normalized.exampleCn}
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* 使用提示 / 反义 / 词形 / 接话指南 */}
+                  {/* 使用提示 */}
                   {normalized.note && (
-                    <div className="mt-1 text-[11px] text-gray-700">
-                      <span className="mr-1 text-gray-500">
-                        用法：
-                      </span>
-                      <span>{normalized.note}</span>
+                    <div className="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-[11px] text-rose-900">
+                      <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-600">
+                        用法提醒
+                      </div>
+                      <div>{normalized.note}</div>
                     </div>
                   )}
 
-                  {isWord && normalized.antonyms && (
-                    <div className="mt-1 text-[11px] text-gray-700">
-                      <span className="mr-1 text-gray-600">
-                        反义：
-                      </span>
-                      <span>
-                        {normalized.antonyms.join(' · ')}
-                      </span>
-                    </div>
-                  )}
-
-                  {isWord && normalized.derivedForm && (
-                    <div className="mt-1 text-[11px] text-gray-700">
-                      <span className="mr-1 text-gray-600">
-                        词形：
-                      </span>
-                      <span>{normalized.derivedForm}</span>
-                    </div>
-                  )}
-
-                  {isExpression && normalized.responseGuide && (
-                    <div className="mt-1 text-[11px] text-gray-700">
-                      <span className="mr-1 text-gray-600">
-                        接话：
-                      </span>
-                      <span>{normalized.responseGuide}</span>
-                    </div>
-                  )}
-
+                  {/* 视频原句 */}
                   {(normalized.sourceSentenceEn ||
                     normalized.sourceSentenceCn) && (
-                    <div className="mt-2 border-l border-gray-200 pl-2 text-[11px] text-gray-800">
+                    <div className="mt-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-900">
+                      <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                        视频原句
+                      </div>
                       {normalized.sourceSentenceEn && (
                         <div className="italic">
                           {normalized.sourceSentenceEn}
@@ -3671,7 +3710,7 @@ export default function WatchPage() {
         >
           {/* 底部弹层本体：阻止事件冒泡，避免点击内容区域时关闭 */}
           <div
-            className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-gray-200 bg-white px-4 pb-6 pt-4 text-[13px] shadow-[0_-18px_40px_rgba(0,0,0,0.18)]"
+            className="absolute inset-x-0 bottom-0 rounded-t-[28px] border-t border-white/70 bg-white/95 px-4 pb-6 pt-3 text-[13px] text-gray-900 shadow-[0_-22px_60px_rgba(15,23,42,0.7)] backdrop-blur-xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="mx-auto max-w-2xl">
@@ -3693,85 +3732,127 @@ export default function WatchPage() {
 
                 return (
                   <>
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
+                    <div className="mb-3">
+                      {/* 顶部拖拽条，弱化“弹窗”感，强化 Bottom Sheet 观感 */}
+                      <div className="mb-2 flex justify-center">
+                        <div className="h-1 w-10 rounded-full bg-gray-300" />
+                      </div>
+                      <div className="flex items-start justify-between">
+                        <div className="flex flex-col">
                           <div className="vocab-word text-[19px] font-semibold text-gray-900">
                             {normalized.headword ||
                               activeCard.trigger_word}
                           </div>
+                          {normalized.ipa && (
+                            <span className="mt-0.5 font-serif text-[13px] text-gray-500">
+                              {normalized.ipa}
+                            </span>
+                          )}
+                          <div className="mt-1 text-[13px] font-medium text-gray-900">
+                            {normalized.pos && (
+                              <span className="mr-1 font-medium text-gray-700">
+                                {normalized.pos}
+                              </span>
+                            )}
+                            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-[1px] font-semibold text-[var(--accent)]">
+                              {normalized.def}
+                            </span>
+                          </div>
+                          {normalized.difficultyLevel && (
+                            <div className="mt-0.5 text-[11px] text-gray-500">
+                              {normalized.difficultyLevel}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
                           {typeLabel && (
                             <span className="rounded-full bg-stone-100 px-2.5 py-[3px] text-[11px] text-stone-700">
                               {typeLabel}
                             </span>
                           )}
-                        </div>
-                        <div className="mt-1 text-[13px] font-medium text-gray-900">
-                          {normalized.pos && (
-                            <span className="mr-1 font-medium text-gray-700">
-                              {normalized.pos}
-                            </span>
+                          {normalized.ipa && (
+                            <button
+                              type="button"
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                              onClick={() => playCardAudio(activeCard)}
+                              aria-label="播放单词读音"
+                            >
+                              <IconSound className="h-4 w-4" />
+                            </button>
                           )}
-                          <span className="font-semibold text-[var(--accent)]">
-                            {normalized.def}
-                          </span>
                         </div>
-                        {rawTypeLabel && (
-                          <div className="mt-0.5 text-[11px] text-gray-600">
-                            <span className="mr-1 text-gray-500">
-                              类别：
-                            </span>
-                            <span>
-                              {normalized.difficultyLevel
-                                ? `${rawTypeLabel} · ${normalized.difficultyLevel}`
-                                : rawTypeLabel}
-                            </span>
-                          </div>
-                        )}
                       </div>
-                      <button
-                        className="text-xs text-gray-400 hover:text-gray-700"
-                        onClick={hideCard}
-                      >
-                        收起
-                      </button>
                     </div>
 
-                    {normalized.ipa && (
-                      <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
-                        <span>{normalized.ipa}</span>
-                        <button
-                          type="button"
-                          className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                          onClick={() => playCardAudio(activeCard)}
-                          aria-label="播放单词读音"
-                        >
-                          <IconSound className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
-
-                    {isWord && normalized.collocations && (
-                      <div className="mt-1 text-[11px] text-gray-600">
-                        <span className="mr-1 text-gray-500">
-                          常见搭配：
-                        </span>
-                        <span>
-                          {normalized.collocations.join(' · ')}
-                        </span>
+                    {/* 类型相关信息 & 搭配等分区展示，避免信息挤在一起 */}
+                    {(isWord || isPhrase) &&
+                      (normalized.collocations ||
+                        normalized.synonyms ||
+                        normalized.antonyms ||
+                        normalized.derivedForm) && (
+                        <div className="mt-2 rounded-xl bg-violet-50 px-3 py-2 text-[11px] text-violet-900">
+                          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-violet-600">
+                            搭配 · 近义 · 反义
+                          </div>
+                          {normalized.collocations && (
+                            <div className="mb-0.5">
+                              <span className="mr-1 text-violet-700">
+                                搭配：
+                              </span>
+                              <span>
+                                {normalized.collocations.join(' · ')}
+                              </span>
+                            </div>
+                          )}
+                          {normalized.synonyms && (
+                            <div className="mb-0.5">
+                              <span className="mr-1 text-gray-500">
+                                近义：
+                              </span>
+                              <span>
+                                {normalized.synonyms.join(' · ')}
+                              </span>
+                            </div>
+                          )}
+                          {normalized.antonyms && (
+                            <div className="mb-0.5">
+                              <span className="mr-1 text-gray-500">
+                                反义：
+                              </span>
+                              <span>
+                                {normalized.antonyms.join(' · ')}
+                              </span>
+                            </div>
+                          )}
+                          {normalized.derivedForm && (
+                            <div>
+                              <span className="mr-1 text-gray-500">
+                                词形：
+                              </span>
+                              <span>{normalized.derivedForm}</span>
+                            </div>
+                        )}
                       </div>
                     )}
 
                     {isPhrase && normalized.structure && (
-                      <div className="mt-1 font-mono text-[11px] text-indigo-600">
-                        结构：{normalized.structure}
+                      <div className="mt-2 rounded-xl bg-indigo-50 px-3 py-2 text-[11px] text-indigo-800">
+                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-indigo-600">
+                          结构
+                        </div>
+                        <div className="font-mono">
+                          {normalized.structure}
+                        </div>
                       </div>
                     )}
 
                     {isExpression && (
-                      <div className="mt-1 space-y-0.5 text-[11px] text-gray-600">
+                      <div className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                          口语用法
+                        </div>
                         {normalized.functionLabel && (
-                          <div>
+                          <div className="mb-0.5">
                             <span className="mr-1 text-gray-500">
                               功能：
                             </span>
@@ -3782,7 +3863,7 @@ export default function WatchPage() {
                           normalized.scenario) && (
                           <div className="flex flex-wrap items-center gap-1">
                             {normalized.register && (
-                              <span className="rounded-full border border-stone-200 bg-stone-50 px-1.5 py-[1px] text-[9px] uppercase tracking-wide text-stone-600">
+                              <span className="rounded-full border border-amber-100 bg-white px-1.5 py-[1px] text-[9px] uppercase tracking-wide text-amber-700">
                                 {normalized.register}
                               </span>
                             )}
@@ -3791,13 +3872,21 @@ export default function WatchPage() {
                             )}
                           </div>
                         )}
+                        {normalized.responseGuide && (
+                          <div className="mt-1">
+                            <span className="mr-1 text-gray-500">
+                              接话：
+                            </span>
+                            <span>{normalized.responseGuide}</span>
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {(normalized.exampleEn || normalized.exampleCn) && (
-                      <div className="mt-2 text-[11px] text-gray-700">
-                        <div className="mb-0.5 text-[10px] text-gray-500">
-                          例句
+                      <div className="mt-2 rounded-xl bg-sky-50 px-3 py-2 text-[11px] text-sky-900">
+                        <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-600">
+                          额外例句
                         </div>
                         {normalized.exampleEn && (
                           <div className="italic">
@@ -3805,7 +3894,7 @@ export default function WatchPage() {
                           </div>
                         )}
                         {normalized.exampleCn && (
-                          <div className="mt-0.5 text-gray-500">
+                          <div className="mt-0.5 text-gray-600">
                             {normalized.exampleCn}
                           </div>
                         )}
@@ -3813,46 +3902,20 @@ export default function WatchPage() {
                     )}
 
                     {normalized.note && (
-                      <div className="mt-2 text-[11px] text-gray-600">
-                        <span className="mr-1 text-gray-500">
-                          用法：
-                        </span>
-                        <span>{normalized.note}</span>
-                      </div>
-                    )}
-
-                    {isWord && normalized.antonyms && (
-                      <div className="mt-1 text-[11px] text-gray-600">
-                        <span className="mr-1 text-gray-500">
-                          反义：
-                        </span>
-                        <span>
-                          {normalized.antonyms.join(' · ')}
-                        </span>
-                      </div>
-                    )}
-
-                    {isWord && normalized.derivedForm && (
-                      <div className="mt-1 text-[11px] text-gray-600">
-                        <span className="mr-1 text-gray-500">
-                          词形：
-                        </span>
-                        <span>{normalized.derivedForm}</span>
-                      </div>
-                    )}
-
-                    {isExpression && normalized.responseGuide && (
-                      <div className="mt-1 text-[11px] text-gray-600">
-                        <span className="mr-1 text-gray-500">
-                          接话：
-                        </span>
-                        <span>{normalized.responseGuide}</span>
+                      <div className="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-[11px] text-rose-900">
+                        <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-600">
+                          用法提醒
+                        </div>
+                        <div>{normalized.note}</div>
                       </div>
                     )}
 
                     {(normalized.sourceSentenceEn ||
                       normalized.sourceSentenceCn) && (
-                      <div className="mt-2 border-l border-gray-200 pl-2 text-xs text-gray-700">
+                      <div className="mt-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900">
+                        <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                          视频原句
+                        </div>
                         {normalized.sourceSentenceEn && (
                           <div className="italic">
                             {normalized.sourceSentenceEn}
@@ -3879,11 +3942,15 @@ export default function WatchPage() {
                       type="button"
                       className={`flex-1 rounded-full border px-3 py-2 text-[12px] font-medium ${
                         isUnknown
-                          ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm shadow-[rgba(0,0,0,0.12)]'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)]'
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-100'
+                          : 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm shadow-[rgba(0,0,0,0.12)]'
                       }`}
                       onClick={() => {
-                        handleUpdateVocabStatus(vocabKey, 'unknown');
+                        // 未选中 -> 标记为“不认识”；已在生词本 -> 标记为“认识”（known）
+                        handleUpdateVocabStatus(
+                          vocabKey,
+                          isUnknown ? 'known' : 'unknown'
+                        );
                         hideCard();
                         // 默认在移动端自动恢复播放，保持学习流畅
                         if (
@@ -3895,7 +3962,14 @@ export default function WatchPage() {
                         }
                       }}
                     >
-                      不认识
+                      {isUnknown ? '认识' : '不认识'}
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border border-gray-200 bg-white px-3 py-2 text-[12px] text-gray-500 hover:border-gray-300 hover:text-gray-800"
+                      onClick={hideCard}
+                    >
+                      收起
                     </button>
                   </div>
                 );
