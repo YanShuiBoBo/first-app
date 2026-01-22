@@ -1723,7 +1723,6 @@ export default function Home() {
                   </p>
                   <div className="rounded-2xl bg-neutral-50 p-3">
                     <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
-                      WeChat
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
