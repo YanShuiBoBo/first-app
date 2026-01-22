@@ -64,7 +64,7 @@ function IconSearch() {
 function IconFilter() {
   return (
     <svg
-      className="h-3.5 w-3.5"
+      className="h-4 w-4"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -73,9 +73,13 @@ function IconFilter() {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M4 5h16" />
-      <path d="M7 12h10" />
-      <path d="M10 19h4" />
+      {/* 三段滑杆式滤镜图标，比简单横线更有“设置感” */}
+      <path d="M5 7h14" />
+      <circle cx="10" cy="7" r="1.6" />
+      <path d="M5 12h14" />
+      <circle cx="14" cy="12" r="1.6" />
+      <path d="M5 17h14" />
+      <circle cx="11" cy="17" r="1.6" />
     </svg>
   );
 }
@@ -650,7 +654,7 @@ export default function Home() {
               {/* 筛选按钮：始终固定在右侧，不随标签滚动 */}
               <button
                 type="button"
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-500 shadow-sm hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-white/60 bg-[var(--accent-soft)] text-[var(--accent)] shadow-[0_8px_22px_rgba(255,36,66,0.22)]"
                 onClick={() => setIsFilterSheetOpen(true)}
                 aria-label="筛选"
               >
@@ -1209,21 +1213,31 @@ export default function Home() {
 
           {/* 抽屉面板 */}
           <div className="relative mt-auto max-h-[70vh] w-full rounded-t-3xl bg-white px-4 pt-4 pb-20 shadow-lg">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-neutral-900">
-                筛选
-              </h2>
-              <button
-                type="button"
-                className="rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-500"
-                onClick={() => setIsFilterSheetOpen(false)}
-              >
-                关闭
-              </button>
+            {/* 顶部把手 + 标题行 */}
+            <div className="mb-3">
+              <div className="mb-2 flex justify-center">
+                <div className="h-1 w-10 rounded-full bg-neutral-200" />
+              </div>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-neutral-900">
+                  精细筛选
+                </h2>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-3 py-1 text-[11px] text-neutral-600"
+                  onClick={() => {
+                    setDifficultyFilter('all');
+                    setAuthorFilter('all');
+                    setStatusFilter('all');
+                  }}
+                >
+                  <span>重置</span>
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-4 overflow-y-auto text-xs text-neutral-700">
-              {/* 难度：3 列 Grid + 图标 */}
+            <div className="space-y-5 overflow-y-auto text-xs text-neutral-700">
+              {/* 难度：3 列 Grid，简洁胶囊样式 */}
               <div>
                 <div className="mb-2 font-medium">按难度</div>
                 <div className="grid grid-cols-3 gap-3">
@@ -1237,9 +1251,9 @@ export default function Home() {
                       };
                       const isActive = difficultyFilter === level;
                       const baseClasses =
-                        'flex flex-col items-center justify-center rounded-xl border px-2 py-3 text-[11px] transition-colors';
+                        'flex items-center justify-center rounded-full border px-3 py-2 text-[11px] transition-colors';
                       const activeClasses =
-                        'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)]';
+                        'border-transparent bg-[var(--accent)] text-white shadow-[0_8px_22px_rgba(255,36,66,0.48)]';
                       const inactiveClasses =
                         'border-neutral-200 bg-neutral-50 text-neutral-600';
 
@@ -1252,58 +1266,6 @@ export default function Home() {
                           }`}
                           onClick={() => setDifficultyFilter(level)}
                         >
-                          {/* 图标 */}
-                          {level === 'easy' && (
-                            <svg
-                              className={`mb-1 h-5 w-5 ${
-                                isActive
-                                  ? 'stroke-[var(--accent)]'
-                                  : 'stroke-gray-400'
-                              }`}
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              strokeWidth={1.8}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M4 20c4-6 8-10 16-16" />
-                              <path d="M9 19c1-2 2.5-4 4-5.5" />
-                            </svg>
-                          )}
-                          {level === 'medium' && (
-                            <svg
-                              className={`mb-1 h-5 w-5 ${
-                                isActive
-                                  ? 'stroke-[var(--accent)]'
-                                  : 'stroke-gray-400'
-                              }`}
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              strokeWidth={1.8}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <rect x="4" y="14" width="16" height="5" rx="1" />
-                              <rect x="6" y="9" width="12" height="4" rx="1" />
-                              <rect x="8" y="4" width="8" height="3" rx="1" />
-                            </svg>
-                          )}
-                          {level === 'hard' && (
-                            <svg
-                              className={`mb-1 h-5 w-5 ${
-                                isActive
-                                  ? 'stroke-[var(--accent)]'
-                                  : 'stroke-gray-400'
-                              }`}
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              strokeWidth={1.8}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
-                            </svg>
-                          )}
                           <span>{labelMap[level]}</span>
                         </button>
                       );
@@ -1319,14 +1281,14 @@ export default function Home() {
                   {authorOptions.length > 6 && (
                     <button
                       type="button"
-                      className="flex items-center gap-1 text-[11px] text-[var(--accent)]"
+                      className="inline-flex items-center gap-1 rounded-full bg-neutral-50 px-2.5 py-1 text-[10px] text-neutral-600"
                       onClick={() => setShowAllAuthors((v) => !v)}
                     >
                       <span>
-                        {showAllAuthors ? '收起全部' : '展开全部'}
+                        {showAllAuthors ? '收起作者' : '更多作者'}
                       </span>
                       <svg
-                        className={`h-3 w-3 transform transition-transform ${
+                        className={`h-3 w-3 transform text-neutral-500 transition-transform ${
                           showAllAuthors ? 'rotate-180' : ''
                         }`}
                         viewBox="0 0 24 24"
@@ -1346,8 +1308,8 @@ export default function Home() {
                     type="button"
                     className={`flex items-center gap-2 rounded-full border px-3 py-1 ${
                       authorFilter === 'all'
-                        ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                        : 'border-transparent bg-neutral-100 text-neutral-600'
+                        ? 'border-transparent bg-[var(--accent)] text-white shadow-[0_6px_18px_rgba(255,36,66,0.45)]'
+                        : 'border-neutral-200 bg-neutral-50 text-neutral-600'
                     }`}
                     onClick={() => setAuthorFilter('all')}
                   >
@@ -1365,8 +1327,8 @@ export default function Home() {
                         type="button"
                         className={`flex items-center gap-2 rounded-full border px-3 py-1 ${
                           isActive
-                            ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                            : 'border-transparent bg-neutral-100 text-neutral-600'
+                            ? 'border-transparent bg-[var(--accent)] text-white shadow-[0_6px_18px_rgba(255,36,66,0.45)]'
+                            : 'border-neutral-200 bg-neutral-50 text-neutral-600'
                         }`}
                         onClick={() => setAuthorFilter(name)}
                       >
@@ -1418,25 +1380,25 @@ export default function Home() {
             </div>
 
             {/* 底部固定按钮 */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-3xl bg-white/95 p-3">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-3xl bg-white/98 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.06)]">
               <div className="flex items-center justify-between gap-3">
                 <button
                   type="button"
-                  className="pointer-events-auto rounded-full border border-neutral-200 px-4 py-1.5 text-xs text-neutral-600"
+                  className="pointer-events-auto rounded-full border border-neutral-200 bg-neutral-50 px-4 py-1.5 text-xs text-neutral-600"
                   onClick={() => {
                     setDifficultyFilter('all');
                     setAuthorFilter('all');
                     setStatusFilter('all');
                   }}
                 >
-                  重置
+                  重置全部
                 </button>
                 <button
                   type="button"
-                  className="pointer-events-auto flex-1 rounded-full bg-[var(--accent)] py-2.5 text-center text-xs font-medium text-white shadow-[0_0_16px_rgba(232,141,147,0.55)] active:scale-95"
+                  className="pointer-events-auto flex-1 rounded-full bg-[var(--accent)] py-2.5 text-center text-xs font-medium text-white shadow-[0_10px_30px_rgba(255,36,66,0.55)] active:scale-95"
                   onClick={() => setIsFilterSheetOpen(false)}
                 >
-                  确认显示 ({filteredVideos.length})
+                  应用筛选 ({filteredVideos.length})
                 </button>
               </div>
             </div>
