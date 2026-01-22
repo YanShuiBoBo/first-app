@@ -1538,17 +1538,29 @@ export default function Home() {
             className="flex-1"
             onClick={() => setIsStatsSheetOpen(false)}
           />
-          <div className="mt-auto max-h-[80vh] w-full rounded-t-3xl bg-white p-4 shadow-lg">
-            {/* 顶部仅保留关闭按钮，避免多余标题占空间 */}
-            <div className="mb-2 flex items-center justify-end">
-              <button
-                type="button"
-                className="rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-500"
-                onClick={() => setIsStatsSheetOpen(false)}
-              >
-                关闭
-              </button>
+          <div className="relative mt-auto max-h-[80vh] w-full rounded-t-3xl bg-white px-4 pb-4 pt-3 shadow-lg">
+            {/* 顶部增加常见 Bottom Sheet 把手 + 标题行，视觉更完整 */}
+            <div className="mb-2 flex justify-center">
+              <div className="h-1 w-10 rounded-full bg-neutral-200" />
             </div>
+            <button
+              type="button"
+              className="absolute right-4 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-[11px] text-neutral-500"
+              aria-label="收起学习数据面板"
+              onClick={() => setIsStatsSheetOpen(false)}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.7}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
             <div className="space-y-4 overflow-y-auto text-xs">
               <div className="flex flex-col justify-between rounded-3xl border border-stone-100 bg-white p-5 text-[11px] text-neutral-700 shadow-sm">
                 <div>
@@ -1697,25 +1709,6 @@ export default function Home() {
                     </div>
                     <p className="mt-1 text-[11px] leading-relaxed text-neutral-600">
                       现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
-
                     </p>
                   </div>
 
@@ -1724,45 +1717,59 @@ export default function Home() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3 text-[13px]">
+                <div className="space-y-4 text-[13px]">
                   <p>
-                    有任何使用问题、功能建议，或者想要的学习场景，都可以通过微信和我们说。
+                    用起来哪里不顺手、哪些地方想优化，或者你希望多哪些学习场景，都可以直接在这里告诉我们。
                   </p>
                   <div className="rounded-2xl bg-neutral-50 p-3">
-                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
                       WeChat
                     </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
                         <div className="text-sm font-semibold text-neutral-900">
                           WeiWeiLad
                         </div>
                         <div className="mt-0.5 text-[11px] text-neutral-500">
-                          添加备注「精读反馈」，我们会拉你进内测群。
+                          打开微信扫一扫右侧二维码，备注「网站反馈」或「精读反馈」，我们会拉你进内测群。
                         </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="flex items-center gap-1 rounded-full bg-[var(--accent)] px-3 py-1.5 text-[11px] font-medium text-white shadow-sm active:scale-95"
-                        onClick={() => {
-                          if (typeof navigator !== 'undefined') {
-                            const nav = navigator as Navigator & {
-                              clipboard?: {
-                                writeText?: (text: string) => Promise<void>;
+                        <button
+                          type="button"
+                          className="mt-3 inline-flex items-center gap-1 rounded-full bg-[var(--accent)] px-3 py-1.5 text-[11px] font-medium text-white shadow-sm active:scale-95"
+                          onClick={() => {
+                            if (typeof navigator !== 'undefined') {
+                              const nav = navigator as Navigator & {
+                                clipboard?: {
+                                  writeText?: (text: string) => Promise<void>;
+                                };
                               };
-                            };
-                            if (nav.clipboard?.writeText) {
-                              void nav.clipboard.writeText('WeiWeiLad');
+                              if (nav.clipboard?.writeText) {
+                                void nav.clipboard.writeText('WeiWeiLad');
+                              }
                             }
-                          }
-                        }}
-                      >
-                        <span>复制微信号</span>
-                      </button>
+                          }}
+                        >
+                          <span>复制微信号</span>
+                        </button>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-1">
+                          <Image
+                            src="/images/hero-placeholder-960x540.png"
+                            alt="微信反馈二维码"
+                            width={128}
+                            height={168}
+                            className="h-40 w-28 rounded-xl object-contain bg-white"
+                          />
+                        </div>
+                        <p className="mt-1 text-center text-[10px] text-neutral-400">
+                          长按识别二维码添加
+                        </p>
+                      </div>
                     </div>
                   </div>
                   <p className="px-1 text-[11px] text-neutral-500">
-                    我们会认真看每一条反馈，更新会在「官方通知」里第一时间告诉你。
+                    我们会认真看每一条反馈，重要更新会在「官方通知」里第一时间告诉你。
                   </p>
                 </div>
               )}
