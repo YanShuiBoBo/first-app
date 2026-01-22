@@ -268,14 +268,18 @@ def find_srt_file(dir_path: Path) -> Path:
 
 def parse_title_and_author_from_dir(dir_path: Path) -> Tuple[str, str]:
   """
-  从目录名中解析标题和作者。
-  约定：`标题-作者`，如果没有 '-'，则作者留空。
+  从目录名中仅解析作者，标题交给字幕 + LLM 自动生成。
+
+  约定：目录名仍建议使用 `标题-作者` 形式，但这里只把 `-` 后面的部分当作作者，
+  避免把文件夹名字误用为最终视频标题。
   """
   name = dir_path.name.strip()
   if "-" in name:
-    title, author = name.split("&&", 1)
-    return title.strip(), author.strip()
-  return name, ""
+    # 只取 `-` 后的部分作为作者；标题留空，由 DeepSeek 根据字幕内容生成
+    _, author = name.split("-", 1)
+    return "", author.strip()
+  # 没有 `-` 时，作者留空，标题同样交给 LLM
+  return "", ""
 
 
 def build_finalize_payload(

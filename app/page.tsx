@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -426,6 +426,16 @@ export default function Home() {
     (_, index) => index + 1
   );
 
+  // 全局“第几期”编号：按 created_at 降序返回的视频列表，最新为第 N 期，最早为第 1 期
+  const episodeNoById = useMemo(() => {
+    const map = new Map<string, number>();
+    const total = videos.length;
+    videos.forEach((video, index) => {
+      map.set(video.id, total - index);
+    });
+    return map;
+  }, [videos]);
+
   // 列表懒加载：先渲染前 N 条，减少初次渲染压力
   const INITIAL_VISIBLE_COUNT = 20;
   const [visibleCount, setVisibleCount] =
@@ -818,7 +828,9 @@ export default function Home() {
                     </div>
 
                     <h2 className="line-clamp-2 font-serif text-3xl font-semibold leading-snug text-white">
-                      {heroVideo.title}
+                      {episodeNoById.get(heroVideo.id)
+                        ? `第${episodeNoById.get(heroVideo.id)}期：${heroVideo.title}`
+                        : heroVideo.title}
                     </h2>
 
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-white/80">
@@ -873,7 +885,9 @@ export default function Home() {
                     今日精选
                   </span>
                   <h2 className="mt-2 line-clamp-2 font-serif text-lg font-semibold leading-snug text-white">
-                    {heroVideo.title}
+                    {episodeNoById.get(heroVideo.id)
+                      ? `第${episodeNoById.get(heroVideo.id)}期：${heroVideo.title}`
+                      : heroVideo.title}
                   </h2>
                   <div className="mt-2 flex items-center gap-2 text-[10px] text-white/80">
                     <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
@@ -1178,10 +1192,12 @@ export default function Home() {
                       </span>
                     </div>
                     <div className="flex flex-1 flex-col justify-between gap-2 p-3">
-                      <div className="space-y-1.5">
-                        <h3 className="line-clamp-2 text-sm font-bold leading-tight text-slate-800">
-                          {video.title}
-                        </h3>
+	                      <div className="space-y-1.5">
+	                        <h3 className="line-clamp-2 text-sm font-bold leading-tight text-slate-800">
+	                          {episodeNoById.get(video.id)
+	                            ? `第${episodeNoById.get(video.id)}期：${video.title}`
+	                            : video.title}
+	                        </h3>
 	                        {video.tags && video.tags.length > 0 && (
 	                          <div className="flex flex-wrap gap-1.5">
 	                            {video.tags.map(tag => (
