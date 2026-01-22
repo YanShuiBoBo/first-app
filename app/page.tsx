@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import StatsCard from '@/components/dashboard/StatsCard';
-import StudyCalendar from '@/components/dashboard/StudyCalendar';
 import { useAuthStore } from '@/lib/store/auth-store';
 import Header from '@/components/layout/Header';
 import { createBrowserClient } from '@/lib/supabase/client';
@@ -137,13 +135,16 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('hottest');
   const [statusFilter, setStatusFilter] =
     useState<StatusFilter>('all');
-  const [activeThemeTag, setActiveThemeTag] = useState<string | null>(
-    null
-  );
+  const [activeThemeTag] = useState<string | null>(null);
   const [showAllAuthors, setShowAllAuthors] = useState(false);
 
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isStatsSheetOpen, setIsStatsSheetOpen] = useState(false);
+  const [isNotificationSheetOpen, setIsNotificationSheetOpen] =
+    useState(false);
+  const [notificationMode, setNotificationMode] = useState<
+    'notices' | 'feedback'
+  >('notices');
 
   // PC 端筛选区：控制“更多筛选”抽屉的展开 / 收起
   const [isDesktopFilterExpanded, setIsDesktopFilterExpanded] =
@@ -263,28 +264,34 @@ export default function Home() {
 
     let canceled = false;
 
-    const run = () => {
-      if (canceled) return;
-      void fetchStudyStats(user.email as string)
-        .then(() => {
-          if (!canceled) {
-            setHasLoadedStats(true);
-          }
-        })
-        .catch(() => {
-          // 统计失败不影响首页核心体验，下次进入页面可重试
-        });
-    };
+	    const run = () => {
+	      if (canceled) return;
+	      void fetchStudyStats(user.email as string)
+	        .then(() => {
+	          if (!canceled) {
+	            setHasLoadedStats(true);
+	          }
+	        })
+	        .catch(() => {
+	          // 统计失败不影响首页核心体验，下次进入页面可重试
+	        });
+	    };
 
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const id = (window as any).requestIdleCallback(run);
-      return () => {
-        canceled = true;
-        if ((window as any).cancelIdleCallback) {
-          (window as any).cancelIdleCallback(id);
-        }
-      };
-    }
+	    if (typeof window !== 'undefined') {
+	      const win = window as Window & {
+	        requestIdleCallback?: (cb: () => void) => number;
+	        cancelIdleCallback?: (id: number) => void;
+	      };
+	      if (typeof win.requestIdleCallback === 'function') {
+	        const id = win.requestIdleCallback(run);
+	        return () => {
+	          canceled = true;
+	          if (typeof win.cancelIdleCallback === 'function') {
+	            win.cancelIdleCallback(id);
+	          }
+	        };
+	      }
+	    }
 
     const timeoutId = setTimeout(run, 300);
     return () => {
@@ -576,11 +583,15 @@ export default function Home() {
                 />
               </div>
             </div>
-            {/* 通知铃铛 */}
+            {/* 通知铃铛：打开官方通知 / 反馈中心 */}
             <button
               type="button"
               className="relative flex h-8 w-8 items-center justify-center"
               aria-label="查看通知"
+              onClick={() => {
+                setNotificationMode('notices');
+                setIsNotificationSheetOpen(true);
+              }}
             >
               <svg
                 className="h-6 w-6 text-slate-800"
@@ -1491,7 +1502,35 @@ export default function Home() {
       {/*  </nav>*/}
       {/*)}*/}
 
-      {/* 移动端学习数据 Bottom Sheet */}
+      {/* 移动端学习数据浮动按钮：仅在首页列表空闲时显示 */}
+      {!isFilterSheetOpen &&
+        !isStatsSheetOpen &&
+        !isNotificationSheetOpen && (
+          <button
+            type="button"
+            className="fixed bottom-5 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-white/80 bg-white/95 text-[var(--accent)] shadow-[0_10px_25px_rgba(15,23,42,0.18)] md:hidden"
+            aria-label="查看学习数据"
+            onClick={() => setIsStatsSheetOpen(true)}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3.5" y="4.5" width="17" height="14" rx="3" />
+              <path d="M7 14.5 10.5 11l3 2 3.5-4" />
+              <path d="M8 8.5h0.01" />
+              <path d="M11.5 8.5h0.01" />
+              <path d="M15 8.5h0.01" />
+            </svg>
+          </button>
+        )}
+
+      {/* 移动端学习数据 Bottom Sheet：样式对齐 PC 端 My progress 卡片 */}
       {isStatsSheetOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-black/40 md:hidden">
           <button
@@ -1500,10 +1539,8 @@ export default function Home() {
             onClick={() => setIsStatsSheetOpen(false)}
           />
           <div className="mt-auto max-h-[80vh] w-full rounded-t-3xl bg-white p-4 shadow-lg">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-neutral-900">
-                学习数据总览
-              </h2>
+            {/* 顶部仅保留关闭按钮，避免多余标题占空间 */}
+            <div className="mb-2 flex items-center justify-end">
               <button
                 type="button"
                 className="rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-500"
@@ -1513,27 +1550,222 @@ export default function Home() {
               </button>
             </div>
             <div className="space-y-4 overflow-y-auto text-xs">
-              <div className="rounded-2xl bg-neutral-50 p-3">
-                <StudyCalendar
-                  year={new Date().getFullYear()}
-                  month={new Date().getMonth() + 1}
-                  studyDates={studyDates}
-                />
-              </div>
-              <StatsCard
-                totalVideos={videos.length}
-                learnedVideos={learnedCount}
-                notLearnedVideos={Math.max(videos.length - learnedCount, 0)}
-              />
-              <div className="rounded-2xl bg-neutral-50 p-3 text-neutral-600">
-                <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
-                  Snapshot
+              <div className="flex flex-col justify-between rounded-3xl border border-stone-100 bg-white p-5 text-[11px] text-neutral-700 shadow-sm">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+                        My progress
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-neutral-900">
+                        {learnedCount > 0 ? '你已经在路上了' : '从这一集开始也不晚'}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end text-[10px] text-neutral-500">
+                      <span>本月已打卡</span>
+                      <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-neutral-800">
+                        <IconFlame />
+                        <span>{studyDates.length} 天</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 月度打卡热力图：7 列 x N 行的小圆点矩阵 */}
+                  <div className="mt-4">
+                    <div className="mb-1 text-[11px] text-neutral-500">
+                      {currentYear} 年 {currentMonth + 1} 月
+                    </div>
+                    <div className="grid grid-cols-7 gap-1.5">
+                      {calendarSlots.map(day => {
+                        const isActive = activeDayNumbers.has(day);
+                        return (
+                          <div
+                            key={day}
+                            className={`h-3 w-3 rounded-full ${
+                              isActive
+                                ? 'bg-[#FF2442] shadow-[0_0_8px_rgba(255,36,66,0.6)]'
+                                : 'bg-stone-200'
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+                    <p className="mt-2 text-[11px] text-neutral-500">
+                      {studyDates.length >= 3
+                        ? '状态在线，别让打卡断掉～'
+                        : '从今天开始打卡一小集，也是一种进步。'}
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <div>本月已打卡 {studyDates.length} 天</div>
-                  <div>已学期数 {learnedCount} 期</div>
+
+                {/* 素材库进度条：已学 / 总库 */}
+                <div className="mt-5 border-t border-neutral-100 pt-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11px] font-medium text-neutral-600">
+                      素材库进度
+                    </span>
+                    <span className="text-[11px] text-neutral-500">
+                      {progressPercent}%
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-stone-100">
+                    <div
+                      className="h-2 rounded-full bg-neutral-900"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[11px] text-neutral-500">
+                    已学 {learnedCount} / {totalVideosCount} 期
+                  </p>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 移动端官方通知 / 反馈面板：从顶部下拉，贴近导航区域 */}
+      {isNotificationSheetOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/20 md:hidden"
+          onClick={() => setIsNotificationSheetOpen(false)}
+        >
+          {/* 顶部下拉面板本体：靠近导航，从上往下出现 */}
+          <div
+            className="mx-4 mt-16 flex max-h-[70vh] flex-col rounded-2xl bg-white px-4 pt-4 pb-5 shadow-lg"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="mb-3 flex flex-shrink-0 items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-neutral-900">
+                  {notificationMode === 'notices' ? '官方通知' : '意见与反馈'}
+                </h2>
+                <p className="mt-0.5 text-[11px] text-neutral-500">
+                  {notificationMode === 'notices'
+                    ? '了解最新内容和功能更新。'
+                    : '用起来哪里不顺手，都可以直接告诉我们。'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded-full bg-neutral-100 px-3 py-1 text-[11px] font-medium text-neutral-700"
+                aria-label={
+                  notificationMode === 'notices'
+                    ? '进入反馈界面'
+                    : '返回通知列表'
+                }
+                onClick={() =>
+                  setNotificationMode(mode =>
+                    mode === 'notices' ? 'feedback' : 'notices'
+                  )
+                }
+              >
+                {notificationMode === 'notices' ? '反馈' : '返回通知'}
+              </button>
+            </div>
+            <div className="flex-1 space-y-4 overflow-y-auto text-xs text-neutral-700">
+              {notificationMode === 'notices' ? (
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 p-3 shadow-sm">
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                        新内容
+                      </span>
+                      <span className="text-[10px] text-neutral-400">
+                        2026-01-22
+                      </span>
+                    </div>
+                    <div className="text-[13px] font-semibold text-neutral-900">
+                      新增几集「日常聊天」精读视频
+                    </div>
+                    <p className="mt-1 text-[11px] leading-relaxed text-neutral-600">
+                      适合通勤路上刷一小集，专门拆解地道聊天句子，和精读页搭配使用效果更好。
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 p-3 shadow-sm">
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">
+                        功能更新
+                      </span>
+                      <span className="text-[10px] text-neutral-400">
+                        2026-01-20
+                      </span>
+                    </div>
+                    <div className="text-[13px] font-semibold text-neutral-900">
+                      生词本默认收集所有高亮单词
+                    </div>
+                    <p className="mt-1 text-[11px] leading-relaxed text-neutral-600">
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+                      现在打开生词本，一屏就能预览当前精读里的所有单词，点「认识」即可清理熟词。
+
+                    </p>
+                  </div>
+
+                  <p className="px-1 text-[11px] text-neutral-500">
+                    更多更新会在小红书置顶笔记同步。
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3 text-[13px]">
+                  <p>
+                    有任何使用问题、功能建议，或者想要的学习场景，都可以通过微信和我们说。
+                  </p>
+                  <div className="rounded-2xl bg-neutral-50 p-3">
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+                      WeChat
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-neutral-900">
+                          WeiWeiLad
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-neutral-500">
+                          添加备注「精读反馈」，我们会拉你进内测群。
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 rounded-full bg-[var(--accent)] px-3 py-1.5 text-[11px] font-medium text-white shadow-sm active:scale-95"
+                        onClick={() => {
+                          if (typeof navigator !== 'undefined') {
+                            const nav = navigator as Navigator & {
+                              clipboard?: {
+                                writeText?: (text: string) => Promise<void>;
+                              };
+                            };
+                            if (nav.clipboard?.writeText) {
+                              void nav.clipboard.writeText('WeiWeiLad');
+                            }
+                          }
+                        }}
+                      >
+                        <span>复制微信号</span>
+                      </button>
+                    </div>
+                  </div>
+                  <p className="px-1 text-[11px] text-neutral-500">
+                    我们会认真看每一条反馈，更新会在「官方通知」里第一时间告诉你。
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
