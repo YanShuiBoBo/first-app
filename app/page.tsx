@@ -442,8 +442,8 @@ export default function Home() {
     useState<number>(INITIAL_VISIBLE_COUNT);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  // 过滤视频
-  const filteredVideos = videos
+  // 过滤视频：先按条件筛选，再根据排序方式决定是否按热度重新排序
+  const filteredVideosBase = videos
     .filter((video) => {
       if (!normalizedQuery) return true;
 
@@ -478,15 +478,16 @@ export default function Home() {
       if (statusFilter === 'completed') return completed;
       if (statusFilter === 'unlearned') return !completed;
       return true;
-    })
-    .sort((a, b) => {
-      if (sortOrder === 'hottest') {
-        const av = a.view_count ?? 0;
-        const bv = b.view_count ?? 0;
-        return bv - av;
-      }
-      return 0;
     });
+
+  const filteredVideos =
+    sortOrder === 'hottest'
+      ? [...filteredVideosBase].sort((a, b) => {
+          const av = a.view_count ?? 0;
+          const bv = b.view_count ?? 0;
+          return bv - av;
+        })
+      : filteredVideosBase;
 
   const visibleVideos = filteredVideos.slice(0, visibleCount);
 
@@ -1275,6 +1276,7 @@ export default function Home() {
                     setDifficultyFilter('all');
                     setAuthorFilter('all');
                     setStatusFilter('all');
+                    setSortOrder('hottest');
                   }}
                 >
                   <span>重置</span>
@@ -1282,15 +1284,25 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex-1 space-y-6 overflow-y-auto pb-24 text-[13px] text-neutral-800">
+            <div className="flex-1 space-y-5 overflow-y-auto pb-24 text-[13px] text-neutral-800">
               {/* 难度：3 列 Grid，简洁胶囊样式 */}
-              <div>
-                <div className="mb-2 text-[12px] font-semibold text-neutral-900">
-                  按难度
+              <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 px-3 py-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-semibold text-white">
+                      Lv
+                    </span>
+                    <span className="text-[12px] font-semibold text-neutral-900">
+                      按难度
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-neutral-500">
+                    先选一个适合你的节奏
+                  </span>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="mt-1 grid grid-cols-3 gap-3">
                   {(['easy', 'medium', 'hard'] as DifficultyFilter[]).map(
-                    (level) => {
+                    level => {
                       const labelMap: Record<DifficultyFilter, string> = {
                         all: '全部',
                         easy: '入门',
@@ -1318,7 +1330,7 @@ export default function Home() {
                       }
 
                       const inactiveClasses =
-                        'border-neutral-200 bg-neutral-50 text-neutral-600';
+                        'border-neutral-200 bg-white text-neutral-600';
 
                       return (
                         <button
@@ -1338,16 +1350,21 @@ export default function Home() {
               </div>
 
               {/* 作者：前 4-6 个 + 展开更多 */}
-              <div>
+              <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 px-3 py-3">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[12px] font-semibold text-neutral-900">
-                    按作者
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">
+                      Au
+                    </span>
+                    <span className="text-[12px] font-semibold text-neutral-900">
+                      按作者
+                    </span>
+                  </div>
                   {authorOptions.length > 6 && (
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 rounded-full bg-neutral-50 px-2.5 py-1 text-[11px] text-neutral-700"
-                      onClick={() => setShowAllAuthors((v) => !v)}
+                      className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] text-neutral-700 shadow-sm"
+                      onClick={() => setShowAllAuthors(v => !v)}
                     >
                       <span>
                         {showAllAuthors ? '收起作者' : '更多作者'}
@@ -1374,7 +1391,7 @@ export default function Home() {
                     className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] ${
                       authorFilter === 'all'
                         ? 'border-transparent bg-[var(--accent)] text-white shadow-[0_6px_18px_rgba(255,36,66,0.45)]'
-                        : 'border-neutral-200 bg-neutral-50 text-neutral-600'
+                        : 'border-neutral-200 bg-white text-neutral-600'
                     }`}
                     onClick={() => setAuthorFilter('all')}
                   >
@@ -1384,16 +1401,16 @@ export default function Home() {
                   {(showAllAuthors
                     ? authorOptions
                     : authorOptions.slice(0, 6)
-                  ).map((name) => {
+                  ).map(name => {
                     const isActive = authorFilter === name;
                     return (
                       <button
                         key={name}
                         type="button"
-                      className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] ${
+                        className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] ${
                           isActive
                             ? 'border-transparent bg-[var(--accent)] text-white shadow-[0_6px_18px_rgba(255,36,66,0.45)]'
-                            : 'border-neutral-200 bg-neutral-50 text-neutral-600'
+                            : 'border-neutral-200 bg-white text-neutral-600'
                         }`}
                         onClick={() => setAuthorFilter(name)}
                       >
@@ -1412,9 +1429,16 @@ export default function Home() {
               </div>
 
               {/* 状态：Switch */}
-              <div>
-                <div className="mb-2 text-[12px] font-semibold text-neutral-900">
-                  按状态
+              <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 px-3 py-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-semibold text-white">
+                      ✔
+                    </span>
+                    <span className="text-[12px] font-semibold text-neutral-900">
+                      按状态
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] text-neutral-700">
@@ -1444,6 +1468,47 @@ export default function Home() {
                   </button>
                 </div>
               </div>
+
+              {/* 排序：按最新 / 最热 */}
+              <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 px-3 py-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-semibold text-white">
+                      ↕
+                    </span>
+                    <span className="text-[12px] font-semibold text-neutral-900">
+                      按排序
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-neutral-500">
+                    默认展示最热门内容
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className={`flex-1 rounded-full px-3 py-2 text-[12px] font-medium ${
+                      sortOrder === 'hottest'
+                        ? 'bg-neutral-900 text-white shadow-md shadow-black/20'
+                        : 'bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900'
+                    }`}
+                    onClick={() => setSortOrder('hottest')}
+                  >
+                    最热优先
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 rounded-full px-3 py-2 text-[12px] font-medium ${
+                      sortOrder === 'latest'
+                        ? 'bg-neutral-900 text-white shadow-md shadow-black/20'
+                        : 'bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900'
+                    }`}
+                    onClick={() => setSortOrder('latest')}
+                  >
+                    最新优先
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* 底部固定按钮 */}
@@ -1456,6 +1521,7 @@ export default function Home() {
                     setDifficultyFilter('all');
                     setAuthorFilter('all');
                     setStatusFilter('all');
+                    setSortOrder('hottest');
                   }}
                 >
                   重置全部
