@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -226,15 +227,60 @@ def upload_cover_image(image_path: Path) -> Optional[Tuple[str, str]]:
 
 
 def find_video_file(dir_path: Path) -> Path:
-  """在目录中选择视频文件：优先 output.mp4，否则取第一个 *.mp4。"""
+  """
+  在目录中选择视频文件：
+  - 优先使用已存在的 output.mp4；
+  - 否则：
+    - 如果同时存在一个 mp4（视频画面）和一个 m4a（独立音轨），使用 ffmpeg 合成 output.mp4；
+    - 否则退回到第一个 *.mp4。
+  """
   output_mp4 = dir_path / "output.mp4"
   if output_mp4.is_file():
     return output_mp4
 
-  candidates = sorted(dir_path.glob("*.mp4"))
-  if not candidates:
-    raise FileNotFoundError(f"目录中未找到 mp4 文件: {dir_path}")
-  return candidates[0]
+  # 查找候选视频 / 音频文件
+  mp4_candidates = sorted(
+    p for p in dir_path.glob("*.mp4") if p.name.lower() != "output.mp4"
+  )
+  m4a_candidates = sorted(dir_path.glob("*.m4a"))
+
+  if mp4_candidates and m4a_candidates:
+    video_src = mp4_candidates[0]
+    audio_src = m4a_candidates[0]
+    print(f"  -> 检测到独立视频和音频文件，将使用 ffmpeg 合成 output.mp4:")
+    print(f"     视频: {video_src.name}")
+    print(f"     音频: {audio_src.name}")
+
+    # 使用 ffmpeg 合并：视频轨直接拷贝，音频转为 AAC，时长取较短的一方
+    cmd = [
+      "ffmpeg",
+      "-y",  # 覆盖已有 output.mp4（如果存在）
+      "-i",
+      str(video_src),
+      "-i",
+      str(audio_src),
+      "-c:v",
+      "copy",
+      "-c:a",
+      "aac",
+      "-shortest",
+      str(output_mp4),
+    ]
+
+    try:
+      subprocess.run(cmd, check=True)
+      print("  -> ffmpeg 合成完成，后续流程将使用 output.mp4")
+      return output_mp4
+    except FileNotFoundError:
+      print("  -> 警告：未找到 ffmpeg 命令，改为直接使用原始 mp4 视频（无独立音轨合成）")
+    except subprocess.CalledProcessError as exc:
+      print(f"  -> 警告：ffmpeg 合成 output.mp4 失败（退出码 {exc.returncode}），将退回使用原始 mp4 视频")
+
+  # 没有 m4a，或者 ffmpeg 不可用 / 合成失败时，退回到第一个 mp4
+  if mp4_candidates:
+    return mp4_candidates[0]
+
+  raise FileNotFoundError(f"目录中未找到 mp4 文件: {dir_path}")
 
 
 def find_cover_image_file(dir_path: Path) -> Optional[Path]:
@@ -274,9 +320,9 @@ def parse_title_and_author_from_dir(dir_path: Path) -> Tuple[str, str]:
   避免把文件夹名字误用为最终视频标题。
   """
   name = dir_path.name.strip()
-  if "-" in name:
+  if "&&" in name:
     # 只取 `-` 后的部分作为作者；标题留空，由 DeepSeek 根据字幕内容生成
-    _, author = name.split("-", 1)
+    _, author = name.split("&&", 1)
     return "", author.strip()
   # 没有 `-` 时，作者留空，标题同样交给 LLM
   return "", ""
