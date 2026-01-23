@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  /* Creamy Aesthetic 配色体系（干枯玫瑰 + 奶油米白） */
-  --bg-body: #fafaf8; /* 页面整体背景 */
-  --bg-shell: #f5f5f0; /* 模块/侧栏背景 */
-  --bg-card: #ffffff; /* 卡片背景 */
+  /* 全局背景：以干净的白 + 浅冷灰为主，保证整体“清爽干净” */
+  --bg-body: #f9fafb; /* 页面整体背景（非常浅的冷灰白） */
+  --bg-shell: #ffffff; /* 模块/侧栏背景：默认纯白 */
+  --bg-card: #ffffff; /* 卡片背景：白底 */
 
   --glass-bg: rgba(255, 255, 255, 0.75);
   --glass-border: rgba(255, 255, 255, 0.8);
@@ -89,7 +89,8 @@ body {
   overflow-y: auto;
   padding: 24px 20px 140px 20px;
   scroll-behavior: smooth;
-  background-color: var(--bg-shell);
+  /* 精读页字幕区域背景：保持轻微冷灰，衬托白色句卡 */
+  background-color: #f9fafb;
 }
 
 .feed-list::-webkit-scrollbar {
@@ -105,16 +106,16 @@ body {
   display: none;
 }
 
-/* 生词与知识卡片：英语单词使用衬线体，营造杂志感 */
+/* 生词与知识卡片：与字幕使用同一套系统字体，保持整体干净统一 */
 .vocab-word {
-  font-family: "Playfair Display", "Times New Roman", serif;
-  letter-spacing: 0.01em;
+  font-family: inherit;
+  letter-spacing: -0.01em;
 }
 
 .card {
   padding: 18px 16px;
   margin-bottom: 12px;
-  border-radius: 20px;
+  border-radius: 16px;
   border: 1px solid transparent;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   background: transparent;
@@ -130,17 +131,18 @@ body {
 /* 精读页字幕卡片：在桌面端进一步压缩垂直间距，不影响其它使用 .card 的组件 */
 .card.subtitle-card {
   margin-bottom: 10px;
-  border-radius: 0;
+  border-radius: 12px;
   border-width: 1px;
   border-style: solid;
-  border-color: transparent;
+  border-color: rgba(148, 163, 184, 0.3); /* slate-400 低不透明度描边，保证句卡轮廓清晰 */
+  background-color: #ffffff;
 }
 
 @media (min-width: 1024px) {
   .card.subtitle-card {
     padding: 8px 12px;
-    margin-bottom: 2px;
-    border-radius: 5px; /* PC 精读页字幕卡片去掉圆角 */
+    margin-bottom: 4px;
+    border-radius: 10px;
   }
 
   .card.subtitle-card .en {
@@ -172,9 +174,10 @@ body {
 }
 
 .card.active {
+  /* 通用 active 态：轻微抬起，不再放大，避免列表跳动 */
   background: var(--bg-card);
-  box-shadow: var(--shadow-card);
-  transform: scale(1.02);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
 }
 
 .card.active .en {
@@ -184,10 +187,17 @@ body {
 /* 精读页 PC 端：激活字幕行使用更明显的高亮底色，避免与侧边栏背景混在一起 */
 @media (min-width: 1024px) {
   .card.subtitle-card.active {
-    background-color: #ffffff;
-    border-color: rgba(255, 36, 66, 0.18);
-    box-shadow: 0 6px 20px rgba(255, 36, 66, 0.12);
+    background-color: #fef9c3; /* 浅黄高亮：当前精读句 */
+    border-color: #facc15; /* amber-400 */
+    box-shadow: 0 14px 40px rgba(250, 204, 21, 0.35);
   }
+}
+
+/* 移动端字幕当前句高亮：与 PC 保持一致 */
+.card.subtitle-card.active {
+  background-color: #fef9c3;
+  border-color: #facc15;
+  box-shadow: 0 10px 30px rgba(250, 204, 21, 0.3);
 }
 
 /* 移动端精读页：Creamy 悬浮岛与设置 Popover 样式

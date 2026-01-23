@@ -2421,7 +2421,7 @@ export default function WatchPage() {
   };
 
   return (
-    <div className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[var(--bg-shell)] text-gray-900 lg:h-screen lg:overflow-hidden lg:bg-[var(--bg-body)]">
+    <div className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[var(--bg-body)] text-gray-900 lg:h-screen lg:overflow-hidden">
       {/* 桌面端顶部导航栏：移动端在视频上方单独实现 */}
       <header className="hidden h-11 items-center justify-between bg-white/95 px-6 text-xs text-gray-700 shadow-sm shadow-black/5 lg:fixed lg:inset-x-0 lg:top-0 lg:z-30 lg:flex">
         <button
@@ -2455,8 +2455,32 @@ export default function WatchPage() {
             <div
               ref={videoRef}
               // 注意：这里不要再加 overflow-hidden，否则会导致内部使用 position: sticky 的视频区域在移动端失效
-              className="flex h-full flex-col rounded-2xl bg-[var(--bg-shell)] shadow-sm"
+              className="flex h-full flex-col rounded-2xl bg-white shadow-sm"
             >
+              {/* 移动端顶部返回栏：与视频区域分离，留出更清爽的头部空间 */}
+              <div className="flex h-11 items-center justify-between px-4 pt-1 text-xs text-gray-700 lg:hidden">
+                <button
+                  type="button"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm shadow-black/5"
+                  onClick={handleBackToHome}
+                  aria-label="回到首页"
+                >
+                  <IconArrowLeft className="h-4 w-4" />
+                </button>
+                <div className="mx-2 flex-1 truncate text-center text-[13px] font-semibold text-gray-900">
+                  {videoData.title}
+                </div>
+                <button
+                  type="button"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm shadow-black/5"
+                  aria-label="更多操作"
+                  onClick={() => {
+                    // 预留：后续接入打印脚本 / 查看完整简介 / 举报等
+                  }}
+                >
+                  <IconMore className="h-4 w-4" />
+                </button>
+              </div>
               {/* Layer 1: Header（桌面端显示） */}
               {/*<div className="hidden h-14 items-center justify-between border-b border-gray-100 px-6 sm:flex">*/}
               {/*  <div className="flex flex-col overflow-hidden">*/}
@@ -2494,35 +2518,10 @@ export default function WatchPage() {
                 {/* 占位：在移动端预留 16:9 高度，避免下面内容被固定视频遮挡 */}
                 <div className="aspect-video w-full lg:hidden" />
 
-                {/* 真正的视频容器：小屏 fixed 顶部并占满宽度，大屏正常随内容滚动 */}
-                <div className="fixed inset-x-0 top-0 z-20 lg:static lg:inset-auto lg:top-auto lg:z-auto">
+                {/* 真正的视频容器：小屏 fixed 顶部（在移动端头部下方），大屏正常随内容滚动 */}
+                <div className="fixed inset-x-0 top-[52px] z-20 lg:static lg:inset-auto lg:top-auto lg:z-auto">
                   <div className="mx-auto w-full max-w-[414px] px-0 lg:max-w-[1600px] lg:px-0">
-                    <div className="relative aspect-video w-full overflow-hidden bg-black lg:rounded-2xl lg:shadow-lg lg:shadow-black/25">
-                      {/* 移动端顶部导航：覆盖在视频之上，避免占用额外垂直空间 */}
-                      <div className="absolute inset-x-0 top-0 z-20 flex h-11 items-center justify-between px-4 text-xs text-white lg:hidden">
-                        <button
-                          type="button"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/40"
-                          onClick={handleBackToHome}
-                          aria-label="回到首页"
-                        >
-                          <IconArrowLeft className="h-4 w-4" />
-                        </button>
-                        <div className="mx-2 flex-1 truncate text-center text-[13px] font-semibold">
-                          {videoData.title}
-                        </div>
-                        <button
-                          type="button"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/40"
-                          aria-label="更多操作"
-                          onClick={() => {
-                            // 预留：后续接入打印脚本 / 查看完整简介 / 举报等
-                          }}
-                        >
-                          <IconMore className="h-4 w-4" />
-                        </button>
-                      </div>
-
+                    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-lg shadow-black/25 lg:rounded-3xl">
                       {!isPlayerReady && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black">
                           <div className="flex flex-col items-center gap-3 text-xs text-gray-300">
@@ -2907,7 +2906,7 @@ export default function WatchPage() {
               移动端：占用视频下方剩余高度，内部字幕区域滚动
               桌面端：固定宽度的侧边栏 */}
           <aside className="h-full flex w-full flex-1 flex-col lg:mt-0 lg:w-[30%] lg:flex-none">
-            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--bg-shell)] lg:max-h-[calc(100vh-180px)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-[var(--bg-shell)] lg:shadow-sm">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white lg:max-h-[calc(100vh-180px)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:shadow-sm">
               {/* 顶部工具栏（Sticky，移动端隐藏以释放字幕空间） */}
               <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-stone-100 bg-white/95 px-4 py-2 text-[11px] text-stone-500 backdrop-blur-xl lg:flex">
                 <div className="flex items-center">
@@ -2954,7 +2953,7 @@ export default function WatchPage() {
                       <IconVocab className="h-3.5 w-3.5" />
                       <span>生词</span>
                       {user && vocabUnknownCount > 0 && (
-                        <span className="ml-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-semibold text-white">
+                        <span className="ml-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-semibold text-white shadow-sm shadow-emerald-400/60">
                           {vocabUnknownCount}
                         </span>
                       )}
@@ -3043,7 +3042,7 @@ export default function WatchPage() {
 
                     const rowHoverClass = isActive
                       ? ''
-                      : 'lg:hover:bg-stone-50';
+                      : 'lg:hover:border-slate-300 lg:hover:shadow-sm';
 
                     return (
                       <div
@@ -3056,15 +3055,24 @@ export default function WatchPage() {
                         } ${rowHoverClass}`}
                         onClick={() => handleSubtitleClick(index)}
                       >
-                        {/* 时间 + 收藏：桌面端辅助信息，移动端隐藏以还原 demo 的纯字幕卡片 */}
-                        <div className="hidden items-center justify-between text-[11px] text-gray-400 lg:flex">
-                          <span>{formatDuration(subtitle.start)}</span>
+                        {/* 时间 + 收藏：统一做成小胶囊，增强“时间轴”工具感 */}
+                        <div className="mb-1 flex items-center justify-between text-[11px]">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-[2px] font-medium ${
+                              isActive
+                                ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-400/60'
+                                : 'bg-emerald-50 text-emerald-700'
+                            }`}
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-white/80" />
+                            <span>{formatDuration(subtitle.start)}</span>
+                          </span>
                           <button
                             type="button"
-                            className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${
+                            className={`inline-flex h-6 w-6 items-center justify-center rounded-full border transition-colors ${
                               likedSubtitles.has(index)
-                                ? 'text-[var(--accent)]'
-                                : 'text-gray-300 hover:text-[var(--accent)]'
+                                ? 'border-emerald-500 bg-emerald-50 text-emerald-600 shadow-sm shadow-emerald-400/50'
+                                : 'border-transparent text-gray-300 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600'
                             }`}
                             onClick={e => {
                               e.stopPropagation();
@@ -3290,11 +3298,14 @@ export default function WatchPage() {
 
                             let kindBgClass = '';
                             if (item.kind === 'word') {
-                              kindBgClass = 'bg-violet-50 border-violet-100';
+                              // 单词卡：浅蓝底，突出“词汇”感
+                              kindBgClass = 'bg-sky-50 border-sky-100';
                             } else if (item.kind === 'phrase') {
-                              kindBgClass = 'bg-rose-50 border-rose-100';
+                              // 短语卡：浅绿底，强调“结构 / 句块”
+                              kindBgClass = 'bg-emerald-50 border-emerald-100';
                             } else {
                               // expression
+                              // 表达卡：浅黄底，突出“语气 / 语感”
                               kindBgClass = 'bg-amber-50 border-amber-100';
                             }
 
@@ -3315,7 +3326,7 @@ export default function WatchPage() {
                                         {item.headword}
                                       </span>
                                       {item.ipa && (
-                                        <span className="mt-0.5 font-serif text-[14px] lg:text-[13px] text-gray-600">
+                                        <span className="mt-0.5 text-[14px] lg:text-[13px] text-gray-500">
                                           {item.ipa}
                                         </span>
                                       )}
@@ -3454,13 +3465,29 @@ export default function WatchPage() {
                                     )}
                                   </div>
                                   <div className="ml-1 flex flex-col items-end gap-1">
-                                    <span className="inline-flex rounded-full bg-white/80 px-2 py-[2px] text-[11px] text-gray-700">
-                                      {item.kind === 'word'
-                                        ? '单词'
-                                        : item.kind === 'phrase'
-                                        ? '短语'
-                                        : '表达'}
-                                    </span>
+                                    {(() => {
+                                      let label = '单词';
+                                      let chipClass =
+                                        'inline-flex rounded-full px-2 py-[2px] text-[11px] font-medium';
+                                      if (item.kind === 'word') {
+                                        label = '单词';
+                                        chipClass +=
+                                          ' bg-sky-100 text-sky-700';
+                                      } else if (item.kind === 'phrase') {
+                                        label = '短语';
+                                        chipClass +=
+                                          ' bg-emerald-100 text-emerald-700';
+                                      } else {
+                                        label = '表达';
+                                        chipClass +=
+                                          ' bg-amber-100 text-amber-800';
+                                      }
+                                      return (
+                                        <span className={chipClass}>
+                                          {label}
+                                        </span>
+                                      );
+                                    })()}
                                     <button
                                       type="button"
                                       className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-400 hover:border-[var(--accent)] hover:text-[var(--accent)]"
@@ -3557,7 +3584,7 @@ export default function WatchPage() {
                           cardPopover.card.trigger_word}
                       </div>
                       {normalized.ipa && (
-                        <div className="mt-0.5 font-serif text-[12px] text-gray-500">
+                        <div className="mt-0.5 text-[12px] text-gray-500">
                           {normalized.ipa}
                         </div>
                       )}
@@ -3601,17 +3628,17 @@ export default function WatchPage() {
 
                   {/* 类型相关信息 & 搭配等分区展示，避免信息挤在一起 */}
                   {(isWord || isPhrase) &&
-                    (normalized.collocations ||
-                      normalized.synonyms ||
-                      normalized.antonyms ||
-                      normalized.derivedForm) && (
-                        <div className="mt-2 rounded-xl bg-violet-50 px-3 py-2 text-[12px] text-violet-900">
-                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-600">
-                          搭配 · 近义 · 反义
-                        </div>
+	                    (normalized.collocations ||
+	                      normalized.synonyms ||
+	                      normalized.antonyms ||
+	                      normalized.derivedForm) && (
+	                        <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-[12px] text-slate-900">
+	                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+	                            搭配 · 近义 · 反义
+	                          </div>
                         {normalized.collocations && (
-                          <div className="mb-0.5">
-                            <span className="mr-1 text-violet-700">
+	                          <div className="mb-0.5">
+	                            <span className="mr-1 text-slate-500">
                               搭配：
                             </span>
                             <span>
@@ -3620,8 +3647,8 @@ export default function WatchPage() {
                           </div>
                         )}
                         {normalized.synonyms && (
-                          <div className="mb-0.5">
-                            <span className="mr-1 text-gray-500">
+	                          <div className="mb-0.5">
+	                            <span className="mr-1 text-slate-500">
                               近义：
                             </span>
                             <span>
@@ -3630,8 +3657,8 @@ export default function WatchPage() {
                           </div>
                         )}
                         {normalized.antonyms && (
-                          <div className="mb-0.5">
-                            <span className="mr-1 text-gray-500">
+	                          <div className="mb-0.5">
+	                            <span className="mr-1 text-slate-500">
                               反义：
                             </span>
                             <span>
@@ -3821,7 +3848,7 @@ export default function WatchPage() {
                               activeCard.trigger_word}
                           </div>
                           {normalized.ipa && (
-                            <span className="mt-0.5 font-serif text-[13px] text-gray-500">
+                            <span className="mt-0.5 text-[13px] text-gray-500">
                               {normalized.ipa}
                             </span>
                           )}
@@ -3936,56 +3963,56 @@ export default function WatchPage() {
                             <span>{normalized.functionLabel}</span>
                           </div>
                         )}
-                        {(normalized.register ||
-                          normalized.scenario) && (
-                          <div className="flex flex-wrap items-center gap-1">
-                            {normalized.register && (
-                              <span className="rounded-full border border-amber-100 bg-white px-1.5 py-[1px] text-[9px] uppercase tracking-wide text-amber-700">
-                                {normalized.register}
-                              </span>
-                            )}
-                            {normalized.scenario && (
-                              <span>{normalized.scenario}</span>
-                            )}
-                          </div>
-                        )}
-                        {normalized.responseGuide && (
-                          <div className="mt-1">
-                            <span className="mr-1 text-gray-500">
-                              接话：
-                            </span>
-                            <span>{normalized.responseGuide}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {(normalized.exampleEn || normalized.exampleCn) && (
-                      <div className="mt-2 rounded-xl bg-sky-50 px-3 py-2 text-[12px] text-sky-900">
-                        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-sky-600">
-                          额外例句
-                        </div>
-                        {normalized.exampleEn && (
-                          <div className="italic">
-                            {normalized.exampleEn}
-                          </div>
-                        )}
-                        {normalized.exampleCn && (
-                          <div className="mt-0.5 text-gray-600">
-                            {normalized.exampleCn}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {normalized.note && (
-                      <div className="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-[12px] text-rose-900">
-                        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-rose-600">
-                          用法提醒
-                        </div>
-                        <div>{normalized.note}</div>
-                      </div>
-                    )}
+	                    {(normalized.register ||
+	                          normalized.scenario) && (
+	                          <div className="flex flex-wrap items-center gap-1">
+	                            {normalized.register && (
+	                              <span className="rounded-full border border-amber-100 bg-white px-1.5 py-[1px] text-[9px] uppercase tracking-wide text-amber-700">
+	                                {normalized.register}
+	                              </span>
+	                            )}
+	                            {normalized.scenario && (
+	                              <span>{normalized.scenario}</span>
+	                            )}
+	                          </div>
+	                        )}
+	                        {normalized.responseGuide && (
+	                          <div className="mt-1">
+	                            <span className="mr-1 text-gray-500">
+	                              接话：
+	                            </span>
+	                            <span>{normalized.responseGuide}</span>
+	                          </div>
+	                        )}
+	                      </div>
+	                    )}
+	
+	                    {(normalized.exampleEn || normalized.exampleCn) && (
+	                      <div className="mt-2 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] text-sky-900">
+	                        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-sky-600">
+	                          额外例句
+	                        </div>
+	                        {normalized.exampleEn && (
+	                          <div className="italic">
+	                            {normalized.exampleEn}
+	                          </div>
+	                        )}
+	                        {normalized.exampleCn && (
+	                          <div className="mt-0.5 text-gray-600">
+	                            {normalized.exampleCn}
+	                          </div>
+	                        )}
+	                      </div>
+	                    )}
+	
+	                    {normalized.note && (
+	                      <div className="mt-2 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-[12px] text-rose-900">
+	                        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-rose-600">
+	                          用法提醒
+	                        </div>
+	                        <div>{normalized.note}</div>
+	                      </div>
+	                    )}
 
                     {(normalized.sourceSentenceEn ||
                       normalized.sourceSentenceCn) && (
@@ -4212,7 +4239,7 @@ export default function WatchPage() {
                - 使用 Flex 布局实现 5 点对称
                - 增加 height 到 68px，圆角 full，磨砂背景
             */}
-              <div className="pointer-events-auto flex h-[68px] w-full items-center justify-between rounded-full border border-white/60 bg-white/85 px-2 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-all">
+              <div className="pointer-events-auto flex h-[68px] w-full items-center justify-between rounded-full border border-white/70 bg-white/90 px-2 shadow-[0_8px_28px_rgba(15,23,42,0.16)] backdrop-blur-xl transition-all">
 
                 {/* Button 1: 左侧 - 倍速 */}
                 <button
@@ -4224,9 +4251,9 @@ export default function WatchPage() {
                     }}
                     aria-label="播放设置"
                 >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full text-[13px] font-bold text-gray-600 group-active:bg-black/5">
-                  {playbackRate.toString().replace(/\.0$/, '')}x
-                </span>
+	                <span className="flex h-10 w-10 items-center justify-center rounded-full text-[13px] font-bold text-emerald-700 group-active:bg-emerald-50">
+	                  {playbackRate.toString().replace(/\.0$/, '')}x
+	                </span>
                 </button>
 
                 {/* Button 2: 左中 - 单句循环（点击弹出循环次数浮层） */}
@@ -4240,11 +4267,13 @@ export default function WatchPage() {
                     disabled={isTrial && trialEnded}
                     aria-label="单句循环"
                 >
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                      sentenceLoop
-                          ? 'bg-black/5 text-gray-900'
-                          : 'text-gray-400 group-active:bg-black/5'
-                  }`}>
+	                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+	                      sentenceLoop
+	                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+	                        : 'text-gray-400 group-active:bg-black/5'
+	                  }`}
+                  >
                     {!sentenceLoop ? (
                       // 未开启循环：显示默认的循环图标
                       <svg
@@ -4274,10 +4303,10 @@ export default function WatchPage() {
 
                 {/* Button 3: 中间 - 播放主键 (视觉重心) */}
                 {/* 这里的容器 flex-1 确保它占据中间位置，但按钮本身有固定大尺寸 */}
-                <div className="flex flex-1 items-center justify-center">
-                  <button
-                      type="button"
-                      className="flex h-[56px] w-[56px] items-center justify-center rounded-full bg-[#1a1a1a] text-white shadow-[0_6px_20px_rgba(0,0,0,0.25)] transition-transform active:scale-90 active:shadow-none"
+	                <div className="flex flex-1 items-center justify-center">
+	                  <button
+	                      type="button"
+	                      className="flex h-[56px] w-[56px] items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_10px_26px_rgba(16,185,129,0.65)] transition-transform active:scale-90 active:shadow-none"
                       onClick={handleTogglePlay}
                       disabled={isTrial && trialEnded}
                       aria-label={isPlaying ? '暂停' : '播放'}
@@ -4303,12 +4332,12 @@ export default function WatchPage() {
                     disabled={isTrial && trialEnded}
                     aria-label="影子跟读"
                 >
-                  <div
+	                  <div
                     className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                      shadowSubtitleIndex === currentSubtitleIndex && shadowMode === 'recording'
-                        ? 'text-[var(--accent)] bg-[var(--accent-soft)]'
-                        : 'text-gray-400 group-active:bg-black/5'
-                    }`}
+	                      shadowSubtitleIndex === currentSubtitleIndex && shadowMode === 'recording'
+	                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+	                        : 'text-gray-400 group-active:bg-black/5'
+	                    }`}
                   >
                     {shadowSubtitleIndex === currentSubtitleIndex &&
                     shadowMode === 'reviewing' ? (
@@ -4383,11 +4412,11 @@ export default function WatchPage() {
                       </svg>
                     )}
                   </div>
-                  {/* 只有在字幕模式且存在生词时显示红点数量 */}
+                  {/* 只有在字幕模式且存在生词时显示数量角标 */}
                   {panelMode === 'transcript' &&
                     user &&
                     vocabUnknownCount > 0 && (
-                      <span className="absolute right-3 top-1.5 min-w-[16px] rounded-full bg-[var(--accent)] px-1 text-[10px] font-semibold leading-none text-white">
+                      <span className="absolute right-3 top-1.5 min-w-[16px] rounded-full bg-emerald-500 px-1 text-[10px] font-semibold leading-none text-white shadow-sm shadow-emerald-400/70">
                         {vocabUnknownCount}
                       </span>
                     )}

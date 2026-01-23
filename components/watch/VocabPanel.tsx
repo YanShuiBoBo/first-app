@@ -112,6 +112,12 @@ const VocabPanel: React.FC<VocabPanelProps> = ({
     { value: 'expression', label: '表达' }
   ];
 
+  const kindCounts: Record<VocabKind, number> = {
+    word: items.filter(item => item.kind === 'word').length,
+    phrase: items.filter(item => item.kind === 'phrase').length,
+    expression: items.filter(item => item.kind === 'expression').length
+  };
+
   const hasItems = filtered.length > 0;
 
   if (!open) {
@@ -153,15 +159,34 @@ const VocabPanel: React.FC<VocabPanelProps> = ({
           </button>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs：单词 / 短语 / 表达 + 右下角数量角标 */}
         <div className="flex items-center gap-2 px-4">
           {kindTabs.map(tab => {
             const active = activeKind === tab.value;
+            const count = kindCounts[tab.value];
+
+            // 右下角数量角标：用不同的柔和色区分类型，面积小但一眼能看出差异
+            let badgeClass =
+              'min-w-[16px] rounded-full px-1 text-[10px] font-semibold leading-none';
+            if (tab.value === 'word') {
+              badgeClass += active
+                ? ' bg-violet-500 text-white shadow-sm shadow-violet-400/50'
+                : ' bg-violet-50 text-violet-700';
+            } else if (tab.value === 'phrase') {
+              badgeClass += active
+                ? ' bg-sky-500 text-white shadow-sm shadow-sky-400/50'
+                : ' bg-sky-50 text-sky-700';
+            } else {
+              badgeClass += active
+                ? ' bg-amber-500 text-white shadow-sm shadow-amber-400/50'
+                : ' bg-amber-50 text-amber-700';
+            }
+
             return (
               <button
                 key={tab.value}
                 type="button"
-                className={`flex-1 rounded-full px-2.5 py-1 text-[11px] ${
+                className={`relative flex-1 rounded-full px-2.5 py-1 text-[11px] ${
                   active
                     ? 'bg-neutral-900 text-white'
                     : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
@@ -169,6 +194,11 @@ const VocabPanel: React.FC<VocabPanelProps> = ({
                 onClick={() => onKindChange(tab.value)}
               >
                 {tab.label}
+                {count > 0 && (
+                  <span className={`absolute -bottom-1 -right-1 ${badgeClass}`}>
+                    {count}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -310,10 +340,13 @@ const VocabCard: React.FC<VocabCardProps> = ({
 
   let kindBg = '';
   if (item.kind === 'word') {
-    kindBg = 'bg-violet-50 border-violet-100';
+    // 单词：偏蓝色系，清爽稳定
+    kindBg = 'bg-sky-50 border-sky-100';
   } else if (item.kind === 'phrase') {
-    kindBg = 'bg-rose-50 border-rose-100';
+    // 短语：偏绿色系，和“句块、结构”关联
+    kindBg = 'bg-emerald-50 border-emerald-100';
   } else {
+    // 表达：偏暖黄色，突出语气/语感
     kindBg = 'bg-amber-50 border-amber-100';
   }
 
@@ -353,7 +386,7 @@ const VocabCard: React.FC<VocabCardProps> = ({
                 {item.pos}
               </span>
             )}
-            <span className="text-rose-700">
+            <span className="text-gray-900">
               {item.definition || item.paraphrase}
             </span>
           </div>
