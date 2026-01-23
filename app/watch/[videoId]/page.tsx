@@ -3308,9 +3308,9 @@ export default function WatchPage() {
                   })}
                 </div>
 
-                  {/* 生词流：PC 端右侧面板复习视图（移动端同一区域下滑复习） */}
+                  {/* 生词流：PC 端右侧面板复习视图，移动端作为普通内容块呈现在视频下方 */}
                   <div
-                    className={`absolute inset-0 flex flex-col pb-4 pt-3 lg:static lg:h-full lg:px-4 lg:overflow-y-auto ${
+                    className={`flex flex-col pb-4 pt-3 lg:absolute lg:inset-0 lg:h-full lg:px-4 lg:overflow-y-auto ${
                       panelMode === 'vocab' ? '' : 'hidden'
                     }`}
                   >
