@@ -2945,19 +2945,19 @@ export default function WatchPage() {
                     <button
                       type="button"
                       className={`ml-1 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium ${
-                        panelMode === 'vocab'
-                          ? 'bg-white text-stone-900 shadow-sm'
-                          : 'text-stone-500 hover:text-stone-900'
-                      }`}
+                          panelMode === 'vocab'
+                            ? 'bg-white text-stone-900 shadow-sm'
+                            : 'text-stone-500 hover:text-stone-900'
+                        }`}
                       onClick={() => setPanelMode('vocab')}
                     >
-                      <IconVocab className="h-3.5 w-3.5" />
+                      <span className="relative inline-flex">
+                        <IconVocab className="h-3.5 w-3.5" />
+                        {user && vocabUnknownCount > 0 && (
+                          <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-[var(--accent)] shadow-sm shadow-[rgba(232,141,147,0.5)]" />
+                        )}
+                      </span>
                       <span>生词</span>
-                      {user && vocabUnknownCount > 0 && (
-                        <span className="ml-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-semibold text-white shadow-sm shadow-emerald-400/60">
-                          {vocabUnknownCount}
-                        </span>
-                      )}
                     </button>
                   </div>
                 </div>
@@ -3215,7 +3215,7 @@ export default function WatchPage() {
                   {vocabItems.length > 0 && (
                     <>
                       {/* 类型分类：单词 / 短语 / 表达 + 移动端「全部标记为认识」图标按钮 */}
-                      <div className="mb-2 flex items-center gap-2 text-[12px]">
+                      <div className="mb-2 mt-6 flex items-center gap-2 text-[12px] lg:mt-0">
                         {/* 左侧：类别 Tabs（可横向滚动，避免挤在一行） */}
                         <div className="flex flex-1 items-center gap-2 overflow-x-auto no-scrollbar">
                           {[
@@ -4413,13 +4413,11 @@ export default function WatchPage() {
                       </svg>
                     )}
                   </div>
-                  {/* 只有在字幕模式且存在生词时显示数量角标 */}
+                  {/* 只有在字幕模式且存在生词时显示小红点角标（使用品牌玫瑰色，区分“待处理生词”） */}
                   {panelMode === 'transcript' &&
                     user &&
                     vocabUnknownCount > 0 && (
-                      <span className="absolute right-3 top-1.5 min-w-[16px] rounded-full bg-emerald-500 px-1 text-[10px] font-semibold leading-none text-white shadow-sm shadow-emerald-400/70">
-                        {vocabUnknownCount}
-                      </span>
+                      <span className="absolute right-3 top-1.5 h-2 w-2 rounded-full bg-[var(--accent)] shadow-sm shadow-[rgba(232,141,147,0.5)]" />
                     )}
                 </button>
 
