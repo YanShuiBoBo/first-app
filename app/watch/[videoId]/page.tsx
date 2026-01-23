@@ -2561,7 +2561,11 @@ export default function WatchPage() {
             <div
               ref={videoRef}
               // 注意：这里不要再加 overflow-hidden，否则会导致内部使用 position: sticky 的视频区域在移动端失效
-              className="flex h-full flex-col rounded-2xl bg-white shadow-sm"
+              className={
+                panelMode === 'vocab'
+                  ? 'flex h-full flex-col rounded-2xl bg-transparent shadow-none lg:bg-white lg:shadow-sm'
+                  : 'flex h-full flex-col rounded-2xl bg-white shadow-sm'
+              }
             >
               {/* 移动端顶部返回栏：与视频区域分离，固定在顶部，避免滚动时产生割裂感 */}
               <div className="fixed inset-x-0 top-0 z-30 flex h-12 items-center justify-between px-4 text-xs text-gray-700 bg-[var(--bg-body)]/95 backdrop-blur lg:hidden">
@@ -3089,7 +3093,8 @@ export default function WatchPage() {
               桌面端：固定宽度的侧边栏 */}
           {/* 移动端：整体向下偏移一段距离，避免第一句字幕被悬浮视频遮挡 */}
           <aside className="mt-4 h-full flex w-full flex-1 flex-col lg:mt-0 lg:w-[30%] lg:flex-none">
-            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white lg:max-h-[calc(100vh-180px)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:shadow-sm">
+            {/* 移动端：背景沿用整页的浅灰色，只让具体卡片是白色；PC 端保留原有白色卡片容器 */}
+            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent lg:max-h-[calc(100vh-180px)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:shadow-sm">
               {/* 顶部工具栏（Sticky，移动端隐藏以释放字幕空间） */}
               <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-stone-100 bg-white/95 px-4 py-2 text-[11px] text-stone-500 backdrop-blur-xl lg:flex">
                 <div className="flex items-center">
