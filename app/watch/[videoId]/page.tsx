@@ -3433,41 +3433,46 @@ export default function WatchPage() {
                           </div>
 
                           {vocabItems
-                          .filter(item => {
-                            const matchKind =
-                              vocabKindFilter === 'all' ||
-                              item.kind === vocabKindFilter;
-                            if (!matchKind) return false;
-                            return true;
-                          })
-                          .map(item => {
+                            .filter(item => {
+                              const matchKind =
+                                vocabKindFilter === 'all' ||
+                                item.kind === vocabKindFilter;
+                              if (!matchKind) return false;
+                              return true;
+                            })
+                            .map(item => {
                               const base =
                                 // 移动端：与视频区域、字幕卡保持一致的左右留白（mx-1），PC 端由容器控制宽度；
                                 // 垂直方向：使用 mb-2.5（约 10px）模拟字幕卡之间的间距。
                                 'group relative mx-1 mb-2.5 last:mb-0 rounded-2xl border px-4 py-3 text-[14px] lg:text-[13px] transition-all cursor-pointer lg:mx-0';
 
-                            let kindBgClass = '';
-                            if (item.kind === 'word') {
-                              // 单词卡：浅蓝底，突出“词汇”感
-                              kindBgClass = 'bg-sky-50 border-sky-100';
-                            } else if (item.kind === 'phrase') {
-                              // 短语卡：浅绿底，强调“结构 / 句块”
-                              kindBgClass = 'bg-emerald-50 border-emerald-100';
-                            } else {
-                              // expression
-                              // 表达卡：浅黄底，突出“语气 / 语感”
-                              kindBgClass = 'bg-amber-50 border-amber-100';
-                            }
+                              let kindBgClass = '';
+                              if (item.kind === 'word') {
+                                // 单词卡：浅蓝底，突出“词汇”感
+                                kindBgClass = 'bg-sky-50 border-sky-100';
+                              } else if (item.kind === 'phrase') {
+                                // 短语卡：浅绿底，强调“结构 / 句块”
+                                kindBgClass =
+                                  'bg-emerald-50 border-emerald-100';
+                              } else {
+                                // expression
+                                // 表达卡：浅黄底，突出“语气 / 语感”
+                                kindBgClass = 'bg-amber-50 border-amber-100';
+                              }
 
-                            const stateClass =
-                              `${kindBgClass} shadow-sm hover:-translate-y-[1px] hover:shadow-md`;
+                              const stateClass =
+                                `${kindBgClass} shadow-sm hover:-translate-y-[1px] hover:shadow-md`;
 
-                            return (
-                              <div
-                                key={item.key}
-                                className={`${base} ${stateClass}`}
-                                onClick={() => handlePlayVocabClip(item)}
-                              >
+                              // 当前词条是否仍在生词本中（unknown / 未确认）
+                              const isUnknown =
+                                vocabStatusMap[item.key] !== 'known';
+
+                              return (
+                                <div
+                                  key={item.key}
+                                  className={`${base} ${stateClass}`}
+                                  onClick={() => handlePlayVocabClip(item)}
+                                >
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex-1">
                                     {/* 单词 + 音标：纵向排列，避免长单词和长音标挤在一行 */}
@@ -3615,29 +3620,51 @@ export default function WatchPage() {
                                     )}
                                   </div>
                                   <div className="ml-1 flex flex-col items-end gap-1">
-                                    {(() => {
-                                      let label = '单词';
-                                      let chipClass =
-                                        'inline-flex rounded-full px-2 py-[2px] text-[11px] font-medium';
-                                      if (item.kind === 'word') {
-                                        label = '单词';
-                                        chipClass +=
-                                          ' bg-sky-100 text-sky-700';
-                                      } else if (item.kind === 'phrase') {
-                                        label = '短语';
-                                        chipClass +=
-                                          ' bg-emerald-100 text-emerald-700';
-                                      } else {
-                                        label = '表达';
-                                        chipClass +=
-                                          ' bg-amber-100 text-amber-800';
-                                      }
-                                      return (
-                                        <span className={chipClass}>
-                                          {label}
-                                        </span>
-                                      );
-                                    })()}
+                                    {/* 类型标记 + 认识标记 排成一行，视觉更整洁 */}
+                                    <div className="flex items-center gap-1.5">
+                                      {(() => {
+                                        let label = '单词';
+                                        let chipClass =
+                                          'inline-flex rounded-full px-2 py-[2px] text-[11px] font-medium';
+                                        if (item.kind === 'word') {
+                                          label = '单词';
+                                          chipClass +=
+                                            ' bg-sky-100 text-sky-700';
+                                        } else if (item.kind === 'phrase') {
+                                          label = '短语';
+                                          chipClass +=
+                                            ' bg-emerald-100 text-emerald-700';
+                                        } else {
+                                          label = '表达';
+                                          chipClass +=
+                                            ' bg-amber-100 text-amber-800';
+                                        }
+                                        return (
+                                          <span className={chipClass}>
+                                            {label}
+                                          </span>
+                                        );
+                                      })()}
+
+                                      {isUnknown && (
+                                        <button
+                                          type="button"
+                                          className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-400 bg-white/95 text-[11px] font-bold text-emerald-500 shadow-sm shadow-emerald-200"
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            handleUpdateVocabStatus(
+                                              item.key,
+                                              'known'
+                                            );
+                                          }}
+                                          aria-label="标记为认识"
+                                        >
+                                          ✓
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {/* 例句片段播放按钮 */}
                                     <button
                                       type="button"
                                       className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-400 hover:border-[var(--accent)] hover:text-[var(--accent)]"
@@ -3650,26 +3677,11 @@ export default function WatchPage() {
                                       <IconSound className="h-3.5 w-3.5" />
                                     </button>
                                   </div>
+
                                 </div>
-                                <div className="mt-2 flex justify-end">
-                                  <button
-                                    type="button"
-                                    className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700 hover:border-emerald-400 hover:bg-emerald-100"
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      handleUpdateVocabStatus(
-                                        item.key,
-                                        'known'
-                                      );
-                                    }}
-                                  >
-                                    <span className="mr-1 text-[12px]">✓</span>
-                                    <span>认识</span>
-                                  </button>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
                       </div>
 
                       {/* 底部已无额外操作，所有“全部标记为认识”操作移动到顶部工具栏 */}
