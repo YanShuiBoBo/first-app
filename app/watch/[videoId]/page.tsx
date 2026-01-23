@@ -2448,7 +2448,7 @@ export default function WatchPage() {
         </button>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[414px] flex-1 flex-col px-0 pt-0 lg:max-w-[1600px] lg:px-4 lg:pb-10 lg:pt-20">
+      <main className="mx-auto flex w-full max-w-[414px] flex-1 flex-col px-4 pt-0 lg:max-w-[1600px] lg:px-4 lg:pb-10 lg:pt-20">
         <div className="flex flex-1 flex-col lg:gap-6 lg:flex-row lg:items-start">
           {/* 左侧：全能学习台 THE STATION */}
           <section className="flex w-full flex-col lg:w-[70%] lg:max-w-[960px]">
@@ -2457,8 +2457,8 @@ export default function WatchPage() {
               // 注意：这里不要再加 overflow-hidden，否则会导致内部使用 position: sticky 的视频区域在移动端失效
               className="flex h-full flex-col rounded-2xl bg-white shadow-sm"
             >
-              {/* 移动端顶部返回栏：与视频区域分离，留出更清爽的头部空间 */}
-              <div className="flex h-11 items-center justify-between px-4 pt-1 text-xs text-gray-700 lg:hidden">
+              {/* 移动端顶部返回栏：与视频区域分离，固定在顶部，避免滚动时产生割裂感 */}
+              <div className="fixed inset-x-0 top-0 z-30 flex h-11 items-center justify-between px-4 pt-1 text-xs text-gray-700 bg-[var(--bg-body)]/95 backdrop-blur lg:hidden">
                 <button
                   type="button"
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm shadow-black/5"
@@ -2520,8 +2520,8 @@ export default function WatchPage() {
 
                 {/* 真正的视频容器：小屏 fixed 顶部（在移动端头部下方），大屏正常随内容滚动 */}
                 <div className="fixed inset-x-0 top-[52px] z-20 lg:static lg:inset-auto lg:top-auto lg:z-auto">
-                  <div className="mx-auto w-full max-w-[414px] px-0 lg:max-w-[1600px] lg:px-0">
-                    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-lg shadow-black/25 lg:rounded-3xl">
+                  <div className="mx-auto w-full max-w-[414px] px-4 lg:max-w-[1600px] lg:px-0">
+                    <div className="relative aspect-video w-full overflow-hidden rounded-3xl bg-black shadow-lg shadow-black/25 lg:rounded-3xl">
                       {!isPlayerReady && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black">
                           <div className="flex flex-col items-center gap-3 text-xs text-gray-300">
@@ -3888,19 +3888,19 @@ export default function WatchPage() {
                       </div>
                     </div>
 
-                    {/* 类型相关信息 & 搭配等分区展示，避免信息挤在一起 */}
+                    {/* 类型相关信息 & 搭配等分区展示，移动端使用中性浅灰色块，减少视觉噪音 */}
                     {(isWord || isPhrase) &&
                       (normalized.collocations ||
                         normalized.synonyms ||
                         normalized.antonyms ||
                         normalized.derivedForm) && (
-                        <div className="mt-2 rounded-xl bg-violet-50 px-3 py-2 text-[12px] text-violet-900">
-                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-600">
+                        <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-[12px] text-slate-900">
+                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                             搭配 · 近义 · 反义
                           </div>
                           {normalized.collocations && (
                             <div className="mb-0.5">
-                              <span className="mr-1 text-violet-700">
+                              <span className="mr-1 text-slate-500">
                                 搭配：
                               </span>
                               <span>
@@ -3910,7 +3910,7 @@ export default function WatchPage() {
                           )}
                           {normalized.synonyms && (
                             <div className="mb-0.5">
-                              <span className="mr-1 text-gray-500">
+                              <span className="mr-1 text-slate-500">
                                 近义：
                               </span>
                               <span>
@@ -3920,7 +3920,7 @@ export default function WatchPage() {
                           )}
                           {normalized.antonyms && (
                             <div className="mb-0.5">
-                              <span className="mr-1 text-gray-500">
+                              <span className="mr-1 text-slate-500">
                                 反义：
                               </span>
                               <span>
@@ -3930,14 +3930,14 @@ export default function WatchPage() {
                           )}
                           {normalized.derivedForm && (
                             <div>
-                              <span className="mr-1 text-gray-500">
+                              <span className="mr-1 text-slate-500">
                                 词形：
                               </span>
                               <span>{normalized.derivedForm}</span>
                             </div>
-                        )}
-                      </div>
-                    )}
+                          )}
+                        </div>
+                      )}
 
                     {isPhrase && normalized.structure && (
                     <div className="mt-2 rounded-xl bg-indigo-50 px-3 py-2 text-[12px] text-indigo-800">
