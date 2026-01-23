@@ -2448,7 +2448,7 @@ export default function WatchPage() {
         </button>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[414px] flex-1 flex-col px-4 pt-0 lg:max-w-[1600px] lg:px-4 lg:pb-10 lg:pt-20">
+      <main className="mx-auto flex w-full max-w-[414px] flex-1 flex-col px-0 pt-0 lg:max-w-[1600px] lg:px-4 lg:pb-10 lg:pt-20">
         <div className="flex flex-1 flex-col lg:gap-6 lg:flex-row lg:items-start">
           {/* 左侧：全能学习台 THE STATION */}
           <section className="flex w-full flex-col lg:w-[70%] lg:max-w-[960px]">
@@ -2520,8 +2520,8 @@ export default function WatchPage() {
 
                 {/* 真正的视频容器：小屏 fixed 顶部（在移动端头部下方），大屏正常随内容滚动 */}
                 <div className="fixed inset-x-0 top-[52px] z-20 lg:static lg:inset-auto lg:top-auto lg:z-auto">
-                  <div className="mx-auto w-full max-w-[414px] px-4 lg:max-w-[1600px] lg:px-0">
-                    <div className="relative aspect-video w-full overflow-hidden rounded-3xl bg-black shadow-lg shadow-black/25 lg:rounded-3xl">
+                  <div className="mx-auto w-full max-w-[414px] px-0 lg:max-w-[1600px] lg:px-0">
+                    <div className="relative mx-1 aspect-video w-auto overflow-hidden rounded-2xl bg-black shadow-lg shadow-black/25 lg:mx-0 lg:w-full lg:rounded-3xl">
                       {!isPlayerReady && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black">
                           <div className="flex flex-col items-center gap-3 text-xs text-gray-300">
@@ -3294,7 +3294,7 @@ export default function WatchPage() {
                           })
                           .map(item => {
                             const base =
-                              'group relative rounded-2xl border px-4 py-3 text-[14px] lg:text-[13px] transition-all cursor-pointer';
+                              'group relative mx-2 rounded-2xl border px-4 py-3 text-[14px] lg:text-[13px] transition-all cursor-pointer lg:mx-0';
 
                             let kindBgClass = '';
                             if (item.kind === 'word') {
