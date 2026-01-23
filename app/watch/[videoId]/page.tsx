@@ -2623,8 +2623,12 @@ export default function WatchPage() {
               {/* Layer 2: 视频区域 */}
               {/* 移动端：视频固定在视口顶部并覆盖导航；桌面端：保持卡片内部吸顶体验 */}
               <div className="relative w-full">
-                {/* 占位：在移动端预留 16:9 高度，避免下面内容被固定视频遮挡 */}
+                {/* 占位：在移动端预留 16:9 高度 + 单词卡 Tabs 高度，避免下面内容被固定区域遮挡 */}
                 <div className="aspect-video w-full lg:hidden" />
+                {panelMode === 'vocab' && vocabItems.length > 0 && (
+                  // 预留高度略大于 Tabs 实际高度，避免首个单词卡被遮挡一部分
+                  <div className="h-20 w-full lg:hidden" />
+                )}
 
                 {/* 真正的视频容器：小屏 fixed 顶部（在移动端头部下方），大屏正常随内容滚动 */}
                 <div className="fixed inset-x-0 top-12 z-20 lg:static lg:inset-auto lg:top-auto lg:z-auto">
@@ -2652,6 +2656,76 @@ export default function WatchPage() {
                         onPause={handlePause}
                       />
                     </div>
+
+                    {/* 移动端：生词模式下，单词类型 Tabs 组件与视频一起吸顶，视觉上独立成一个白色功能块 */}
+                    {panelMode === 'vocab' && vocabItems.length > 0 && (
+                      <div className="mt-2 px-2 pb-2 text-[12px] lg:hidden">
+                        <div className="flex items-center gap-2 rounded-2xl border border-stone-100 bg-white/95 px-3 py-2 shadow-sm shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
+                          <div className="flex flex-1 items-center gap-2 overflow-x-auto no-scrollbar">
+                            {[
+                              { label: '全部', value: 'all' as const },
+                              { label: '单词', value: 'word' as const },
+                              { label: '短语', value: 'phrase' as const },
+                              { label: '表达', value: 'expression' as const }
+                            ].map(tab => {
+                              const active = vocabKindFilter === tab.value;
+                              return (
+                                <button
+                                  key={tab.value}
+                                  type="button"
+                                  className={`whitespace-nowrap rounded-full px-3 py-1.5 transition-colors ${
+                                    active
+                                      ? 'bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)] border border-white/80'
+                                      : 'bg-white/80 text-stone-500 border border-stone-200 hover:bg-white hover:text-stone-900 hover:border-stone-300'
+                                  }`}
+                                  onClick={() => setVocabKindFilter(tab.value)}
+                                >
+                                  {tab.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {/* 当前类别一键标记为认识（移动端） */}
+                          <div className="flex items-center">
+                            {(() => {
+                              const hasAnyInFilter = vocabItems.some(item => {
+                                if (vocabKindFilter === 'all') return true;
+                                return item.kind === vocabKindFilter;
+                              });
+
+                              return (
+                                <button
+                                  type="button"
+                                  className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-[11px] ${
+                                    hasAnyInFilter
+                                      ? 'border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm shadow-[rgba(16,185,129,0.25)] hover:bg-emerald-100'
+                                      : 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed'
+                                  }`}
+                                  disabled={!hasAnyInFilter}
+                                  onClick={handleMarkRestKnown}
+                                  aria-label="将当前类别全部标记为认识"
+                                >
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4"
+                                  >
+                                    <path
+                                      d="M5 13l4 4L19 7"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </button>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3308,9 +3382,9 @@ export default function WatchPage() {
                   })}
                 </div>
 
-                  {/* 生词流：PC 端右侧面板复习视图，移动端作为普通内容块呈现在视频下方 */}
+                  {/* 生词流：PC 端右侧面板复习视图，移动端占用视频下方剩余高度；内部自己滚动 */}
                   <div
-                    className={`flex flex-col pb-4 pt-3 lg:absolute lg:inset-0 lg:h-full lg:px-4 lg:overflow-y-auto ${
+                    className={`flex h-full min-h-0 flex-col overflow-y-auto pb-4 pt-3 lg:absolute lg:inset-0 lg:h-full lg:px-4 lg:overflow-y-auto ${
                       panelMode === 'vocab' ? '' : 'hidden'
                     }`}
                   >
@@ -3322,77 +3396,9 @@ export default function WatchPage() {
 
                     {vocabItems.length > 0 && (
                       <>
-                        {/* 移动端：类型 Tabs + 批量标记固定在视频下方，并被一个白色功能区“框住” */}
-                        <div className="mb-2 mt-6 px-1 text-[12px] lg:hidden">
-                          <div className="flex items-center gap-2 rounded-2xl border border-stone-100 bg-white/95 px-3 py-2 shadow-sm shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                            <div className="flex flex-1 items-center gap-2 overflow-x-auto no-scrollbar">
-                              {[
-                                { label: '全部', value: 'all' as const },
-                                { label: '单词', value: 'word' as const },
-                                { label: '短语', value: 'phrase' as const },
-                                { label: '表达', value: 'expression' as const }
-                              ].map(tab => {
-                                const active = vocabKindFilter === tab.value;
-                                return (
-                                  <button
-                                    key={tab.value}
-                                    type="button"
-                                    className={`whitespace-nowrap rounded-full px-3 py-1.5 transition-colors ${
-                                      active
-                                        ? 'bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)] border border-white/80'
-                                        : 'bg-white/80 text-stone-500 border border-stone-200 hover:bg-white hover:text-stone-900 hover:border-stone-300'
-                                    }`}
-                                    onClick={() => setVocabKindFilter(tab.value)}
-                                  >
-                                    {tab.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            {/* 当前类别一键标记为认识（仅移动端显示） */}
-                            <div className="flex items-center">
-                              {(() => {
-                                const hasAnyInFilter = vocabItems.some(item => {
-                                  if (vocabKindFilter === 'all') return true;
-                                  return item.kind === vocabKindFilter;
-                                });
-
-                                return (
-                                  <button
-                                    type="button"
-                                    className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-[11px] ${
-                                      hasAnyInFilter
-                                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm shadow-[rgba(16,185,129,0.25)] hover:bg-emerald-100'
-                                        : 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed'
-                                    }`}
-                                    disabled={!hasAnyInFilter}
-                                    onClick={handleMarkRestKnown}
-                                    aria-label="将当前类别全部标记为认识"
-                                  >
-                                    <svg
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="h-4 w-4"
-                                    >
-                                      <path
-                                        d="M5 13l4 4L19 7"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                      />
-                                    </svg>
-                                  </button>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 生词卡片列表：内部滚动区域（PC / APP 共用），宽度与视频一致。
-                            垂直间距参考字幕卡：使用每张卡自身的 margin-bottom，而不是容器的 space-y，减少模式切换时的割裂感。 */}
-                        <div className="flex-1 overflow-y-auto pt-1 pb-4">
+                        {/* 生词卡片列表：PC / APP 共用，宽度与视频一致。
+                            滚动交给外层容器，这里只负责内容间距，减少模式切换时的割裂感。 */}
+                        <div className="flex-1 pt-1 pb-4">
                           {/* PC 端：在列表顶部保留类型 Tabs（移动端使用上方固定区域） */}
                           <div className="mb-2 mt-0 hidden items-center gap-2 text-[12px] lg:flex">
                             <div className="flex flex-1 items-center gap-2">
