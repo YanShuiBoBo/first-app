@@ -117,6 +117,31 @@ interface KnowledgeCard {
   };
 }
 
+// 精读页收藏图标：使用提供的标准收藏图标（书签 + 星星），未收藏时描边线型，已收藏时实心
+function IconFavorite({
+  filled = false,
+  className
+}: {
+  filled?: boolean;
+  className?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 1024 1024"
+      className={className ?? 'h-4 w-4'}
+      // 为保证在移动端小尺寸下也清晰可见，这里始终使用实心填充，
+      // 选中 / 未选中只通过父元素的 text 颜色区分。
+      fill="currentColor"
+      stroke="none"
+    >
+      {/* 外层书签框 */}
+      <path d="M818.7 64.2H205.3c-41.8 0-75.9 34-75.9 75.9v744.2c0 26.2 13.3 50.3 35.5 64.2 12.4 7.8 26.3 11.7 40.4 11.7 11.2 0 22.4-2.5 32.9-7.5L512 821.3l273.8 131.4c23.6 11.3 51 9.8 73.3-4.2 22.2-14 35.5-38 35.5-64.2V140.1c0-41.8-34.1-75.9-75.9-75.9z m0 820.1L544.9 752.8c-20.9-10-44.8-10-65.7 0L205.3 884.3V140.1h613.4l0.1 744.2h-0.1z" />
+      {/* 内部星星 */}
+      <path d="M691.5 373.6l-91.8-13.3-41-83.1c-8.8-17.9-26.7-29-46.7-29s-37.8 11.1-46.7 29l-41 83.1-91.7 13.3c-19.8 2.9-35.9 16.4-42.1 35.4-6.2 19-1.1 39.5 13.2 53.4l66.4 64.7-15.7 91.4c-3.4 19.7 4.5 39.2 20.7 50.9 16.1 11.7 37.2 13.2 54.9 4l82-43.1 82 43.1c7.7 4 16 6 24.3 6 10.7 0 21.4-3.4 30.6-10 16.2-11.7 24.1-31.3 20.7-50.9l-15.7-91.4 66.4-64.7c14.3-13.9 19.3-34.4 13.2-53.4-6.2-19-22.3-32.6-42-35.4zM592 481.4c-12.3 11.9-17.9 29.2-15 46.1l9.6 56.2-50.4-26.5c-15.2-8-33.3-8-48.5 0l-50.4 26.5 9.6-56.1c2.9-16.9-2.7-34.2-15-46.2l-40.8-39.8 56.3-8.2c17-2.5 31.6-13.1 39.2-28.5l25.2-51.1 25.2 51.1c7.6 15.4 22.2 26 39.2 28.5l56.4 8.2-40.6 39.8z" />
+    </svg>
+  );
+}
+
 // 不同类型卡片在气泡中展示的中文标签（仅保留三大类：单词 / 短语 / 表达）
 const getCardTypeLabel = (
   type: KnowledgeCard['data']['type'] | undefined
@@ -693,6 +718,8 @@ export default function WatchPage() {
   const [likedSubtitles, setLikedSubtitles] = useState<Set<number>>(
     () => new Set()
   );
+  // 是否收藏当前视频（基于 user_video_favorites 表）
+  const [isFavorite, setIsFavorite] = useState(false);
   // 不存在 / 已下线视频标记（用于区分「视频不存在」和其它错误）
   const [notFound, setNotFound] = useState(false);
   // 右侧面板 / 底部内容区模式：字幕流 or 生词流
@@ -2082,6 +2109,54 @@ export default function WatchPage() {
     });
   };
 
+  // 切换当前视频收藏状态：一次完整链路，等待后端成功后再更新本地状态
+  const handleToggleFavoriteVideo = async () => {
+    if (!supabase || !videoData || !user?.email) {
+      // 未登录或客户端未就绪时仅提示，不做操作，避免产生匿名脏数据
+      console.warn('收藏功能需要登录后使用');
+      return;
+    }
+
+    const next = !isFavorite;
+
+    try {
+      if (next) {
+        // 标记为收藏：插入记录（若已存在则忽略）
+        const { error } = await supabase
+          .from('user_video_favorites')
+          .upsert(
+            {
+              user_email: user.email as string,
+              video_id: videoData.id
+            },
+            {
+              onConflict: 'user_email,video_id'
+            }
+          );
+        if (error) {
+          console.error('收藏视频失败:', error);
+          return;
+        }
+      } else {
+        // 取消收藏：删除对应记录
+        const { error } = await supabase
+          .from('user_video_favorites')
+          .delete()
+          .eq('user_email', user.email as string)
+          .eq('video_id', videoData.id);
+        if (error) {
+          console.error('取消收藏视频失败:', error);
+          return;
+        }
+      }
+
+      // 后端更新成功后，再同步本地 UI 状态
+      setIsFavorite(next);
+    } catch (err) {
+      console.error('更新收藏状态异常:', err);
+    }
+  };
+
   // 导出脚本：简单复制到剪贴板
   // 导出 / 打印脚本：打开新窗口，提供「中/英/中英」三种模式和打印按钮
   const handleExportTranscript = async () => {
@@ -2365,6 +2440,36 @@ export default function WatchPage() {
     };
   }, [showResumeToast]);
 
+  // 初始化当前视频是否已被收藏（必须在任何 return 之前调用 Hook）
+  useEffect(() => {
+    const loadFavoriteStatus = async () => {
+      if (!supabase || !videoData?.id || !user?.email) {
+        setIsFavorite(false);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('user_video_favorites')
+          .select('id')
+          .eq('user_email', user.email as string)
+          .eq('video_id', videoData.id)
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          // PGRST116: no rows found
+          console.error('查询收藏状态失败:', error);
+          return;
+        }
+
+        setIsFavorite(!!data);
+      } catch (err) {
+        console.error('加载收藏状态异常:', err);
+      }
+    };
+
+    void loadFavoriteStatus();
+  }, [supabase, videoData?.id, user?.email]);
+
   // 页面渲染
   if (isLoading) {
     return (
@@ -2437,14 +2542,15 @@ export default function WatchPage() {
         </div>
         <button
           type="button"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50"
-          aria-label="更多操作"
-          // 预留：后续可接入打印脚本 / 查看完整简介 / 举报等功能
-          onClick={() => {
-            // 当前版本暂不弹出菜单，保持界面简洁
-          }}
+          className={`inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-[11px] shadow-sm ${
+            isFavorite
+              ? 'text-amber-400'
+              : 'text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+          }`}
+          aria-label={isFavorite ? '取消收藏本集' : '收藏本集'}
+          onClick={handleToggleFavoriteVideo}
         >
-          <IconMore className="h-3.5 w-3.5" />
+          <IconFavorite filled={isFavorite} className="h-3.5 w-3.5" />
         </button>
       </header>
 
@@ -2472,13 +2578,15 @@ export default function WatchPage() {
                 </div>
                 <button
                   type="button"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm shadow-black/5"
-                  aria-label="更多操作"
-                  onClick={() => {
-                    // 预留：后续接入打印脚本 / 查看完整简介 / 举报等
-                  }}
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-xs shadow-sm shadow-black/5 ${
+                    isFavorite
+                      ? 'text-amber-400'
+                      : 'text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                  aria-label={isFavorite ? '取消收藏本集' : '收藏本集'}
+                  onClick={handleToggleFavoriteVideo}
                 >
-                  <IconMore className="h-4 w-4" />
+                  <IconFavorite filled={isFavorite} className="h-4 w-4" />
                 </button>
               </div>
               {/* Layer 1: Header（桌面端显示） */}

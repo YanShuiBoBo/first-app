@@ -121,7 +121,7 @@ interface VideoCard {
 type CategoryValue = 'all' | string;
 type DifficultyFilter = 'all' | 'easy' | 'medium' | 'hard';
 type SortOrder = 'hottest' | 'latest';
-type StatusFilter = 'all' | 'unlearned' | 'completed';
+type StatusFilter = 'all' | 'unlearned' | 'completed' | 'favorited';
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -130,6 +130,7 @@ export default function Home() {
   const [learnedCount, setLearnedCount] = useState(0);
   const [studyDates, setStudyDates] = useState<string[]>([]);
   const [completedVideoIds, setCompletedVideoIds] = useState<string[]>([]);
+  const [favoriteVideoIds, setFavoriteVideoIds] = useState<string[]>([]);
 
   const [activeCategory, setActiveCategory] =
     useState<CategoryValue>('all');
@@ -327,6 +328,33 @@ export default function Home() {
     };
   }, [user?.email, videos.length, fetchStudyStats, hasLoadedStats]);
 
+  // 加载当前用户收藏的视频列表（用于首页「仅看已收藏」筛选）
+  useEffect(() => {
+    const loadFavorites = async () => {
+      if (!supabase || !user?.email) {
+        setFavoriteVideoIds([]);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('user_video_favorites')
+          .select('video_id')
+          .eq('user_email', user.email as string);
+        if (error) {
+          console.error('获取收藏视频列表失败:', error);
+          return;
+        }
+        setFavoriteVideoIds(
+          (data || []).map((row: { video_id: string }) => row.video_id)
+        );
+      } catch (err) {
+        console.error('加载收藏视频列表异常:', err);
+      }
+    };
+
+    void loadFavorites();
+  }, [supabase, user?.email]);
+
   // 工具函数：难度映射到档位
   const getDifficultyLevel = (
     difficulty?: number | null
@@ -443,6 +471,11 @@ export default function Home() {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   // 过滤视频：先按条件筛选，再根据排序方式决定是否按热度重新排序
+  const favoriteSet = useMemo(
+    () => new Set(favoriteVideoIds),
+    [favoriteVideoIds]
+  );
+
   const filteredVideosBase = videos
     .filter((video) => {
       if (!normalizedQuery) return true;
@@ -477,6 +510,11 @@ export default function Home() {
       const completed = completedSet.has(video.id);
       if (statusFilter === 'completed') return completed;
       if (statusFilter === 'unlearned') return !completed;
+      if (statusFilter === 'favorited') {
+        // 未登录时，收藏筛选视为没有命中任何视频
+        if (!user?.email) return false;
+        return favoriteSet.has(video.id);
+      }
       return true;
     });
 
@@ -1096,6 +1134,30 @@ export default function Home() {
                         >
                           仅看已学完
                         </button>
+                        {/* 仅看已收藏（登录后可用） */}
+                        <button
+                          type="button"
+                          className={`rounded-full border px-3 py-1 ${
+                            statusFilter === 'favorited' && user?.email
+                              ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)]'
+                              : user?.email
+                              ? 'border-transparent bg-stone-50 text-stone-600 hover:bg-stone-100'
+                              : 'border-transparent bg-stone-50 text-stone-300 cursor-not-allowed'
+                          }`}
+                          onClick={() =>
+                            user?.email
+                              ? setStatusFilter(
+                                  statusFilter === 'favorited'
+                                    ? 'all'
+                                    : 'favorited'
+                                )
+                              : typeof window !== 'undefined'
+                              ? window.alert('请登录后使用收藏筛选')
+                              : undefined
+                          }
+                        >
+                          仅看已收藏
+                        </button>
                       </div>
                     </div>
 
@@ -1428,7 +1490,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 状态：Switch */}
+              {/* 状态：Switch + 收藏筛选 */}
               <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 px-3 py-3">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -1440,31 +1502,52 @@ export default function Home() {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] text-neutral-700">
-                    仅看未学
-                  </span>
+                <div className="space-y-2 text-[12px] text-neutral-700">
+                  <div className="flex items-center justify-between">
+                    <span>仅看未学</span>
+                    <button
+                      type="button"
+                      className={`flex h-5 w-10 items-center rounded-full px-0.5 transition-colors ${
+                        statusFilter === 'unlearned'
+                          ? 'bg-[var(--accent)]'
+                          : 'bg-gray-200'
+                      }`}
+                      onClick={() =>
+                        setStatusFilter(
+                          statusFilter === 'unlearned' ? 'all' : 'unlearned'
+                        )
+                      }
+                      aria-label="切换仅看未学"
+                    >
+                      <span
+                        className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                          statusFilter === 'unlearned'
+                            ? 'translate-x-5'
+                            : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    className={`flex h-5 w-10 items-center rounded-full px-0.5 transition-colors ${
-                      statusFilter === 'unlearned'
-                        ? 'bg-[var(--accent)]'
-                        : 'bg-gray-200'
+                    className={`inline-flex items-center justify-center rounded-full border px-3 py-1 text-[11px] ${
+                      statusFilter === 'favorited' && user?.email
+                        ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)]'
+                        : user?.email
+                        ? 'border-transparent bg-white text-neutral-600 hover:border-neutral-200 hover:bg-neutral-50'
+                        : 'border-transparent bg-white text-neutral-300 cursor-not-allowed'
                     }`}
                     onClick={() =>
-                      setStatusFilter(
-                        statusFilter === 'unlearned' ? 'all' : 'unlearned'
-                      )
+                      user?.email
+                        ? setStatusFilter(
+                            statusFilter === 'favorited' ? 'all' : 'favorited'
+                          )
+                        : typeof window !== 'undefined'
+                        ? window.alert('请登录后使用收藏筛选')
+                        : undefined
                     }
-                    aria-label="切换仅看未学"
                   >
-                    <span
-                      className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-                        statusFilter === 'unlearned'
-                          ? 'translate-x-5'
-                          : 'translate-x-0'
-                      }`}
-                    />
+                    仅看已收藏
                   </button>
                 </div>
               </div>
