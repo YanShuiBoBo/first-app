@@ -648,7 +648,7 @@ export default function Home() {
 
           {/* Row 2: 横向滚动 Tabs（All + 前几个真实标签）+ 固定在右侧的筛选图标 */}
           <div className="-mx-4 mt-4 px-4 pb-1">
-            <div className="relative flex items-center text-xs">
+            <div className="relative flex items-center text-[12px]">
               {/* 可横向滚动的标签区域 */}
               <div className="no-scrollbar mr-2 flex-1 overflow-x-auto pr-10">
                 <div className="flex items-center gap-2">
@@ -670,10 +670,10 @@ export default function Home() {
                       <button
                         key={tab.value}
                         type="button"
-                        className={`whitespace-nowrap rounded-full border px-4 py-1.5 text-[11px] ${
+                        className={`whitespace-nowrap rounded-full border px-4 py-1.5 text-[12px] font-medium ${
                           isActive
-                            ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] font-semibold shadow-sm shadow-[rgba(0,0,0,0.04)]'
-                            : 'border-transparent bg-stone-50 text-neutral-600 hover:bg-stone-100 hover:text-neutral-900 font-medium'
+                            ? 'border-transparent bg-neutral-900 text-white shadow-md shadow-black/20'
+                            : 'border-neutral-200 bg-white/90 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
                         }`}
                         onClick={() => setActiveCategory(tab.value)}
                       >
@@ -1246,7 +1246,7 @@ export default function Home() {
         </section>
       </main>
 
-      {/* 移动端筛选 Bottom Sheet */}
+          {/* 移动端筛选 Bottom Sheet */}
       {isFilterSheetOpen && (
         <div className="fixed inset-0 z-50 flex flex-col md:hidden">
           {/* 遮罩层：黑色透明 + 背景模糊 */}
@@ -1265,12 +1265,12 @@ export default function Home() {
                 <div className="h-1 w-10 rounded-full bg-neutral-200" />
               </div>
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-neutral-900">
+                <h2 className="text-base font-semibold text-neutral-900">
                   精细筛选
                 </h2>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-3 py-1 text-[11px] text-neutral-600"
+                  className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-3 py-1 text-[12px] text-neutral-700"
                   onClick={() => {
                     setDifficultyFilter('all');
                     setAuthorFilter('all');
@@ -1282,10 +1282,12 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex-1 space-y-5 overflow-y-auto pb-24 text-xs text-neutral-700">
+            <div className="flex-1 space-y-6 overflow-y-auto pb-24 text-[13px] text-neutral-800">
               {/* 难度：3 列 Grid，简洁胶囊样式 */}
               <div>
-                <div className="mb-2 font-medium">按难度</div>
+                <div className="mb-2 text-[12px] font-semibold text-neutral-900">
+                  按难度
+                </div>
                 <div className="grid grid-cols-3 gap-3">
                   {(['easy', 'medium', 'hard'] as DifficultyFilter[]).map(
                     (level) => {
@@ -1297,7 +1299,7 @@ export default function Home() {
                       };
                       const isActive = difficultyFilter === level;
                       const baseClasses =
-                        'flex items-center justify-center rounded-full border px-3 py-2 text-[11px] transition-colors';
+                        'flex items-center justify-center rounded-full border px-3 py-2 text-[12px] transition-colors';
 
                       // 不同难度使用不同的柔和色系，让筛选区更有层次感
                       let activeClasses =
@@ -1338,11 +1340,13 @@ export default function Home() {
               {/* 作者：前 4-6 个 + 展开更多 */}
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="font-medium">按作者</span>
+                  <span className="text-[12px] font-semibold text-neutral-900">
+                    按作者
+                  </span>
                   {authorOptions.length > 6 && (
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 rounded-full bg-neutral-50 px-2.5 py-1 text-[10px] text-neutral-600"
+                      className="inline-flex items-center gap-1 rounded-full bg-neutral-50 px-2.5 py-1 text-[11px] text-neutral-700"
                       onClick={() => setShowAllAuthors((v) => !v)}
                     >
                       <span>
@@ -1367,7 +1371,7 @@ export default function Home() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className={`flex items-center gap-2 rounded-full border px-3 py-1 ${
+                    className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] ${
                       authorFilter === 'all'
                         ? 'border-transparent bg-[var(--accent)] text-white shadow-[0_6px_18px_rgba(255,36,66,0.45)]'
                         : 'border-neutral-200 bg-neutral-50 text-neutral-600'
@@ -1386,7 +1390,7 @@ export default function Home() {
                       <button
                         key={name}
                         type="button"
-                        className={`flex items-center gap-2 rounded-full border px-3 py-1 ${
+                      className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] ${
                           isActive
                             ? 'border-transparent bg-[var(--accent)] text-white shadow-[0_6px_18px_rgba(255,36,66,0.45)]'
                             : 'border-neutral-200 bg-neutral-50 text-neutral-600'
@@ -1409,9 +1413,11 @@ export default function Home() {
 
               {/* 状态：Switch */}
               <div>
-                <div className="mb-2 font-medium">按状态</div>
+                <div className="mb-2 text-[12px] font-semibold text-neutral-900">
+                  按状态
+                </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-neutral-600">
+                  <span className="text-[12px] text-neutral-700">
                     仅看未学
                   </span>
                   <button
@@ -1445,7 +1451,7 @@ export default function Home() {
               <div className="flex items-center justify-between gap-3">
                 <button
                   type="button"
-                  className="pointer-events-auto rounded-full border border-neutral-200 bg-neutral-50 px-4 py-1.5 text-xs text-neutral-600"
+                  className="pointer-events-auto rounded-full border border-neutral-200 bg-neutral-50 px-4 py-1.5 text-[12px] text-neutral-700"
                   onClick={() => {
                     setDifficultyFilter('all');
                     setAuthorFilter('all');
@@ -1456,7 +1462,7 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
-                  className="pointer-events-auto flex-1 rounded-full bg-[var(--accent)] py-2.5 text-center text-xs font-medium text-white shadow-[0_10px_30px_rgba(255,36,66,0.55)] active:scale-95"
+                  className="pointer-events-auto flex-1 rounded-full bg-[var(--accent)] py-2.5 text-center text-[13px] font-semibold text-white shadow-[0_10px_30px_rgba(255,36,66,0.55)] active:scale-95"
                   onClick={() => setIsFilterSheetOpen(false)}
                 >
                   应用筛选 ({filteredVideos.length})
