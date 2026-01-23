@@ -2526,7 +2526,7 @@ export default function WatchPage() {
   };
 
   return (
-    <div className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[var(--bg-body)] text-gray-900 lg:h-screen lg:overflow-hidden">
+    <div className="relative flex h-screen min-h-screen flex-col bg-[var(--bg-body)] text-gray-900 overflow-y-auto lg:h-screen lg:overflow-hidden">
       {/* 桌面端顶部导航栏：移动端在视频上方单独实现 */}
       <header className="hidden h-11 items-center justify-between bg-white/95 px-6 text-xs text-gray-700 shadow-sm shadow-black/5 lg:fixed lg:inset-x-0 lg:top-0 lg:z-30 lg:flex">
         <button
