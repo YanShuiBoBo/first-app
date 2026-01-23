@@ -3387,9 +3387,9 @@ export default function WatchPage() {
                   })}
                 </div>
 
-                  {/* 生词流：PC 端右侧面板复习视图，移动端占用视频下方剩余高度；内部自己滚动 */}
+                  {/* 生词流：PC 端右侧面板复习视图；移动端占用视频下方剩余高度，内部列表自己滚动 */}
                   <div
-                    className={`flex h-full min-h-0 flex-col overflow-y-auto pb-4 pt-3 lg:absolute lg:inset-0 lg:h-full lg:px-4 lg:overflow-y-auto ${
+                    className={`flex h-full min-h-0 flex-col pb-4 pt-3 lg:absolute lg:inset-0 lg:h-full lg:px-4 lg:overflow-y-auto ${
                       panelMode === 'vocab' ? '' : 'hidden'
                     }`}
                   >
@@ -3402,8 +3402,8 @@ export default function WatchPage() {
                     {vocabItems.length > 0 && (
                       <>
                         {/* 生词卡片列表：PC / APP 共用，宽度与视频一致。
-                            滚动交给外层容器，这里只负责内容间距，减少模式切换时的割裂感。 */}
-                        <div className="flex-1 pt-1 pb-4">
+                            内层列表作为唯一滚动容器，确保移动端可以滑到所有内容 */}
+                        <div className="flex-1 overflow-y-auto pt-1 pb-4">
                           {/* PC 端：在列表顶部保留类型 Tabs（移动端使用上方固定区域） */}
                           <div className="mb-2 mt-0 hidden items-center gap-2 text-[12px] lg:flex">
                             <div className="flex flex-1 items-center gap-2">
