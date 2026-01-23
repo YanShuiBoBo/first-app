@@ -1199,9 +1199,9 @@ export default function Home() {
           {/* 移动端：排序 + 筛选按钮（已整合到顶部 Header 胶囊栏，仅保留 Bottom Sheet 逻辑） */}
         </section>
 
-        {/* 视频卡片：移动端瀑布流 + PC Grid */}
+        {/* 视频卡片：移动端与 PC 统一栅格布局（固定卡片尺寸，便于截图与浏览） */}
         <section className="mt-4">
-          <div className="columns-2 gap-4 space-y-4 md:grid md:grid-cols-4 md:gap-6 md:space-y-0 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6 xl:grid-cols-5">
             {isLoading ? (
               <>
                 <div className="h-48 animate-pulse rounded-xl bg-neutral-200" />
@@ -1219,9 +1219,9 @@ export default function Home() {
                   <Link
                     key={video.id}
                     href={`/watch/${video.cf_video_id}`}
-                    className="group mb-4 flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md [break-inside:avoid]"
+                    className="group flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                   >
-                    <div className="relative aspect-[3/4] w-full overflow-hidden">
+                    <div className="relative aspect-[16/9] w-full overflow-hidden">
                       <Image
                         unoptimized
                         src={getCoverSrc(
@@ -1346,23 +1346,81 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex-1 space-y-5 overflow-y-auto pb-24 text-[13px] text-neutral-800">
-              {/* 难度：3 列 Grid，简洁胶囊样式 */}
-              <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 px-3 py-3">
+            <div className="flex-1 space-y-4 overflow-y-auto pb-24 text-[13px] text-neutral-800">
+              {/* 块 1：学习状态（未学 / 已学完 / 已收藏） */}
+              <div className="rounded-2xl border border-neutral-100 bg-white px-3 py-3">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-semibold text-white">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-semibold text-neutral-700">
+                      ✓
+                    </span>
+                    <span className="text-[12px] font-semibold text-neutral-900">
+                      按学习状态
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-neutral-500">
+                    只看你现在想刷的那几集
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center gap-2">
+                  {[
+                    { value: 'unlearned' as StatusFilter, label: '未学' },
+                    { value: 'completed' as StatusFilter, label: '已学完' },
+                    { value: 'favorited' as StatusFilter, label: '已收藏' }
+                  ].map(option => {
+                    const active = statusFilter === option.value;
+                    const disabled =
+                      option.value === 'favorited' && !user?.email;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`flex-1 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                          disabled
+                            ? 'border-neutral-100 bg-neutral-50 text-neutral-300 cursor-not-allowed'
+                            : active
+                            ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm shadow-black/15'
+                            : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
+                        }`}
+                        onClick={() => {
+                          if (disabled) {
+                            if (typeof window !== 'undefined') {
+                              window.alert('登录后可以按“已收藏”筛选视频');
+                            }
+                            return;
+                          }
+                          setStatusFilter(prev =>
+                            prev === option.value ? 'all' : option.value
+                          );
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 块 2：按难度 */}
+              <div className="rounded-2xl border border-neutral-100 bg-white px-3 py-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-semibold text-neutral-700">
                       Lv
                     </span>
                     <span className="text-[12px] font-semibold text-neutral-900">
                       按难度
                     </span>
                   </div>
-                  <span className="text-[11px] text-neutral-500">
-                    先选一个适合你的节奏
-                  </span>
+                  <button
+                    type="button"
+                    className="text-[11px] text-neutral-500 underline-offset-2 hover:text-neutral-800 hover:underline"
+                    onClick={() => setDifficultyFilter('all')}
+                  >
+                    全部难度
+                  </button>
                 </div>
-                <div className="mt-1 grid grid-cols-3 gap-3">
+                <div className="mt-1 flex items-center gap-2">
                   {(['easy', 'medium', 'hard'] as DifficultyFilter[]).map(
                     level => {
                       const labelMap: Record<DifficultyFilter, string> = {
@@ -1372,38 +1430,18 @@ export default function Home() {
                         hard: '大师'
                       };
                       const isActive = difficultyFilter === level;
-                      const baseClasses =
-                        'flex items-center justify-center rounded-full border px-3 py-2 text-[12px] transition-colors';
-
-                      // 不同难度使用不同的柔和色系，让筛选区更有层次感
-                      let activeClasses =
-                        'border-transparent bg-[var(--accent)] text-white shadow-[0_8px_22px_rgba(255,36,66,0.48)]';
-                      if (level === 'easy') {
-                        activeClasses =
-                          'border-transparent bg-emerald-50 text-emerald-700 shadow-[0_6px_16px_rgba(16,185,129,0.35)]';
-                      }
-                      if (level === 'medium') {
-                        activeClasses =
-                          'border-transparent bg-sky-50 text-sky-700 shadow-[0_6px_16px_rgba(56,189,248,0.35)]';
-                      }
-                      if (level === 'hard') {
-                        activeClasses =
-                          'border-transparent bg-rose-50 text-rose-700 shadow-[0_8px_22px_rgba(244,63,94,0.4)]';
-                      }
-
-                      const inactiveClasses =
-                        'border-neutral-200 bg-white text-neutral-600';
-
                       return (
                         <button
                           key={level}
                           type="button"
-                          className={`${baseClasses} ${
-                            isActive ? activeClasses : inactiveClasses
+                          className={`flex-1 rounded-full border px-3 py-1.5 text-[12px] transition-colors ${
+                            isActive
+                              ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm shadow-black/15'
+                              : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
                           }`}
                           onClick={() => setDifficultyFilter(level)}
                         >
-                          <span>{labelMap[level]}</span>
+                          {labelMap[level]}
                         </button>
                       );
                     }
@@ -1411,28 +1449,28 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 作者：前 4-6 个 + 展开更多 */}
-              <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 px-3 py-3">
+              {/* 块 3：按内容（作者） */}
+              <div className="rounded-2xl border border-neutral-100 bg-white px-3 py-3">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">
-                      Au
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-semibold text-neutral-700">
+                      #
                     </span>
                     <span className="text-[12px] font-semibold text-neutral-900">
-                      按作者
+                      按内容
                     </span>
                   </div>
                   {authorOptions.length > 6 && (
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] text-neutral-700 shadow-sm"
+                      className="inline-flex items-center gap-1 text-[11px] text-neutral-500 hover:text-neutral-800"
                       onClick={() => setShowAllAuthors(v => !v)}
                     >
                       <span>
                         {showAllAuthors ? '收起作者' : '更多作者'}
                       </span>
                       <svg
-                        className={`h-3 w-3 transform text-neutral-500 transition-transform ${
+                        className={`h-3 w-3 transform transition-transform ${
                           showAllAuthors ? 'rotate-180' : ''
                         }`}
                         viewBox="0 0 24 24"
@@ -1447,133 +1485,72 @@ export default function Home() {
                     </button>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] ${
-                      authorFilter === 'all'
-                        ? 'border-transparent bg-[var(--accent)] text-white shadow-[0_6px_18px_rgba(255,36,66,0.45)]'
-                        : 'border-neutral-200 bg-white text-neutral-600'
-                    }`}
-                    onClick={() => setAuthorFilter('all')}
-                  >
-                    <span className="h-5 w-5 rounded-full bg-neutral-200" />
-                    <span>全部</span>
-                  </button>
-                  {(showAllAuthors
-                    ? authorOptions
-                    : authorOptions.slice(0, 6)
-                  ).map(name => {
-                    const isActive = authorFilter === name;
-                    return (
-                      <button
-                        key={name}
-                        type="button"
-                        className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] ${
-                          isActive
-                            ? 'border-transparent bg-[var(--accent)] text-white shadow-[0_6px_18px_rgba(255,36,66,0.45)]'
-                            : 'border-neutral-200 bg-white text-neutral-600'
-                        }`}
-                        onClick={() => setAuthorFilter(name)}
-                      >
-                        <span
-                          className={`flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-[10px] ${
-                            isActive ? 'ring-2 ring-[var(--accent)]' : ''
-                          }`}
-                        >
-                          {name.charAt(0).toUpperCase()}
-                        </span>
-                        <span>{name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 状态：Switch + 收藏筛选 */}
-              <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 px-3 py-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-semibold text-white">
-                      ✔
-                    </span>
-                    <span className="text-[12px] font-semibold text-neutral-900">
-                      按状态
-                    </span>
+                <div className="mb-2">
+                  <div className="mb-1 text-[11px] text-neutral-500">
+                    作者
                   </div>
-                </div>
-                <div className="space-y-2 text-[12px] text-neutral-700">
-                  <div className="flex items-center justify-between">
-                    <span>仅看未学</span>
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      className={`flex h-5 w-10 items-center rounded-full px-0.5 transition-colors ${
-                        statusFilter === 'unlearned'
-                          ? 'bg-[var(--accent)]'
-                          : 'bg-gray-200'
+                      className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] ${
+                        authorFilter === 'all'
+                          ? 'border-neutral-900 bg-neutral-900 text-white'
+                          : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
                       }`}
-                      onClick={() =>
-                        setStatusFilter(
-                          statusFilter === 'unlearned' ? 'all' : 'unlearned'
-                        )
-                      }
-                      aria-label="切换仅看未学"
+                      onClick={() => setAuthorFilter('all')}
                     >
-                      <span
-                        className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-                          statusFilter === 'unlearned'
-                            ? 'translate-x-5'
-                            : 'translate-x-0'
-                        }`}
-                      />
+                      <span className="h-5 w-5 rounded-full bg-neutral-200" />
+                      <span>全部</span>
                     </button>
+                    {(showAllAuthors
+                      ? authorOptions
+                      : authorOptions.slice(0, 6)
+                    ).map(name => {
+                      const isActive = authorFilter === name;
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] ${
+                            isActive
+                              ? 'border-neutral-900 bg-neutral-900 text-white'
+                              : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
+                          }`}
+                          onClick={() => setAuthorFilter(name)}
+                        >
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-[10px]">
+                            {name.charAt(0).toUpperCase()}
+                          </span>
+                          <span>{name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <button
-                    type="button"
-                    className={`inline-flex items-center justify-center rounded-full border px-3 py-1 text-[11px] ${
-                      statusFilter === 'favorited' && user?.email
-                        ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm shadow-[rgba(0,0,0,0.04)]'
-                        : user?.email
-                        ? 'border-transparent bg-white text-neutral-600 hover:border-neutral-200 hover:bg-neutral-50'
-                        : 'border-transparent bg-white text-neutral-300 cursor-not-allowed'
-                    }`}
-                    onClick={() =>
-                      user?.email
-                        ? setStatusFilter(
-                            statusFilter === 'favorited' ? 'all' : 'favorited'
-                          )
-                        : typeof window !== 'undefined'
-                        ? window.alert('请登录后使用收藏筛选')
-                        : undefined
-                    }
-                  >
-                    仅看已收藏
-                  </button>
                 </div>
               </div>
 
-              {/* 排序：按最新 / 最热 */}
-              <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 px-3 py-3">
+              {/* 块 4：排序 */}
+              <div className="rounded-2xl border border-neutral-100 bg-white px-3 py-3">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-[11px] font-semibold text-white">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-semibold text-neutral-700">
                       ↕
                     </span>
                     <span className="text-[12px] font-semibold text-neutral-900">
-                      按排序
+                      排序
                     </span>
                   </div>
                   <span className="text-[11px] text-neutral-500">
-                    默认展示最热门内容
+                    默认按最热门
                   </span>
                 </div>
                 <div className="mt-1 flex items-center gap-2">
                   <button
                     type="button"
-                    className={`flex-1 rounded-full px-3 py-2 text-[12px] font-medium ${
+                    className={`flex-1 rounded-full border px-3 py-1.5 text-[12px] font-medium ${
                       sortOrder === 'hottest'
-                        ? 'bg-neutral-900 text-white shadow-md shadow-black/20'
-                        : 'bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900'
+                        ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm shadow-black/15'
+                        : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
                     }`}
                     onClick={() => setSortOrder('hottest')}
                   >
@@ -1581,10 +1558,10 @@ export default function Home() {
                   </button>
                   <button
                     type="button"
-                    className={`flex-1 rounded-full px-3 py-2 text-[12px] font-medium ${
+                    className={`flex-1 rounded-full border px-3 py-1.5 text-[12px] font-medium ${
                       sortOrder === 'latest'
-                        ? 'bg-neutral-900 text-white shadow-md shadow-black/20'
-                        : 'bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900'
+                        ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm shadow-black/15'
+                        : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
                     }`}
                     onClick={() => setSortOrder('latest')}
                   >
