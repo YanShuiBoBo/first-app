@@ -203,6 +203,13 @@ body {
   box-shadow: 0 10px 30px rgba(250, 204, 21, 0.3);
 }
 
+/* 移动端：第一句字幕与视频之间额外留出一点呼吸空间，避免视觉上“被挤压割裂” */
+@media (max-width: 1023.98px) {
+  .feed-list .card.subtitle-card:first-of-type {
+    margin-top: 1.5rem;
+  }
+}
+
 /* 移动端精读页：Creamy 悬浮岛与设置 Popover 样式
  * 说明：只定义结构类，逻辑与布局由 React 组件控制 */
 .settings-popover {

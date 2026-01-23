@@ -2458,7 +2458,7 @@ export default function WatchPage() {
               className="flex h-full flex-col rounded-2xl bg-white shadow-sm"
             >
               {/* 移动端顶部返回栏：与视频区域分离，固定在顶部，避免滚动时产生割裂感 */}
-              <div className="fixed inset-x-0 top-0 z-30 flex h-11 items-center justify-between px-4 pt-1 text-xs text-gray-700 bg-[var(--bg-body)]/95 backdrop-blur lg:hidden">
+              <div className="fixed inset-x-0 top-0 z-30 flex h-12 items-center justify-between px-4 text-xs text-gray-700 bg-[var(--bg-body)]/95 backdrop-blur lg:hidden">
                 <button
                   type="button"
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm shadow-black/5"
@@ -2467,7 +2467,7 @@ export default function WatchPage() {
                 >
                   <IconArrowLeft className="h-4 w-4" />
                 </button>
-                <div className="mx-2 flex-1 truncate text-center text-[13px] font-semibold text-gray-900">
+                <div className="mx-2 flex-1 truncate text-center text-[14px] font-semibold text-gray-900">
                   {videoData.title}
                 </div>
                 <button
@@ -2519,7 +2519,7 @@ export default function WatchPage() {
                 <div className="aspect-video w-full lg:hidden" />
 
                 {/* 真正的视频容器：小屏 fixed 顶部（在移动端头部下方），大屏正常随内容滚动 */}
-                <div className="fixed inset-x-0 top-[52px] z-20 lg:static lg:inset-auto lg:top-auto lg:z-auto">
+                <div className="fixed inset-x-0 top-12 z-20 lg:static lg:inset-auto lg:top-auto lg:z-auto">
                   <div className="mx-auto w-full max-w-[414px] px-0 lg:max-w-[1600px] lg:px-0">
                     <div className="relative mx-1 aspect-video w-auto overflow-hidden rounded-2xl bg-black shadow-lg shadow-black/25 lg:mx-0 lg:w-full lg:rounded-3xl">
                       {!isPlayerReady && (
@@ -2905,7 +2905,8 @@ export default function WatchPage() {
           {/* 右侧：交互式课本 THE LIST
               移动端：占用视频下方剩余高度，内部字幕区域滚动
               桌面端：固定宽度的侧边栏 */}
-          <aside className="h-full flex w-full flex-1 flex-col lg:mt-0 lg:w-[30%] lg:flex-none">
+          {/* 移动端：整体向下偏移一段距离，避免第一句字幕被悬浮视频遮挡 */}
+          <aside className="mt-4 h-full flex w-full flex-1 flex-col lg:mt-0 lg:w-[30%] lg:flex-none">
             <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white lg:max-h-[calc(100vh-180px)] lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:shadow-sm">
               {/* 顶部工具栏（Sticky，移动端隐藏以释放字幕空间） */}
               <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-stone-100 bg-white/95 px-4 py-2 text-[11px] text-stone-500 backdrop-blur-xl lg:flex">
@@ -3026,7 +3027,7 @@ export default function WatchPage() {
                 {/* 字幕列表：独立滚动区域（移动端样式对齐 HTML demo 的 feed-list + card） */}
                 <div
                   ref={subtitlesContainerRef}
-                  className={`absolute inset-0 overflow-y-auto overflow-x-hidden pb-[100px] lg:static lg:h-full lg:pb-0 scroll-smooth lg:scroll-auto no-scrollbar ${
+                  className={`feed-list absolute inset-0 overflow-y-auto overflow-x-hidden pb-[100px] lg:static lg:h-full lg:pb-0 scroll-smooth lg:scroll-auto no-scrollbar ${
                     panelMode === 'vocab' ? 'hidden' : ''
                   }`}
                 >
