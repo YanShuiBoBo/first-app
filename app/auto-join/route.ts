@@ -15,16 +15,15 @@ import { createServerClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const supabase = createServerClient();
 
-  const now = new Date();
   let assignedCode: string | null = null;
 
   // 简单的重试机制：在高并发下最多尝试 3 次避免同一码被同时占用
   for (let attempt = 0; attempt < 3 && !assignedCode; attempt += 1) {
     const { data: candidates, error } = await supabase
       .from("access_codes")
-      .select("code, status, expires_at")
-      // 公共接口：从“尚未被占用”的激活码中分配，既包括 unused 也包括 reserved
-      .in("status", ["unused", "reserved"])
+      .select("code, status")
+      // 公共接口：仅从“未发放”的激活码中分配（初始化状态：unused）
+      .eq("status", "unused")
       .limit(100);
 
     if (error) {
@@ -35,8 +34,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 去掉时间维度的过期判断：只要状态未被占用即可
-    const available = (candidates || []).filter(() => true);
+    // 仅使用未发放（unused）的激活码
+    const available = (candidates || []).filter(
+      (row) => row.status === "unused"
+    );
 
     if (available.length === 0) {
       break;
@@ -49,8 +50,8 @@ export async function GET(request: NextRequest) {
       .from("access_codes")
       .update({ status: "reserved" })
       .eq("code", picked.code)
-      // 仅允许从未占用状态更新，避免已被占用的激活码被重复分配
-      .in("status", ["unused", "reserved"])
+      // 仅允许从初始化状态更新为 reserved，避免已发放/占用的激活码被重复分配
+      .eq("status", "unused")
       .select("code")
       .maybeSingle();
 

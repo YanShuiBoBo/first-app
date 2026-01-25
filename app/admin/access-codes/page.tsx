@@ -156,6 +156,29 @@ function AccessCodesContent() {
     };
   }, [codes]);
 
+  const dailyUsage = useMemo(() => {
+    const map = new Map<string, number>();
+
+    for (const c of codes) {
+      if (!c.activated_at) continue;
+      const d = new Date(c.activated_at);
+      if (Number.isNaN(d.getTime())) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+        2,
+        "0"
+      )}-${String(d.getDate()).padStart(2, "0")}`;
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+
+    // 转为数组并按日期升序排列
+    const entries = Array.from(map.entries()).sort((a, b) =>
+      a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0
+    );
+
+    // 只展示最近 14 天（用于折线图）
+    return entries.slice(-14);
+  }, [codes]);
+
   const handleGenerate = async () => {
     setGenerateError(null);
     const count = parseInt(generateCount, 10);
@@ -458,6 +481,93 @@ function AccessCodesContent() {
               </div>
             </div>
           </div>
+          {dailyUsage.length > 0 && (
+            <div className="mt-2 rounded-md bg-slate-50 p-3 text-xs text-slate-700">
+              <div className="mb-1 text-[11px] font-semibold text-slate-500">
+                最近 14 天使用激活码注册人数（折线图）
+              </div>
+              {dailyUsage.length === 1 ? (
+                <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-600">
+                  <span className="font-mono">{dailyUsage[0][0]}</span>
+                  <span>注册 {dailyUsage[0][1]} 人</span>
+                </div>
+              ) : (
+                <>
+                  <svg
+                    viewBox="0 0 100 60"
+                    className="mt-2 h-24 w-full text-emerald-600"
+                  >
+                    {(() => {
+                      const counts = dailyUsage.map(([, count]) => count);
+                      const maxCount = Math.max(...counts, 1);
+                      const len = dailyUsage.length;
+                      const points = dailyUsage
+                        .map(([, count], index) => {
+                          const x =
+                            (len === 1
+                              ? 50
+                              : (index / (len - 1)) * 96 + 2);
+                          const y =
+                            56 -
+                            (count / maxCount) * 40; // 上下留边
+                          return `${x},${y}`;
+                        })
+                        .join(" ");
+
+                      return (
+                        <>
+                          <polyline
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                            strokeLinejoin="round"
+                            strokeLinecap="round"
+                            points={points}
+                          />
+                          {dailyUsage.map(([, count], index) => {
+                            const x =
+                              (len === 1
+                                ? 50
+                                : (index / (len - 1)) * 96 + 2);
+                            const y =
+                              56 -
+                              (count / maxCount) * 40;
+                            return (
+                              <circle
+                                key={x}
+                                cx={x}
+                                cy={y}
+                                r={1.5}
+                                fill="currentColor"
+                              />
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+                  </svg>
+                  <div className="mt-2 grid grid-cols-2 gap-1 text-[10px] text-slate-600">
+                    {dailyUsage.map(([date, count]) => {
+                      const [, month, day] = date.split("-");
+                      return (
+                        <div
+                          key={date}
+                          className="flex items-center justify-between rounded bg-white px-2 py-1"
+                        >
+                          <span className="font-mono">
+                            {month}/{day}
+                          </span>
+                          <span className="font-semibold">
+                            {count} 人
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <button
               type="button"
