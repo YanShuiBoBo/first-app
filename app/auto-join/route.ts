@@ -79,8 +79,10 @@ export async function GET(request: NextRequest) {
 
   const redirectParam = request.nextUrl.searchParams.get("redirect") || "/";
 
-  const redirectUrl = new URL("/register", request.nextUrl.origin);
-  redirectUrl.searchParams.set("inviteCode", assignedCode);
+  // 为了复用已有的激活码校验与跳转逻辑，这里先重定向到 /join?code=...
+  // /join 页面校验通过后会自动跳转到 /register?inviteCode=xxx&redirect=...
+  const redirectUrl = new URL("/join", request.nextUrl.origin);
+  redirectUrl.searchParams.set("code", assignedCode);
   if (redirectParam) {
     redirectUrl.searchParams.set("redirect", redirectParam);
   }
