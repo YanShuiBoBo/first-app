@@ -12,7 +12,7 @@ export function middleware(request: NextRequest): NextResponse {
   const { pathname, searchParams } = request.nextUrl;
 
   // 公共路由（不需要登录）
-  const publicPaths = ['/login', '/register', '/join'];
+  const publicPaths = ['/login', '/register', '/join', '/auto-join'];
   const isPublicPath = publicPaths.some(
     path => pathname === path || pathname.startsWith(`${path}/`)
   );

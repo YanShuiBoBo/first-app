@@ -63,14 +63,8 @@ export default function JoinClient() {
           return;
         }
 
-        if (data.expires_at) {
-          const exp = new Date(data.expires_at);
-          if (!Number.isNaN(exp.getTime()) && exp <= now) {
-            setStatus("invalid");
-            setMessage("激活码已过期，链接已失效。");
-            return;
-          }
-        }
+        // 去掉基于 expires_at 的自动过期判断：
+        // 仅当 status = 'expired' 时认为链接已失效
 
         // 校验通过：跳转到注册页，并自动填入邀请码
         const qs = new URLSearchParams();
@@ -148,4 +142,3 @@ export default function JoinClient() {
     </div>
   );
 }
-

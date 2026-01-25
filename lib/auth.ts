@@ -184,16 +184,8 @@ export const register = async (
       };
     }
 
-    // 时间 / 有效期检查
-    if (codeRow.expires_at) {
-      const exp = new Date(codeRow.expires_at);
-      if (!Number.isNaN(exp.getTime()) && exp <= now) {
-        return {
-          success: false,
-          error: "激活码已过期"
-        };
-      }
-    }
+    // 去掉基于时间的自动过期判断：
+    // - 仅当 status = 'expired' 时认为激活码无效
 
     // 激活码通过校验后，先创建用户，再占用激活码
 
@@ -219,7 +211,9 @@ export const register = async (
     }
 
     // 标记激活码为已使用（active）
-    // 为了避免并发重复使用，这里加上 status = 'unused' 的条件
+    // 为了避免并发重复使用，这里只允许从未占用状态更新：
+    // - unused   : 从未发放 / 未使用
+    // - reserved : 已发放（导出 / 后台领取 / 公共接口分配），但尚未被注册占用
     const { data: updatedRow, error: updateError } = await supabase
       .from("access_codes")
       .update({
@@ -228,7 +222,7 @@ export const register = async (
         // 暂不写 user_id，等待后续接入 Supabase Auth
       })
       .eq("code", code)
-      .eq("status", "unused")
+      .in("status", ["unused", "reserved"])
       .select("code")
       .maybeSingle();
 

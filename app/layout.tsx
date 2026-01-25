@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 // Using system fonts instead of Google Fonts to avoid network issues
 import "./globals.css";
+import ClientLayout from "./ClientLayout";
 
 const geistSans = { variable: "" };
 const geistMono = { variable: "" };
@@ -21,7 +22,7 @@ export default function RootLayout({
         className="antialiased"
         suppressHydrationWarning={true}
       >
-        {children}
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
