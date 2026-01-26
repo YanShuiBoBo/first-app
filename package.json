@@ -12,6 +12,8 @@
     "@cloudflare/stream-react": "^1.9.3",
     "@supabase/supabase-js": "^2.89.0",
     "date-fns": "^4.1.0",
+    "echarts": "^6.0.0",
+    "echarts-for-react": "^3.0.6",
     "next": "16.0.10",
     "react": "19.2.1",
     "react-dom": "19.2.1",

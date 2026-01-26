@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/store/auth-store";
 
@@ -14,6 +15,8 @@ interface AccessCodeRow {
   expires_at: string | null;
   created_at: string;
 }
+
+const UNIT_PRICE = 39.9;
 
 type FilterType = "all" | "valid" | "unused";
 
@@ -67,6 +70,16 @@ function AccessCodesContent() {
   const [lastAssignedCode, setLastAssignedCode] = useState<string | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
+  const [totalUsers, setTotalUsers] = useState<number | null>(null);
+  const [monthUsers, setMonthUsers] = useState<number | null>(null);
+
+  const ReactECharts = useMemo(
+    () =>
+      dynamic(() => import("echarts-for-react"), {
+        ssr: false
+      }),
+    []
+  );
 
   // 首次在浏览器端挂载时初始化 Supabase 客户端
   useEffect(() => {
@@ -78,7 +91,7 @@ function AccessCodesContent() {
   useEffect(() => {
     if (!supabase) return;
 
-    const fetchCodes = async () => {
+    const fetchAll = async () => {
       try {
         setIsLoading(true);
         setError(null);
@@ -96,6 +109,33 @@ function AccessCodesContent() {
         }
 
         setCodes((data as AccessCodeRow[]) || []);
+
+        // 统计用户数量：总用户数 & 本月新增用户数
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        const { count: totalUserCount, error: totalUserError } =
+          await supabase
+            .from("app_users")
+            .select("id", { count: "exact", head: true });
+
+        if (totalUserError) {
+          console.error("统计总用户数失败:", totalUserError);
+        } else if (typeof totalUserCount === "number") {
+          setTotalUsers(totalUserCount);
+        }
+
+        const { count: monthUserCount, error: monthUserError } =
+          await supabase
+            .from("app_users")
+            .select("id", { count: "exact", head: true })
+            .gte("created_at", monthStart.toISOString());
+
+        if (monthUserError) {
+          console.error("统计本月用户数失败:", monthUserError);
+        } else if (typeof monthUserCount === "number") {
+          setMonthUsers(monthUserCount);
+        }
       } catch (error) {
         console.error("加载激活码列表失败:", error);
         setError("加载激活码列表失败");
@@ -104,7 +144,7 @@ function AccessCodesContent() {
       }
     };
 
-    fetchCodes();
+    fetchAll();
   }, [supabase]);
 
   const filteredCodes = useMemo(() => {
@@ -157,26 +197,48 @@ function AccessCodesContent() {
   }, [codes]);
 
   const dailyUsage = useMemo(() => {
-    const map = new Map<string, number>();
+    // 使用生成时间近似代表“发放日期”，激活时间代表“注册日期”
+    const issuedMap = new Map<string, number>();
+    const registeredMap = new Map<string, number>();
 
     for (const c of codes) {
-      if (!c.activated_at) continue;
-      const d = new Date(c.activated_at);
-      if (Number.isNaN(d.getTime())) continue;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-        2,
-        "0"
-      )}-${String(d.getDate()).padStart(2, "0")}`;
-      map.set(key, (map.get(key) || 0) + 1);
+      if (c.created_at) {
+        const d = new Date(c.created_at);
+        if (!Number.isNaN(d.getTime())) {
+          const key = `${d.getFullYear()}-${String(
+            d.getMonth() + 1
+          ).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          issuedMap.set(key, (issuedMap.get(key) || 0) + 1);
+        }
+      }
+
+      if (c.activated_at) {
+        const d = new Date(c.activated_at);
+        if (!Number.isNaN(d.getTime())) {
+          const key = `${d.getFullYear()}-${String(
+            d.getMonth() + 1
+          ).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          registeredMap.set(key, (registeredMap.get(key) || 0) + 1);
+        }
+      }
     }
 
-    // 转为数组并按日期升序排列
-    const entries = Array.from(map.entries()).sort((a, b) =>
-      a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0
+    const allDates = new Set<string>([
+      ...Array.from(issuedMap.keys()),
+      ...Array.from(registeredMap.keys())
+    ]);
+
+    const sortedDates = Array.from(allDates).sort((a, b) =>
+      a < b ? -1 : a > b ? 1 : 0
     );
 
-    // 只展示最近 14 天（用于折线图）
-    return entries.slice(-14);
+    const recent = sortedDates.slice(-14);
+
+    return recent.map((date) => ({
+      date,
+      issued: issuedMap.get(date) || 0,
+      registered: registeredMap.get(date) || 0
+    }));
   }, [codes]);
 
   const handleGenerate = async () => {
@@ -254,6 +316,33 @@ function AccessCodesContent() {
       }
 
       setCodes((data as AccessCodeRow[]) || []);
+
+      // 同步刷新用户统计
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const { count: totalUserCount, error: totalUserError } =
+        await supabase
+          .from("app_users")
+          .select("id", { count: "exact", head: true });
+
+      if (totalUserError) {
+        console.error("统计总用户数失败:", totalUserError);
+      } else if (typeof totalUserCount === "number") {
+        setTotalUsers(totalUserCount);
+      }
+
+      const { count: monthUserCount, error: monthUserError } =
+        await supabase
+          .from("app_users")
+          .select("id", { count: "exact", head: true })
+          .gte("created_at", monthStart.toISOString());
+
+      if (monthUserError) {
+        console.error("统计本月用户数失败:", monthUserError);
+      } else if (typeof monthUserCount === "number") {
+        setMonthUsers(monthUserCount);
+      }
     } catch (error) {
       console.error("刷新激活码列表失败:", error);
       setError("刷新激活码列表失败");
@@ -481,91 +570,81 @@ function AccessCodesContent() {
               </div>
             </div>
           </div>
-          {dailyUsage.length > 0 && (
-            <div className="mt-2 rounded-md bg-slate-50 p-3 text-xs text-slate-700">
-              <div className="mb-1 text-[11px] font-semibold text-slate-500">
-                最近 14 天使用激活码注册人数（折线图）
+          <div className="mb-3 grid gap-3 text-xs sm:grid-cols-3">
+            <div className="rounded-md bg-slate-50 p-3">
+              <div className="text-[11px] text-slate-500">用户总数</div>
+              <div className="mt-1 text-base font-semibold text-slate-900">
+                {totalUsers ?? "--"}
               </div>
-              {dailyUsage.length === 1 ? (
-                <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-600">
-                  <span className="font-mono">{dailyUsage[0][0]}</span>
-                  <span>注册 {dailyUsage[0][1]} 人</span>
-                </div>
-              ) : (
-                <>
-                  <svg
-                    viewBox="0 0 100 60"
-                    className="mt-2 h-24 w-full text-emerald-600"
-                  >
-                    {(() => {
-                      const counts = dailyUsage.map(([, count]) => count);
-                      const maxCount = Math.max(...counts, 1);
-                      const len = dailyUsage.length;
-                      const points = dailyUsage
-                        .map(([, count], index) => {
-                          const x =
-                            (len === 1
-                              ? 50
-                              : (index / (len - 1)) * 96 + 2);
-                          const y =
-                            56 -
-                            (count / maxCount) * 40; // 上下留边
-                          return `${x},${y}`;
-                        })
-                        .join(" ");
-
-                      return (
-                        <>
-                          <polyline
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={1.5}
-                            strokeLinejoin="round"
-                            strokeLinecap="round"
-                            points={points}
-                          />
-                          {dailyUsage.map(([, count], index) => {
-                            const x =
-                              (len === 1
-                                ? 50
-                                : (index / (len - 1)) * 96 + 2);
-                            const y =
-                              56 -
-                              (count / maxCount) * 40;
-                            return (
-                              <circle
-                                key={x}
-                                cx={x}
-                                cy={y}
-                                r={1.5}
-                                fill="currentColor"
-                              />
-                          );
-                        })}
-                      </>
-                    );
-                  })()}
-                  </svg>
-                  <div className="mt-2 grid grid-cols-2 gap-1 text-[10px] text-slate-600">
-                    {dailyUsage.map(([date, count]) => {
-                      const [, month, day] = date.split("-");
-                      return (
-                        <div
-                          key={date}
-                          className="flex items-center justify-between rounded bg-white px-2 py-1"
-                        >
-                          <span className="font-mono">
-                            {month}/{day}
-                          </span>
-                          <span className="font-semibold">
-                            {count} 人
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
+            </div>
+            <div className="rounded-md bg-slate-50 p-3">
+              <div className="text-[11px] text-slate-500">总 GMV</div>
+              <div className="mt-1 text-base font-semibold text-rose-700">
+                {totalUsers != null
+                  ? `¥${(totalUsers * UNIT_PRICE).toFixed(1)}`
+                  : "--"}
+              </div>
+            </div>
+            <div className="rounded-md bg-slate-50 p-3">
+              <div className="text-[11px] text-slate-500">本月 GMV</div>
+              <div className="mt-1 text-base font-semibold text-rose-700">
+                {monthUsers != null
+                  ? `¥${(monthUsers * UNIT_PRICE).toFixed(1)}`
+                  : "--"}
+              </div>
+            </div>
+          </div>
+          {dailyUsage.length > 0 && ReactECharts && (
+            <div className="mt-2 rounded-md bg-slate-50 p-3 text-xs text-slate-700">
+              <div className="mb-2 text-[11px] font-semibold text-slate-500">
+                最近 14 天激活码发放 / 注册趋势
+              </div>
+              <div className="h-56 w-full">
+                <ReactECharts
+                  option={{
+                    tooltip: { trigger: "axis" },
+                    legend: {
+                      data: ["发放数量", "注册人数"],
+                      top: 0,
+                      left: 8,
+                      icon: "circle",
+                      itemWidth: 8,
+                      itemHeight: 8,
+                      textStyle: {
+                        fontSize: 11
+                      }
+                    },
+                    grid: { left: 32, right: 16, top: 40, bottom: 24 },
+                    xAxis: {
+                      type: "category",
+                      data: dailyUsage.map((d) => {
+                        const [, m, day] = d.date.split("-");
+                        return `${m}/${day}`;
+                      }),
+                      axisLabel: { fontSize: 10 }
+                    },
+                    yAxis: {
+                      type: "value",
+                      axisLabel: { fontSize: 10 }
+                    },
+                    series: [
+                      {
+                        name: "发放数量",
+                        type: "line",
+                        smooth: true,
+                        data: dailyUsage.map((d) => d.issued)
+                      },
+                      {
+                        name: "注册人数",
+                        type: "line",
+                        smooth: true,
+                        data: dailyUsage.map((d) => d.registered)
+                      }
+                    ]
+                  }}
+                  style={{ height: "100%", width: "100%" }}
+                />
+              </div>
             </div>
           )}
           <div className="flex flex-wrap items-center gap-3 text-xs">
