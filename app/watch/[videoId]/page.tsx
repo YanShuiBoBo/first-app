@@ -2023,8 +2023,8 @@ export default function WatchPage() {
     loopSentenceIndexRef.current = null;
     setShadowMode('idle');
     setShadowSubtitleIndex(null);
-    const { sentenceLoop: loopOn } = usePlayerStore.getState();
-    if (loopOn) {
+    const { loopConfig: cfgForSnippet } = usePlayerStore.getState();
+    if (cfgForSnippet.sentenceLoop) {
       toggleSentenceLoop();
     }
 
