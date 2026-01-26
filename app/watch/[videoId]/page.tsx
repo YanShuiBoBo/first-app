@@ -2249,9 +2249,10 @@ export default function WatchPage() {
     }
 
     const {
-      sentenceLoop: loopOn,
+      loopConfig: cfgForRowLoop,
       currentSubtitleIndex: currentIndex
     } = usePlayerStore.getState();
+    const loopOn = cfgForRowLoop.sentenceLoop;
 
     // 跳转到当前句子的开始时间
     streamRef.current.currentTime = subtitle.start;
