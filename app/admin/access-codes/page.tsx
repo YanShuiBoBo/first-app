@@ -14,6 +14,7 @@ interface AccessCodeRow {
   activated_at: string | null;
   expires_at: string | null;
   created_at: string;
+  reserved_at?: string | null;
 }
 
 const UNIT_PRICE = 39.9;
@@ -99,7 +100,7 @@ function AccessCodesContent() {
         const { data, error } = await supabase
           .from("access_codes")
           .select(
-            "code, user_id, valid_days, status, activated_at, expires_at, created_at"
+            "code, user_id, valid_days, status, activated_at, expires_at, created_at, reserved_at"
           )
           .order("created_at", { ascending: false });
 
@@ -197,13 +198,15 @@ function AccessCodesContent() {
   }, [codes]);
 
   const dailyUsage = useMemo(() => {
-    // 使用生成时间近似代表“发放日期”，激活时间代表“注册日期”
+    // 使用 reserved_at 作为真实“发放日期”，若为空则回退到 created_at；
+    // 激活时间 activated_at 代表“注册日期”
     const issuedMap = new Map<string, number>();
     const registeredMap = new Map<string, number>();
 
     for (const c of codes) {
-      if (c.created_at) {
-        const d = new Date(c.created_at);
+      const issuedSource = c.reserved_at || c.created_at;
+      if (issuedSource) {
+        const d = new Date(issuedSource);
         if (!Number.isNaN(d.getTime())) {
           const key = `${d.getFullYear()}-${String(
             d.getMonth() + 1
@@ -370,13 +373,14 @@ function AccessCodesContent() {
 
     setIsAssigning(true);
     try {
+      const nowIso = new Date().toISOString();
       const { data, error } = await supabase
         .from("access_codes")
-        .update({ status: "reserved" })
+        .update({ status: "reserved", reserved_at: nowIso })
         .eq("code", picked.code)
         .eq("status", "unused")
         .select(
-          "code, user_id, valid_days, status, activated_at, expires_at, created_at"
+          "code, user_id, valid_days, status, activated_at, expires_at, created_at, reserved_at"
         )
         .maybeSingle();
 
@@ -443,13 +447,14 @@ function AccessCodesContent() {
     if (codesToLock.length > 0) {
       try {
         const codesList = codesToLock.map((c) => c.code);
+        const nowIso = new Date().toISOString();
         const { data, error } = await supabase
           .from("access_codes")
-          .update({ status: "reserved" })
+          .update({ status: "reserved", reserved_at: nowIso })
           .in("code", codesList)
           .eq("status", "unused")
           .select(
-            "code, user_id, valid_days, status, activated_at, expires_at, created_at"
+            "code, user_id, valid_days, status, activated_at, expires_at, created_at, reserved_at"
           );
 
         if (error) {

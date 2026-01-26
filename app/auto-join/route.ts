@@ -48,7 +48,10 @@ export async function GET(request: NextRequest) {
 
     const { data: updated, error: updateError } = await supabase
       .from("access_codes")
-      .update({ status: "reserved" })
+      .update({
+        status: "reserved",
+        reserved_at: new Date().toISOString()
+      })
       .eq("code", picked.code)
       // 仅允许从初始化状态更新为 reserved，避免已发放/占用的激活码被重复分配
       .eq("status", "unused")
