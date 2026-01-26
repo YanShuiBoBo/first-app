@@ -1882,10 +1882,9 @@ export default function WatchPage() {
 
     // 若当前处于「次数循环」模式下，手动点击某一句时，应把循环焦点切换到这一句，
     // 避免 handleTimeUpdate 再次把高亮和循环拉回到旧的句子。
-    const {
-      sentenceLoop: loopOn,
-      loopMode: currentLoopMode
-    } = usePlayerStore.getState();
+    const { loopConfig: cfgForClick } = usePlayerStore.getState();
+    const loopOn = cfgForClick.sentenceLoop;
+    const currentLoopMode = cfgForClick.sentenceLoopMode;
     if (loopOn && currentLoopMode === 'count') {
       loopSentenceIndexRef.current = index;
     }
