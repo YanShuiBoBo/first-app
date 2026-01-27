@@ -744,6 +744,8 @@ export default function WatchPage() {
   const shouldAutoplay = searchParams?.get('autoplay') === '1';
   const TRIAL_LIMIT_SECONDS = 6 * 60;
   const ttsVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  // 记录已经在哪条视频上消费过一次 autoplay，避免同一条视频在状态变更后被反复“强制播放”
+  const autoplayHandledRef = useRef<string | null>(null);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
   const [isLoopMenuOpen, setIsLoopMenuOpen] = useState(false);
 
@@ -1300,6 +1302,22 @@ export default function WatchPage() {
     }
   }, [videoData, user?.email]);
 
+  // 自动播放：当 URL 带有 ?autoplay=1 且不是试看模式时，在当前视频加载后尝试自动开始播放
+  useEffect(() => {
+    if (!shouldAutoplay || isTrial) return;
+    if (!videoData || !streamRef.current) return;
+
+    const currentKey = videoData.cf_video_id || videoData.id;
+    if (!currentKey) return;
+
+    // 同一条视频仅尝试自动播放一次，避免在用户手动暂停后被再次强制播放
+    if (autoplayHandledRef.current === currentKey) return;
+    autoplayHandledRef.current = currentKey;
+
+    // play() 返回 Promise，忽略可能的自动播放策略报错（部分浏览器仍可能需要用户手动触发）
+    void streamRef.current.play();
+  }, [shouldAutoplay, isTrial, videoData]);
+
   // 记录视频点击量（不依赖登录，只要进入精读页就算一次点击）
   useEffect(() => {
     if (!supabase || !videoId) return;
@@ -1738,12 +1756,6 @@ export default function WatchPage() {
 
   const handlePlayerLoaded = () => {
     setIsPlayerReady(true);
-
-    // 顺序播放模式下，从上一条视频跳转过来且携带 autoplay=1 时，尝试自动开始播放下一条
-    if (shouldAutoplay && streamRef.current && !isTrial) {
-      // play() 返回 Promise，忽略可能的自动播放策略报错（某些浏览器可能仍然需要用户手动点击）
-      void streamRef.current.play();
-    }
   };
 
   const handlePlay = () => {
