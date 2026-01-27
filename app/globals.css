@@ -373,17 +373,18 @@ body {
   border: 1px solid #fff;
 }
 
-/* 精读页视频右下角文案水印：白字为主，细黑描边 + 轻微阴影，远处也清晰 */
+/* 精读页视频右下角文案水印：
+ * 以白字为主体，只在外轮廓加非常细的黑色描边 + 轻阴影，不侵入笔画内部 */
 .video-watermark {
   font-size: 16px;
   font-weight: 600;
   color: #ffffff;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  /* 细黑描边：突出白色主体，不盖住笔画细节 */
-  -webkit-text-stroke: 0.3px rgba(0, 0, 0, 0.7);
-  /* 轻阴影：只做边缘提亮，避免把白字糊成一团 */
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  /* 极细黑描边：只在边缘“勾一圈”，透明度降低，避免字关节被涂黑 */
+  -webkit-text-stroke: 0.18px rgba(0, 0, 0, 0.55);
+  /* 阴影尽量贴近轮廓，半径减小，主要用于边缘提亮 */
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.4);
 }
 
 @media (min-width: 1024px) {
