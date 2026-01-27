@@ -1305,7 +1305,7 @@ export default function WatchPage() {
   // 自动播放：当 URL 带有 ?autoplay=1 且不是试看模式时，在当前视频加载后尝试自动开始播放
   useEffect(() => {
     if (!shouldAutoplay || isTrial) return;
-    if (!videoData || !streamRef.current) return;
+    if (!videoData || !isPlayerReady || !streamRef.current) return;
 
     const currentKey = videoData.cf_video_id || videoData.id;
     if (!currentKey) return;
@@ -1314,9 +1314,11 @@ export default function WatchPage() {
     if (autoplayHandledRef.current === currentKey) return;
     autoplayHandledRef.current = currentKey;
 
-    // play() 返回 Promise，忽略可能的自动播放策略报错（部分浏览器仍可能需要用户手动触发）
-    void streamRef.current.play();
-  }, [shouldAutoplay, isTrial, videoData]);
+    // play() 返回 Promise，如果被浏览器的自动播放策略拦截，会进入 catch 分支
+    void streamRef.current.play().catch(err => {
+      console.warn('自动播放失败，可能被浏览器策略拦截:', err);
+    });
+  }, [shouldAutoplay, isTrial, videoData, isPlayerReady]);
 
   // 记录视频点击量（不依赖登录，只要进入精读页就算一次点击）
   useEffect(() => {
@@ -2891,6 +2893,7 @@ export default function WatchPage() {
                         controls
                         width="100%"
                         // 使用 Cloudflare 提供的 streamRef 和 onTimeUpdate 来获取时间信息
+                        autoplay={shouldAutoplay && !isTrial}
                         streamRef={streamRef}
                         onTimeUpdate={handleTimeUpdate}
                         poster={videoData.poster}
