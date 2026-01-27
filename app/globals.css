@@ -372,3 +372,22 @@ body {
   border-radius: 50%;
   border: 1px solid #fff;
 }
+
+/* 精读页视频右下角文案水印：白字 + 黑色描边 + 黑色投影，类似字幕效果 */
+.video-watermark {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  /* 黑色描边（适当变细，避免盖住白字） */
+  -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.85);
+  /* 兼容非 WebKit：精简的阴影，用于提亮轮廓但不淹没白色本体 */
+  text-shadow:
+    0 0 2px rgba(0, 0, 0, 0.75),
+    0 2px 4px rgba(0, 0, 0, 0.85);
+}
+
+@media (min-width: 1024px) {
+  .video-watermark {
+    font-size: 18px;
+  }
+}

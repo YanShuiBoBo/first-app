@@ -2903,6 +2903,10 @@ export default function WatchPage() {
                         onPause={handlePause}
                         onEnded={handleEnded}
                       />
+                      {/* 视频右下角品牌角标：每天跟着油管无痛学英语（无底色，白字 + 强文字阴影） */}
+                      <div className="pointer-events-none absolute bottom-3 right-4 z-10 lg:bottom-4 lg:right-6">
+                        <div className="video-watermark">每天跟着油管无痛学英语</div>
+                      </div>
                     </div>
 
                     {/* 移动端：生词模式下，单词类型 Tabs 组件与视频一起吸顶，视觉上独立成一个白色功能块 */}
