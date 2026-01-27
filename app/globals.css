@@ -375,19 +375,19 @@ body {
 
 /* 精读页视频右下角文案水印：白字 + 黑色描边 + 黑色投影，类似字幕效果 */
 .video-watermark {
-  font-size: 15px;
-  font-weight: 600;
-  color: #ffffff;
-  /* 黑色描边（适当变细，避免盖住白字） */
-  -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.85);
-  /* 兼容非 WebKit：精简的阴影，用于提亮轮廓但不淹没白色本体 */
-  text-shadow:
-    0 0 2px rgba(0, 0, 0, 0.75),
-    0 2px 4px rgba(0, 0, 0, 0.85);
+  /* 视频右下角水印文字：存在感弱一点，接近对标小程序的细白字效果 */
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.96);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  /* 去掉明显描边，只保留一层轻阴影，保证在亮场景也能看清 */
+  -webkit-text-stroke: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 
 @media (min-width: 1024px) {
   .video-watermark {
-    font-size: 18px;
+    font-size: 14px;
   }
 }
