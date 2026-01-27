@@ -373,19 +373,17 @@ body {
   border: 1px solid #fff;
 }
 
-/* 精读页视频右下角文案水印：白字 + 黑色描边 + 黑色投影，类似字幕效果 */
+/* 精读页视频右下角文案水印：白字为主，细黑描边 + 轻微阴影，远处也清晰 */
 .video-watermark {
-  /* 视频右下角水印文字：对标小程序，一眼能看到的品牌水印 */
   font-size: 16px;
   font-weight: 600;
   color: #ffffff;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  /* 细描边 + 稍强一点的阴影，保证在明亮画面里也能读清 */
-  -webkit-text-stroke: 0.45px rgba(0, 0, 0, 0.9);
-  text-shadow:
-    0 0 2px rgba(0, 0, 0, 0.85),
-    0 2px 4px rgba(0, 0, 0, 0.9);
+  /* 细黑描边：突出白色主体，不盖住笔画细节 */
+  -webkit-text-stroke: 0.3px rgba(0, 0, 0, 0.7);
+  /* 轻阴影：只做边缘提亮，避免把白字糊成一团 */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 @media (min-width: 1024px) {
