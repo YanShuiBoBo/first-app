@@ -33,6 +33,7 @@ export default function RegisterPage() {
   const [inviteCode, setInviteCode] = useState(initialInviteCode);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
 
   const loginAction = useAuthStore((state) => state.login);
 
@@ -42,6 +43,11 @@ export default function RegisterPage() {
       : "";
     if (codeFromUrl && !inviteCode) {
       setInviteCode(codeFromUrl);
+    }
+
+    // 小提示：如果是体验码，可以通过约定前缀简单提示（正式类型判断在后端）
+    if (codeFromUrl && codeFromUrl.toUpperCase().includes("TRIAL")) {
+      setHint("你正在使用体验激活码注册，账号预计可使用 7 天。");
     }
   }, [searchParams, inviteCode]);
 
@@ -216,6 +222,11 @@ export default function RegisterPage() {
               <p className="mt-2 text-sm text-neutral-600">
                 填写基础信息和激活码，提交后系统会自动为你完成首次登录。
               </p>
+              {hint && (
+                <p className="mt-1 text-xs text-neutral-500">
+                  {hint}
+                </p>
+              )}
             </div>
 
             <form className="mt-6 space-y-5" onSubmit={handleSubmit}>

@@ -17,19 +17,39 @@ export const defaultAdminUser = {
 
 // 生成前端自用 token（base64(JSON)）
 function createToken(
-  user: { email: string; role: string; name: string },
+  user: {
+    email: string;
+    role: string;
+    name: string;
+    plan?: string;
+    access_expires_at?: string | null;
+  },
   options?: { rememberMe?: boolean }
 ) {
   const rememberMe = options?.rememberMe ?? false;
+  const now = Date.now();
   // 默认 24 小时，有“保持登录”时延长到 30 天
-  const ttlSeconds = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24;
+  const baseTtlSeconds = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24;
+  let exp = Math.floor(now / 1000) + baseTtlSeconds;
+
+  // 如果是体验账号（带 access_expires_at），token 的过期时间不能超过账号有效期
+  if (user.access_expires_at) {
+    const hardExp = Math.floor(
+      new Date(user.access_expires_at).getTime() / 1000
+    );
+    if (!Number.isNaN(hardExp)) {
+      exp = Math.min(exp, hardExp);
+    }
+  }
 
   return Buffer.from(
     JSON.stringify({
       email: user.email,
       role: user.role,
       name: user.name,
-      exp: Math.floor(Date.now() / 1000) + ttlSeconds
+      plan: user.plan ?? 'full',
+      access_expires_at: user.access_expires_at ?? null,
+      exp
     })
   ).toString('base64');
 }
@@ -56,7 +76,7 @@ export const login = async (
 
   const { data, error } = await supabase
     .from("app_users")
-    .select("email, password, name, role")
+    .select("email, password, name, role, plan, access_expires_at")
     .eq("email", email)
     .maybeSingle();
 
@@ -82,10 +102,23 @@ export const login = async (
     };
   }
 
+  // 体验账号有效期校验：access_expires_at 之前允许登录，之后直接提示体验结束
+  if (data.plan === "trial" && data.access_expires_at) {
+    const expiresAt = new Date(data.access_expires_at);
+    if (!Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() <= Date.now()) {
+      return {
+        success: false,
+        error: "你的 7 天体验已结束，请联系小助手获取正式激活码。"
+      };
+    }
+  }
+
   const user = {
     email: data.email,
     name: data.name || data.email.split("@")[0],
-    role: data.role || "user"
+    role: data.role || "user",
+    plan: data.plan || "full",
+    access_expires_at: data.access_expires_at || null
   };
 
   const token = createToken(user, { rememberMe });
@@ -150,7 +183,7 @@ export const register = async (
     // 查找对应激活码
     const { data: codeRow, error: fetchError } = await supabase
       .from("access_codes")
-      .select("code, status, valid_days, activated_at, expires_at")
+      .select("code, status, valid_days, activated_at, expires_at, kind")
       .eq("code", code)
       .maybeSingle();
 
@@ -187,6 +220,13 @@ export const register = async (
     // 去掉基于时间的自动过期判断：
     // - 仅当 status = 'expired' 时认为激活码无效
 
+    const isTrialCode = codeRow.kind === "trial";
+    const validDays = isTrialCode ? codeRow.valid_days || 7 : 0;
+    const accessExpiresAt =
+      isTrialCode && validDays > 0
+        ? new Date(now.getTime() + validDays * 24 * 60 * 60 * 1000)
+        : null;
+
     // 激活码通过校验后，先创建用户，再占用激活码
 
     // 创建用户（带昵称 / 手机号）
@@ -197,9 +237,11 @@ export const register = async (
         password, // 当前阶段明文存储，仅用于开发环境
         name: nickname || email.split("@")[0],
         role: "user",
-        phone: phone || null
+        phone: phone || null,
+        plan: isTrialCode ? "trial" : "full",
+        access_expires_at: accessExpiresAt
       })
-      .select("email, name, role")
+      .select("email, name, role, plan, access_expires_at")
       .single();
 
     if (createUserError) {
@@ -246,7 +288,9 @@ export const register = async (
     const user = {
       email: createdUser.email,
       name: createdUser.name || createdUser.email.split("@")[0],
-      role: createdUser.role || "user"
+      role: createdUser.role || "user",
+      plan: createdUser.plan || "full",
+      access_expires_at: createdUser.access_expires_at || null
     };
 
     const token = createToken(user, { rememberMe });

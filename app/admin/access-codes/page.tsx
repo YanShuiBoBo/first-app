@@ -15,6 +15,7 @@ interface AccessCodeRow {
   expires_at: string | null;
   created_at: string;
   reserved_at?: string | null;
+  kind?: "full" | "trial" | string;
 }
 
 const UNIT_PRICE = 39.9;
@@ -41,6 +42,12 @@ function formatStatus(status: string): string {
   return status;
 }
 
+function formatKind(kind?: string): string {
+  if (kind === "trial") return "7 天体验卡";
+  if (kind === "full") return "正式卡";
+  return kind || "正式卡";
+}
+
 function generateRandomCode(): string {
   // 简单的激活码格式：XXXX-XXXX-XXXX（只包含大写字母和数字）
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -65,6 +72,7 @@ function AccessCodesContent() {
   const [searchKeyword, setSearchKeyword] = useState("");
 
   const [generateCount, setGenerateCount] = useState("10");
+  const [generateKind, setGenerateKind] = useState<"full" | "trial">("full");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
@@ -100,7 +108,7 @@ function AccessCodesContent() {
         const { data, error } = await supabase
           .from("access_codes")
           .select(
-            "code, user_id, valid_days, status, activated_at, expires_at, created_at, reserved_at"
+            "code, user_id, valid_days, status, activated_at, expires_at, created_at, reserved_at, kind"
           )
           .order("created_at", { ascending: false });
 
@@ -265,21 +273,24 @@ function AccessCodesContent() {
 
     setIsGenerating(true);
     try {
+      const kind = generateKind;
+      const defaultValidDays = kind === "trial" ? 7 : 0;
       const rows = Array.from({ length: count }).map(() => ({
         code: generateRandomCode(),
         user_id: null,
-        // 当前阶段不再使用 valid_days / expires_at 控制有效期，仅作为占位字段
-        valid_days: 0,
+        // 正式卡不依赖 valid_days 控制有效期，体验卡默认 7 天
+        valid_days: defaultValidDays,
         status: "unused" as const,
         activated_at: null,
-        expires_at: null
+        expires_at: null,
+        kind
       }));
 
       const { data, error } = await supabase
         .from("access_codes")
         .insert(rows)
         .select(
-          "code, user_id, valid_days, status, activated_at, expires_at, created_at"
+          "code, user_id, valid_days, status, activated_at, expires_at, created_at, kind"
         );
 
       if (error) {
@@ -309,7 +320,7 @@ function AccessCodesContent() {
       const { data, error } = await supabase
         .from("access_codes")
         .select(
-          "code, user_id, valid_days, status, activated_at, expires_at, created_at"
+          "code, user_id, valid_days, status, activated_at, expires_at, created_at, reserved_at, kind"
         )
         .order("created_at", { ascending: false });
 
@@ -354,7 +365,11 @@ function AccessCodesContent() {
     }
   };
 
-  const handleAssignRandomCode = async () => {
+  // 从本地列表中挑选一枚未使用的激活码，并标记为 reserved。
+  // kindFilter:
+  // - "full"  : 仅从正式卡中挑选（kind = 'full' 或为空）
+  // - "trial" : 仅从体验卡中挑选（kind = 'trial'）
+  const handleAssignRandomCode = async (kindFilter: "full" | "trial") => {
     setAssignError(null);
 
     if (!supabase) {
@@ -362,9 +377,21 @@ function AccessCodesContent() {
       return;
     }
 
-    const available = codes.filter((c) => c.status === "unused");
+    const available = codes.filter((c) => {
+      if (c.status !== "unused") return false;
+      const kind = c.kind || "full";
+      if (kindFilter === "full") {
+        return kind === "full";
+      }
+      return kind === "trial";
+    });
+
     if (available.length === 0) {
-      setAssignError("当前没有可发放的未使用激活码");
+      setAssignError(
+        kindFilter === "trial"
+          ? "当前没有可发放的 7 天体验卡，请先在下方生成。"
+          : "当前没有可发放的正式激活码，请先在下方生成。"
+      );
       return;
     }
 
@@ -379,9 +406,9 @@ function AccessCodesContent() {
         .update({ status: "reserved", reserved_at: nowIso })
         .eq("code", picked.code)
         .eq("status", "unused")
-        .select(
-          "code, user_id, valid_days, status, activated_at, expires_at, created_at, reserved_at"
-        )
+          .select(
+            "code, user_id, valid_days, status, activated_at, expires_at, created_at, reserved_at, kind"
+          )
         .maybeSingle();
 
       if (error) {
@@ -454,7 +481,7 @@ function AccessCodesContent() {
           .in("code", codesList)
           .eq("status", "unused")
           .select(
-            "code, user_id, valid_days, status, activated_at, expires_at, created_at, reserved_at"
+            "code, user_id, valid_days, status, activated_at, expires_at, created_at, reserved_at, kind"
           );
 
         if (error) {
@@ -482,13 +509,14 @@ function AccessCodesContent() {
       : "https://example.com/join?code=";
 
     const header =
-      "code,status,valid_days,created_at,activated_at,expires_at,join_url\n";
+      "code,status,kind,valid_days,created_at,activated_at,expires_at,join_url\n";
     const lines = filteredCodes
       .map((c) => {
         const joinUrl = `${joinBase}${encodeURIComponent(c.code)}`;
         return [
           c.code,
           c.status,
+          c.kind || "full",
           c.valid_days,
           c.created_at || "",
           c.activated_at || "",
@@ -656,10 +684,18 @@ function AccessCodesContent() {
             <button
               type="button"
               className="inline-flex items-center rounded bg-emerald-600 px-4 py-1.5 font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
-              onClick={handleAssignRandomCode}
+              onClick={() => handleAssignRandomCode("full")}
               disabled={isAssigning || isLoading || !supabase}
             >
               {isAssigning ? "获取中..." : "获取一个激活码"}
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center rounded bg-sky-600 px-4 py-1.5 font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-70"
+              onClick={() => handleAssignRandomCode("trial")}
+              disabled={isAssigning || isLoading || !supabase}
+            >
+              {isAssigning ? "获取中..." : "获取一个 7 天体验卡"}
             </button>
             {lastAssignedCode && (
               <div className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-mono text-[11px] text-slate-700">
@@ -693,6 +729,35 @@ function AccessCodesContent() {
                 value={generateCount}
                 onChange={(e) => setGenerateCount(e.target.value)}
               />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-slate-600">
+                激活码类型
+              </label>
+              <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-0.5 text-[11px]">
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1 ${
+                    generateKind === "full"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-600"
+                  }`}
+                  onClick={() => setGenerateKind("full")}
+                >
+                  正式卡
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1 ${
+                    generateKind === "trial"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-600"
+                  }`}
+                  onClick={() => setGenerateKind("trial")}
+                >
+                  7 天体验卡
+                </button>
+              </div>
             </div>
             <button
               type="button"
@@ -801,6 +866,9 @@ function AccessCodesContent() {
                       激活码
                     </th>
                     <th className="border-b border-slate-200 px-2 py-1 text-left">
+                      类型
+                    </th>
+                    <th className="border-b border-slate-200 px-2 py-1 text-left">
                       状态
                     </th>
                     <th className="border-b border-slate-200 px-2 py-1 text-left">
@@ -819,6 +887,9 @@ function AccessCodesContent() {
                     <tr key={c.code} className="hover:bg-slate-50">
                       <td className="border-b border-slate-100 px-2 py-1 font-mono text-[11px]">
                         {c.code}
+                      </td>
+                      <td className="border-b border-slate-100 px-2 py-1">
+                        {formatKind(c.kind)}
                       </td>
                       <td className="border-b border-slate-100 px-2 py-1">
                         {formatStatus(c.status)}

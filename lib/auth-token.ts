@@ -1,12 +1,14 @@
 // 仅供中间件等服务端/边缘环境使用的 token 解析工具，不依赖 Supabase
 // 与 lib/auth.ts 中 createToken 生成的结构保持一致：
-// { email, role, name, exp }
+// { email, role, name, plan?, access_expires_at?, exp }
 
 export interface AuthTokenPayload {
   email: string;
   role: string;
   name: string;
   exp: number;
+  plan?: string;
+  access_expires_at?: string | null;
 }
 
 export function verifyAuthToken(token: string): AuthTokenPayload | null {

@@ -13,6 +13,7 @@ export default function JoinClient() {
   const [status, setStatus] = useState<JoinStatus>("checking");
   const [message, setMessage] = useState<string>("");
   const [currentCode, setCurrentCode] = useState<string>("");
+  const [extraInfo, setExtraInfo] = useState<string>("");
 
   useEffect(() => {
     const code = searchParams ? searchParams.get("code") || "" : "";
@@ -30,11 +31,9 @@ export default function JoinClient() {
 
     const checkCode = async () => {
       try {
-        const now = new Date();
-
         const { data, error } = await supabase
           .from("access_codes")
-          .select("code, status, expires_at")
+          .select("code, status, expires_at, kind, valid_days")
           .eq("code", code)
           .maybeSingle();
 
@@ -65,6 +64,14 @@ export default function JoinClient() {
 
         // 去掉基于 expires_at 的自动过期判断：
         // 仅当 status = 'expired' 时认为链接已失效
+
+        // 体验卡提示：在 join 页面给出轻量说明
+        if (data.kind === "trial") {
+          const days = data.valid_days || 7;
+          setExtraInfo(`检测到这是一个 ${days} 天体验卡，注册成功后账号将在 ${days} 天后自动失效。`);
+        } else {
+          setExtraInfo("");
+        }
 
         // 校验通过：跳转到注册页，并自动填入邀请码
         const qs = new URLSearchParams();
@@ -109,6 +116,11 @@ export default function JoinClient() {
             <p className="mb-3 text-slate-300">
               {message}
             </p>
+            {extraInfo && (
+              <p className="mb-3 text-xs text-slate-400">
+                {extraInfo}
+              </p>
+            )}
             {currentCode && (
               <p className="mb-4 font-mono text-[11px] text-slate-500">
                 code: {currentCode}
