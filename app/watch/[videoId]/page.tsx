@@ -1396,7 +1396,8 @@ export default function WatchPage() {
 
         if (!data || !data.player_settings) return;
 
-        const raw = data.player_settings as Partial<LoopConfig> & Record<string, any>;
+        const raw = data.player_settings as Partial<LoopConfig> &
+          Record<string, unknown>;
         const next: Partial<LoopConfig> = {};
 
         if (typeof raw.sentenceLoop === 'boolean') {
@@ -4301,9 +4302,10 @@ export default function WatchPage() {
         >
           {/* 底部弹层本体：阻止事件冒泡，避免点击内容区域时关闭 */}
           <div
-            className="absolute inset-x-0 bottom-0 rounded-t-[28px] border-t border-white/70 bg-white/95 px-4 pb-6 pt-3 text-[13px] text-gray-900 shadow-[0_-22px_60px_rgba(15,23,42,0.7)] backdrop-blur-xl"
+            className="absolute inset-x-0 bottom-0 overflow-hidden rounded-t-[28px] border-t border-white/70 bg-white/88 px-4 pb-6 pt-3 text-[13px] text-neutral-900 shadow-[0_-22px_60px_rgba(15,23,42,0.65)] backdrop-blur-xl"
             onClick={e => e.stopPropagation()}
           >
+            <div className="pointer-events-none absolute -top-24 left-1/2 h-44 w-[520px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(232,141,147,0.18),transparent_62%)]" />
             <div className="mx-auto max-w-2xl">
               {(() => {
                 const normalized = normalizeKnowledgeForDisplay(
@@ -4326,22 +4328,22 @@ export default function WatchPage() {
                     <div className="mb-3">
                       {/* 顶部拖拽条，弱化“弹窗”感，强化 Bottom Sheet 观感 */}
                       <div className="mb-2 flex justify-center">
-                        <div className="h-1 w-10 rounded-full bg-gray-300" />
+                        <div className="h-1 w-10 rounded-full bg-neutral-200" />
                       </div>
                       <div className="flex items-start justify-between">
                         <div className="flex flex-col">
-                          <div className="vocab-word text-[19px] font-semibold text-gray-900">
+                          <div className="vocab-word text-[19px] font-semibold text-neutral-900">
                             {normalized.headword ||
                               activeCard.trigger_word}
                           </div>
                           {normalized.ipa && (
-                            <span className="mt-0.5 text-[13px] text-gray-500">
+                            <span className="mt-0.5 text-[13px] text-neutral-500">
                               {normalized.ipa}
                             </span>
                           )}
-                          <div className="mt-1 text-[13px] font-medium text-gray-900">
+                          <div className="mt-1 text-[13px] font-medium text-neutral-900">
                             {normalized.pos && (
-                              <span className="mr-1 font-medium text-gray-700">
+                              <span className="mr-1 font-medium text-neutral-600">
                                 {normalized.pos}
                               </span>
                             )}
@@ -4350,14 +4352,14 @@ export default function WatchPage() {
                             </span>
                           </div>
                           {normalized.difficultyLevel && (
-                            <div className="mt-0.5 text-[11px] text-gray-500">
+                            <div className="mt-0.5 text-[11px] text-neutral-500">
                               {normalized.difficultyLevel}
                             </div>
                           )}
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           {typeLabel && (
-                            <span className="rounded-full bg-stone-100 px-2.5 py-[3px] text-[11px] text-stone-700">
+                            <span className="rounded-full bg-neutral-100 px-2.5 py-[3px] text-[11px] font-semibold text-neutral-600">
                               {typeLabel}
                             </span>
                           )}
@@ -4475,8 +4477,8 @@ export default function WatchPage() {
 	                    )}
 	
 	                    {(normalized.exampleEn || normalized.exampleCn) && (
-	                      <div className="mt-2 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] text-sky-900">
-	                        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-sky-600">
+	                      <div className="mt-2 rounded-2xl border border-neutral-100 bg-neutral-50 px-3 py-2 text-[12px] text-neutral-900">
+	                        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
 	                          额外例句
 	                        </div>
 	                        {normalized.exampleEn && (
@@ -4485,7 +4487,7 @@ export default function WatchPage() {
 	                          </div>
 	                        )}
 	                        {normalized.exampleCn && (
-	                          <div className="mt-0.5 text-gray-600">
+	                          <div className="mt-0.5 text-neutral-600">
 	                            {normalized.exampleCn}
 	                          </div>
 	                        )}
@@ -4493,8 +4495,8 @@ export default function WatchPage() {
 	                    )}
 	
 	                    {normalized.note && (
-	                      <div className="mt-2 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-[12px] text-rose-900">
-	                        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-rose-600">
+	                      <div className="mt-2 rounded-2xl border border-rose-100 bg-[var(--accent-soft)] px-3 py-2 text-[12px] text-neutral-900">
+	                        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--accent)]">
 	                          用法提醒
 	                        </div>
 	                        <div>{normalized.note}</div>
@@ -4503,8 +4505,8 @@ export default function WatchPage() {
 
                     {(normalized.sourceSentenceEn ||
                       normalized.sourceSentenceCn) && (
-                      <div className="mt-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-900">
-                        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                      <div className="mt-2 rounded-2xl border border-dashed border-neutral-200 bg-white px-3 py-2 text-[12px] text-neutral-900">
+                        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
                           视频原句
                         </div>
                         {normalized.sourceSentenceEn && (
@@ -4513,7 +4515,7 @@ export default function WatchPage() {
                           </div>
                         )}
                         {normalized.sourceSentenceCn && (
-                          <div className="mt-0.5 text-[11px] text-stone-500">
+                          <div className="mt-0.5 text-[11px] text-neutral-600">
                             {normalized.sourceSentenceCn}
                           </div>
                         )}
@@ -4557,7 +4559,7 @@ export default function WatchPage() {
                     </button>
                     <button
                       type="button"
-                      className="rounded-full border border-gray-200 bg-white px-3 py-2 text-[12px] text-gray-500 hover:border-gray-300 hover:text-gray-800"
+                      className="rounded-full border border-neutral-200 bg-white px-3 py-2 text-[12px] font-medium text-neutral-600 hover:border-neutral-300 hover:text-neutral-900"
                       onClick={hideCard}
                     >
                       收起
@@ -4578,20 +4580,46 @@ export default function WatchPage() {
 
               {/* 倍速 / 字幕设置 Bottom Sheet（APP 端与循环配置统一为抽屉形式） */}
               {isSpeedMenuOpen && !trialEnded && (
-                <div className="pointer-events-auto fixed inset-0 z-40 flex items-end justify-center lg:hidden">
-                  <div className="w-full max-w-[414px] rounded-t-[24px] border border-white/60 bg-white/95 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_10px_40px_-12px_rgba(15,23,42,0.35)] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+                <div
+                  className="pointer-events-auto fixed inset-0 z-40 flex items-end justify-center bg-black/20 lg:hidden"
+                  onClick={() => setIsSpeedMenuOpen(false)}
+                >
+                  <div className="relative w-full max-w-[414px] overflow-hidden rounded-t-[28px] border border-white/70 bg-white/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_18px_60px_-22px_rgba(15,23,42,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+                    {/* 顶部柔光：更“精致生活感”，但不抢内容 */}
+                    <div className="pointer-events-none absolute -top-24 left-1/2 h-44 w-[520px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(232,141,147,0.18),transparent_62%)]" />
                     {/* 顶部拖拽条 */}
-                    <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-gray-300/80" />
-                    <div className="mb-3 text-center text-[12px] font-semibold text-gray-800">
+                    <div className="relative mx-auto mb-2 h-1 w-10 rounded-full bg-neutral-200" />
+                    <button
+                      type="button"
+                      className="absolute right-4 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500"
+                      aria-label="关闭播放设置"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSpeedMenuOpen(false);
+                      }}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={1.8}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M6 6l12 12M18 6L6 18" />
+                      </svg>
+                    </button>
+                    <div className="relative mb-3 text-center text-[12px] font-semibold text-neutral-900">
                       播放设置
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="relative space-y-4">
                       {/* 倍速设置 */}
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between text-xs font-medium text-gray-500">
+                        <div className="flex items-center justify-between text-xs font-medium text-neutral-600">
                           <span>倍速</span>
-                          <span className="font-bold text-gray-900">
+                          <span className="font-bold text-neutral-900">
                             {playbackRate}x
                           </span>
                         </div>
@@ -4602,8 +4630,8 @@ export default function WatchPage() {
                               onClick={() => setPlaybackRate(speed)}
                               className={`h-8 w-8 rounded-full text-[11px] font-medium transition-all ${
                                 playbackRate === speed
-                                  ? 'bg-[#1a1a1a] text-white scale-110 shadow-md'
-                                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                  ? 'bg-neutral-900 text-white scale-110 shadow-md'
+                                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                               }`}
                             >
                               {speed}
@@ -4613,12 +4641,12 @@ export default function WatchPage() {
                       </div>
 
                       {/* 字幕显示模式设置 */}
-                      <div className="h-px w-full bg-gray-100/80" />
+                      <div className="h-px w-full bg-neutral-100/80" />
                       <div>
-                        <div className="mb-2 flex items-center justify-between text-[11px] text-gray-500">
+                        <div className="mb-2 flex items-center justify-between text-[11px] text-neutral-600">
                           <span>字幕显示</span>
                         </div>
-                        <div className="flex rounded-full bg-gray-100 p-1">
+                        <div className="flex rounded-full bg-neutral-100 p-1">
                           {(['cn', 'both', 'en'] as ('cn' | 'both' | 'en')[]).map(
                             mode => (
                               <button
@@ -4626,8 +4654,8 @@ export default function WatchPage() {
                                 onClick={() => setScriptMode(mode)}
                                 className={`flex-1 rounded-full py-1.5 text-[11px] font-medium transition-all ${
                                   scriptMode === mode
-                                    ? 'bg-white text-black shadow-sm'
-                                    : 'text-gray-400'
+                                    ? 'bg-white text-neutral-900 shadow-sm'
+                                    : 'text-neutral-500'
                                 }`}
                               >
                                 {mode === 'cn'
@@ -4645,8 +4673,11 @@ export default function WatchPage() {
                     <div className="mt-4 flex justify-end">
                       <button
                         type="button"
-                        className="rounded-full bg-black px-4 py-1.5 text-[12px] font-medium text-white shadow-md active:scale-95"
-                        onClick={() => setIsSpeedMenuOpen(false)}
+                        className="rounded-full bg-neutral-900 px-4 py-2 text-[12px] font-semibold text-white shadow-[0_14px_34px_-18px_rgba(15,23,42,0.6)] active:scale-95"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsSpeedMenuOpen(false);
+                        }}
                       >
                         完成
                       </button>
@@ -4658,15 +4689,43 @@ export default function WatchPage() {
               {/* 移动端：循环设置 Bottom Sheet（句子循环 + 视频循环） */}
               {isLoopMenuOpen && !trialEnded ? (
                 // 移动端循环配置 Bottom Sheet：从屏幕底部整块滑出，覆盖底部浮岛
-                <div className="pointer-events-auto fixed inset-0 z-40 flex items-end justify-center lg:hidden">
-                  <div className="w-full max-w-[414px] rounded-t-[24px] border border-white/60 bg-white/95 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_10px_40px_-12px_rgba(15,23,42,0.35)] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+                <div
+                  className="pointer-events-auto fixed inset-0 z-40 flex items-end justify-center bg-black/20 lg:hidden"
+                  onClick={() => {
+                    setIsLoopMenuOpen(false);
+                    setLoopDraft(null);
+                  }}
+                >
+                  <div className="relative w-full max-w-[414px] overflow-hidden rounded-t-[28px] border border-white/70 bg-white/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_18px_60px_-22px_rgba(15,23,42,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+                    <div className="pointer-events-none absolute -top-24 left-1/2 h-44 w-[520px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(232,141,147,0.18),transparent_62%)]" />
                     {/* 顶部拖拽条 */}
-                    <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-gray-300/80" />
-                    <div className="mb-3 text-center text-[12px] font-semibold text-gray-800">
+                    <div className="relative mx-auto mb-2 h-1 w-10 rounded-full bg-neutral-200" />
+                    <button
+                      type="button"
+                      className="absolute right-4 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500"
+                      aria-label="关闭循环设置"
+                      onClick={() => {
+                        setIsLoopMenuOpen(false);
+                        setLoopDraft(null);
+                      }}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={1.8}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M6 6l12 12M18 6L6 18" />
+                      </svg>
+                    </button>
+                    <div className="relative mb-3 text-center text-[12px] font-semibold text-neutral-900">
                       循环
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="relative space-y-4">
                       {/* 句子循环设置 */}
                       <div>
                         {(() => {
@@ -4676,9 +4735,9 @@ export default function WatchPage() {
                           const draftCount = draft.sentenceLoopCount;
 
                           return (
-                            <div className="mb-2 flex items-center justify-between text-[11px] text-gray-500">
+                            <div className="mb-2 flex items-center justify-between text-[11px] text-neutral-600">
                               <span>句子循环</span>
-                              <span className="text-gray-400">
+                              <span className="text-neutral-500">
                                 {!draftSentenceLoop
                                   ? '已关闭'
                                   : draftMode === 'count'
@@ -4743,8 +4802,8 @@ export default function WatchPage() {
                                   onClick={handleCloseSentenceLoop}
                                   className={`h-8 flex-1 rounded-full text-[11px] font-medium ${
                                     !draftSentenceLoop
-                                      ? 'bg-[#1a1a1a] text-white shadow-md'
-                                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                      ? 'bg-neutral-900 text-white shadow-md'
+                                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                                   }`}
                                 >
                                   关
@@ -4758,8 +4817,8 @@ export default function WatchPage() {
                                       draftSentenceLoop &&
                                       draftMode === 'count' &&
                                       draftCount === count
-                                        ? 'bg-[#1a1a1a] text-white shadow-md'
-                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                        ? 'bg-neutral-900 text-white shadow-md'
+                                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                                     }`}
                                   >
                                     {count}×
@@ -4794,8 +4853,8 @@ export default function WatchPage() {
                             }}
                             className={`h-8 w-10 rounded-full text-[11px] font-medium ${
                               sentenceLoop && loopMode === 'infinite'
-                                ? 'bg-[#1a1a1a] text-white shadow-md'
-                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                ? 'bg-neutral-900 text-white shadow-md'
+                                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                             }`}
                           >
                             ∞
@@ -4803,11 +4862,11 @@ export default function WatchPage() {
                         </div>
                       </div>
 
-                      <div className="h-px w-full bg-gray-100" />
+                      <div className="h-px w-full bg-neutral-100" />
 
                       {/* 视频循环设置 */}
                       <div>
-                        <div className="mb-2 flex items-center justify-between text-[11px] text-gray-500">
+                        <div className="mb-2 flex items-center justify-between text-[11px] text-neutral-600">
                           <span>视频循环</span>
                         </div>
                         <div className="flex justify-between gap-1">
@@ -4831,8 +4890,8 @@ export default function WatchPage() {
                                   type="button"
                                   className={`flex-1 rounded-full py-1.5 text-[11px] font-medium ${
                                     draftVideoMode === 'off'
-                                      ? 'bg-[#1a1a1a] text-white shadow-md'
-                                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                      ? 'bg-neutral-900 text-white shadow-md'
+                                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                                   }`}
                                   onClick={() => setDraftVideoMode('off')}
                                 >
@@ -4842,8 +4901,8 @@ export default function WatchPage() {
                                   type="button"
                                   className={`flex-1 rounded-full py-1.5 text-[11px] font-medium ${
                                     draftVideoMode === 'single'
-                                      ? 'bg-[#1a1a1a] text-white shadow-md'
-                                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                      ? 'bg-neutral-900 text-white shadow-md'
+                                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                                   }`}
                                   onClick={() => setDraftVideoMode('single')}
                                 >
@@ -4853,8 +4912,8 @@ export default function WatchPage() {
                                   type="button"
                                   className={`flex-1 rounded-full py-1.5 text-[11px] font-medium ${
                                     draftVideoMode === 'sequence'
-                                      ? 'bg-[#1a1a1a] text-white shadow-md'
-                                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                      ? 'bg-neutral-900 text-white shadow-md'
+                                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                                   }`}
                                   onClick={() => setDraftVideoMode('sequence')}
                                 >
@@ -4869,7 +4928,7 @@ export default function WatchPage() {
                         <div className="mt-4 flex justify-end">
                           <button
                             type="button"
-                            className="rounded-full bg-black px-4 py-1.5 text-[12px] font-medium text-white shadow-md active:scale-95"
+                            className="rounded-full bg-neutral-900 px-4 py-2 text-[12px] font-semibold text-white shadow-[0_14px_34px_-18px_rgba(15,23,42,0.6)] active:scale-95"
                             onClick={() => {
                               if (loopDraft) {
                                 setLoopConfig(loopDraft);

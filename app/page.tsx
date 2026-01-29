@@ -156,6 +156,30 @@ export default function Home() {
 
   // 复制微信号后的提示文案（用于移动端反馈面板）
   const [wechatCopyHint, setWeChatCopyHint] = useState('');
+  const wechatHintTimerRef = useRef<number | null>(null);
+
+  const showWeChatHint = useCallback((text: string) => {
+    setWeChatCopyHint(text);
+    if (typeof window === 'undefined') return;
+
+    if (wechatHintTimerRef.current) {
+      window.clearTimeout(wechatHintTimerRef.current);
+    }
+    wechatHintTimerRef.current = window.setTimeout(() => {
+      setWeChatCopyHint('');
+      wechatHintTimerRef.current = null;
+    }, 4500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window === 'undefined') return;
+      if (wechatHintTimerRef.current) {
+        window.clearTimeout(wechatHintTimerRef.current);
+        wechatHintTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // 首次欢迎引导：仅对已登录用户展示一次，状态存入 app_users.onboarding_flags（服务端接口写入，避免 RLS 干扰）
   const [hasLoadedOnboardingFlags, setHasLoadedOnboardingFlags] =
@@ -1290,7 +1314,20 @@ export default function Home() {
         </section>
 
         {/* 视频卡片：移动端保持两列，但把信息“分层”：海报负责吸引，文字放到白底信息区，避免叠在图上造成拥挤 */}
-        <section className="mt-4">
+        <section className="mt-5">
+          <div className="mb-3 flex items-end justify-between">
+            <div>
+              <div className="text-[13px] font-semibold text-neutral-900">
+                素材库
+              </div>
+              <div className="mt-0.5 text-[11px] text-neutral-500">
+                选一集你喜欢的，练 3 句就够。
+              </div>
+            </div>
+            <div className="text-[11px] text-neutral-400">
+              共 {filteredVideos.length} 条
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-5 md:grid-cols-4 md:gap-6 xl:grid-cols-5">
             {isLoading ? (
               <>
@@ -2144,41 +2181,34 @@ export default function Home() {
 		                                if (nav.clipboard?.writeText) {
 		                                  void nav.clipboard
 		                                    .writeText('WeiWeiLad')
-		                                    .then(() => {
-		                                      setWeChatCopyHint(
-		                                        '已复制微信号：WeiWeiLad（打开微信搜索添加即可）'
-		                                      );
-		                                    })
-		                                    .catch(() => {
-		                                      setWeChatCopyHint(
-		                                        '复制可能没有成功，可以长按微信号手动复制。'
-		                                      );
-		                                    });
-		                                } else {
-		                                  setWeChatCopyHint(
-		                                    '复制可能没有成功，可以长按微信号手动复制。'
-		                                  );
-		                                }
-		                              } else {
-		                                setWeChatCopyHint(
-		                                  '复制可能没有成功，可以长按微信号手动复制。'
-		                                );
-		                              }
-		                            }}
-		                          >
-		                            复制微信号
-		                          </button>
-		                          <button
-		                            type="button"
-		                            className="inline-flex items-center justify-center rounded-full border border-neutral-200 bg-white px-3 py-2 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 active:scale-95"
-		                            onClick={() => setWeChatCopyHint('')}
-		                          >
-		                            清除提示
-		                          </button>
-		                        </div>
-		                        {wechatCopyHint && (
-		                          <p className="mt-2 text-[11px] text-[var(--accent)]">
-		                            {wechatCopyHint}
+                                    .then(() => {
+                                      showWeChatHint(
+                                        '已复制微信号：WeiWeiLad（打开微信搜索添加即可）'
+                                      );
+                                    })
+                                    .catch(() => {
+                                      showWeChatHint(
+                                        '复制可能没有成功，可以长按微信号手动复制。'
+                                      );
+                                    });
+                                } else {
+                                  showWeChatHint(
+                                    '复制可能没有成功，可以长按微信号手动复制。'
+                                  );
+                                }
+                              } else {
+                                showWeChatHint(
+                                  '复制可能没有成功，可以长按微信号手动复制。'
+                                );
+                              }
+                            }}
+                          >
+                            复制微信号
+                          </button>
+                        </div>
+                        {wechatCopyHint && (
+                          <p className="mt-2 text-[11px] text-[var(--accent)]">
+                            {wechatCopyHint}
 		                          </p>
 		                        )}
 		                      </div>
