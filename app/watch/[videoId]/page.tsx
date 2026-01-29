@@ -4428,7 +4428,9 @@ export default function WatchPage() {
                   className="pointer-events-auto fixed inset-0 z-40 flex items-end justify-center bg-black/20 lg:hidden"
                   onClick={() => setIsSpeedMenuOpen(false)}
                 >
-                  <div className="relative w-full max-w-[414px] overflow-hidden rounded-t-[28px] border border-white/70 bg-white/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_18px_60px_-22px_rgba(15,23,42,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+                  <div className="relative w-full max-w-[414px] overflow-hidden rounded-t-[28px] border border-white/70 bg-white/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_18px_60px_-22px_rgba(15,23,42,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-200"
+                       onClick={(e) => e.stopPropagation()}
+                  >
                     {/* 顶部柔光：更“精致生活感”，但不抢内容 */}
                     <div className="pointer-events-none absolute -top-24 left-1/2 h-44 w-[520px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(232,141,147,0.18),transparent_62%)]" />
                     {/* 顶部拖拽条 */}
@@ -4540,7 +4542,9 @@ export default function WatchPage() {
                     setLoopDraft(null);
                   }}
                 >
-                  <div className="relative w-full max-w-[414px] overflow-hidden rounded-t-[28px] border border-white/70 bg-white/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_18px_60px_-22px_rgba(15,23,42,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+                  <div className="relative w-full max-w-[414px] overflow-hidden rounded-t-[28px] border border-white/70 bg-white/85 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_18px_60px_-22px_rgba(15,23,42,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-200"
+                       onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="pointer-events-none absolute -top-24 left-1/2 h-44 w-[520px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(232,141,147,0.18),transparent_62%)]" />
                     {/* 顶部拖拽条 */}
                     <div className="relative mx-auto mb-2 h-1 w-10 rounded-full bg-neutral-200" />
