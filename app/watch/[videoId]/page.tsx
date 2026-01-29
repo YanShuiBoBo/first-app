@@ -5040,9 +5040,8 @@ export default function WatchPage() {
   );
 }
 
-
 // ==========================================================
-// 👇👇👇 第一步：把这段代码复制到文件的最末尾 👇👇👇
+// 👇👇👇 V8版 (绿色认识按钮)：替换 RefinedVocabCard 组件 👇👇👇
 // ==========================================================
 
 const RefinedVocabCard = ({
@@ -5060,7 +5059,7 @@ const RefinedVocabCard = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // 配色系统 (V5版配色保持不变)
+  // 配色系统
   const theme = useMemo(() => {
     switch (item.kind) {
       case 'phrase':
@@ -5102,16 +5101,17 @@ const RefinedVocabCard = ({
 
   return (
       <div
-          className={`group relative mb-4 flex flex-col overflow-hidden rounded-[20px] border ${theme.wrapperBorder} bg-white transition-all duration-300 hover:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.05)] ${
+          // 整体容器：如果已认识(!isUnknown)，稍微变淡一点，表示“已处理”
+          className={`group relative mb-4 flex flex-col overflow-hidden rounded-[20px] border ${theme.wrapperBorder} bg-white transition-all duration-300 ${
               isExpanded ? 'shadow-md ring-1 ring-black/5' : 'shadow-sm'
-          }`}
+          } ${!isUnknown ? 'opacity-70 grayscale-[0.2]' : ''}`}
       >
         <div className={`absolute top-0 left-0 right-0 h-[3px] ${theme.tagBg}`} />
 
-        {/* --- 卡片头部 (保持 V5 设计) --- */}
+        {/* --- 卡片头部 --- */}
         <div
             className="relative flex cursor-pointer flex-col px-5 pt-5 pb-4 transition-colors active:bg-gray-50/50"
-            onClick={onPlaySentence}
+            onClick={onPlaySentence} // 点击卡片主体播放原声
         >
           <div className="flex items-start justify-between gap-4">
             <div className="flex flex-1 flex-col gap-1.5">
@@ -5123,26 +5123,43 @@ const RefinedVocabCard = ({
                 {item.pos && <span className="italic opacity-70">{item.pos}</span>}
               </div>
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-2.5">
+
+            {/* 右侧操作区 */}
+            <div className="flex shrink-0 flex-col items-end gap-3 relative z-10">
+              {/* 类型标签 */}
               <div className={`rounded-full px-2 py-[3px] text-[10px] tracking-wide font-bold uppercase ${theme.tagBg} ${theme.tagText}`}>
                 {theme.label}
               </div>
+
+              {/*
+                 ✅ 绿色“认识”按钮
+                 isUnknown (真) -> 显示空心绿色按钮 "✓ 认识" -> 等待点击
+                 !isUnknown (假) -> 显示实心绿色 "已懂" -> 表示完成
+             */}
               <button
                   onClick={(e) => {
-                    e.stopPropagation();
+                    e.preventDefault();
+                    e.stopPropagation(); // 绝对防误触
                     onUpdateStatus(isUnknown ? 'known' : 'unknown');
                   }}
-                  className="active:scale-90 transition-transform hover:bg-gray-50 rounded-full p-1 -mr-1"
+                  className={`
+                flex h-7 items-center justify-center gap-1 rounded-full px-3 text-[11px] font-bold transition-all active:scale-95 shadow-sm
+                ${isUnknown
+                      ? 'bg-white text-emerald-600 border border-emerald-500 hover:bg-emerald-50' // 没点过：绿色描边，邀请点击
+                      : 'bg-emerald-500 text-white border border-emerald-500' // 点过了：实心绿，表示完成
+                  }
+              `}
               >
-                <svg
-                    viewBox="0 0 24 24"
-                    fill={isUnknown ? "#E11D48" : "none"}
-                    stroke={isUnknown ? "none" : "#CBD5E1"}
-                    strokeWidth="1.8"
-                    className="h-5 w-5"
-                >
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
+                {isUnknown ? (
+                    <>
+                      <span>认识</span>
+                    </>
+                ) : (
+                    <>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="h-3 w-3"><path d="M20 6L9 17l-5-5"/></svg>
+                      <span>已会</span>
+                    </>
+                )}
               </button>
             </div>
           </div>
@@ -5177,7 +5194,7 @@ const RefinedVocabCard = ({
           )}
         </div>
 
-        {/* --- 折叠详情区 --- */}
+        {/* --- 折叠详情区 (保持不变) --- */}
         <div
             className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
                 isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
@@ -5188,11 +5205,7 @@ const RefinedVocabCard = ({
 
             <div className="px-5 pb-5 pt-4 space-y-4 text-[12px]">
 
-              {/* ============================================================ */}
-              {/* 第一部分：独有字段 (按类型展示) */}
-              {/* ============================================================ */}
-
-              {/* 1. Word (单词) 独有字段 */}
+              {/* Word 独有 */}
               {item.kind === 'word' && (
                   <>
                     {item.collocations && item.collocations.length > 0 && (
@@ -5201,8 +5214,6 @@ const RefinedVocabCard = ({
                           <div className="text-gray-600 leading-relaxed">{item.collocations.join(' · ')}</div>
                         </div>
                     )}
-
-                    {/* 同义词/反义词/变形 - 紧凑网格布局 */}
                     {(item.synonyms?.length || item.antonyms?.length || item.derivedForm) && (
                         <div className="grid grid-cols-1 gap-2 rounded-lg bg-white border border-gray-100 p-3">
                           {item.derivedForm && (
@@ -5228,7 +5239,7 @@ const RefinedVocabCard = ({
                   </>
               )}
 
-              {/* 2. Phrase (短语) 独有字段 */}
+              {/* Phrase 独有 */}
               {item.kind === 'phrase' && (
                   <>
                     {item.structure && (
@@ -5246,10 +5257,9 @@ const RefinedVocabCard = ({
                   </>
               )}
 
-              {/* 3. Expression (表达) 独有字段 */}
+              {/* Expression 独有 */}
               {item.kind === 'expression' && (
                   <>
-                    {/* 功能 & 场景 */}
                     {(item.functionLabel || item.scenario) && (
                         <div className="space-y-2 rounded-lg bg-white border border-gray-100 p-3">
                           {item.functionLabel && (
@@ -5266,8 +5276,6 @@ const RefinedVocabCard = ({
                           )}
                         </div>
                     )}
-
-                    {/* 语域 (Register) */}
                     {item.register && (
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-bold text-gray-400 uppercase">Register</span>
@@ -5276,8 +5284,6 @@ const RefinedVocabCard = ({
                          </span>
                         </div>
                     )}
-
-                    {/* 接话指南 (Response Guide) */}
                     {item.responseGuide && (
                         <div className="rounded-lg bg-[#FFF7ED] p-3 border border-orange-100">
                           <div className="mb-1 text-[10px] font-bold text-[#9A3412] opacity-70 flex items-center gap-1">
@@ -5289,9 +5295,7 @@ const RefinedVocabCard = ({
                   </>
               )}
 
-              {/* ============================================================ */}
-              {/* 第二部分：通用 Note (用法笔记) */}
-              {/* ============================================================ */}
+              {/* Note */}
               {item.note && (
                   <div className="rounded-lg bg-gray-100/50 p-3 border border-gray-100">
                     <div className="mb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Note / 笔记</div>
@@ -5299,9 +5303,7 @@ const RefinedVocabCard = ({
                   </div>
               )}
 
-              {/* ============================================================ */}
-              {/* 第三部分：词典例句 (Example) - 沉底展示 */}
-              {/* ============================================================ */}
+              {/* Example */}
               {(item.exampleEn || item.exampleCn) && (
                   <div className="relative rounded-lg bg-white border border-gray-100 p-3 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.04)]">
                     <div className="mb-2 flex items-center justify-between">
