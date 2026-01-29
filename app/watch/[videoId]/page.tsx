@@ -3759,256 +3759,29 @@ export default function WatchPage() {
                           </div>
 
                           {vocabItems
-                            .filter(item => {
-                              const matchKind =
-                                vocabKindFilter === 'all' ||
-                                item.kind === vocabKindFilter;
-                              if (!matchKind) return false;
-                              return true;
-                            })
-                            .map(item => {
-                              const base =
-                                // 移动端：与视频区域、字幕卡保持一致的左右留白（mx-1），PC 端由容器控制宽度；
-                                // 垂直方向：使用 mb-2.5（约 10px）模拟字幕卡之间的间距。
-                                'group relative mx-1 mb-2.5 last:mb-0 rounded-2xl border px-4 py-3 text-[14px] lg:text-[13px] transition-all cursor-pointer lg:mx-0';
+                              .filter(item => {
+                                const matchKind =
+                                    vocabKindFilter === 'all' ||
+                                    item.kind === vocabKindFilter;
+                                if (!matchKind) return false;
+                                return true;
+                              })
+                              .map(item => {
+                                const isUnknown = vocabStatusMap[item.key] !== 'known';
 
-                              let kindBgClass = '';
-                              if (item.kind === 'word') {
-                                // 单词卡：浅蓝底，突出“词汇”感
-                                kindBgClass = 'bg-sky-50 border-sky-100';
-                              } else if (item.kind === 'phrase') {
-                                // 短语卡：浅绿底，强调“结构 / 句块”
-                                kindBgClass =
-                                  'bg-emerald-50 border-emerald-100';
-                              } else {
-                                // expression
-                                // 表达卡：浅黄底，突出“语气 / 语感”
-                                kindBgClass = 'bg-amber-50 border-amber-100';
-                              }
+                                return (
+                                    <RefinedVocabCard
+                                        key={item.key}
+                                        item={item}
+                                        isUnknown={isUnknown}
+                                        onPlayAudio={() => handlePlayVocabClip(item)}
+                                        onUpdateStatus={(status) => handleUpdateVocabStatus(item.key, status)}
+                                        onPlaySentence={() => handlePlayVocabClip(item)}
+                                    />
+                                );
+                              })}
 
-                              const stateClass =
-                                `${kindBgClass} shadow-sm hover:-translate-y-[1px] hover:shadow-md`;
-
-                              // 当前词条是否仍在生词本中（unknown / 未确认）
-                              const isUnknown =
-                                vocabStatusMap[item.key] !== 'known';
-
-                              return (
-                                <div
-                                  key={item.key}
-                                  className={`${base} ${stateClass}`}
-                                  onClick={() => handlePlayVocabClip(item)}
-                                >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex-1">
-                                    {/* 单词 + 音标：纵向排列，避免长单词和长音标挤在一行 */}
-                                    <div className="flex flex-col">
-                                      <span className="vocab-word text-[20px] lg:text-[18px] font-semibold text-gray-900">
-                                        {item.headword}
-                                      </span>
-                                      {item.ipa && (
-                                        <span className="mt-0.5 text-[14px] lg:text-[13px] text-gray-500">
-                                          {item.ipa}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="mt-1 text-[14px] lg:text-[13px] text-gray-800">
-                                      {item.pos && (
-                                        <span className="mr-1 font-medium text-gray-700">
-                                          {item.pos}
-                                        </span>
-                                      )}
-                                      <span className="rounded-full bg-[var(--accent-soft)] px-2 py-[1px] font-semibold text-[var(--accent)]">
-                                        {item.definition || item.paraphrase}
-                                      </span>
-                                    </div>
-                                    {/* 额外属性：根据类型展示，视觉风格与知识卡片保持一致 */}
-                                    {item.kind === 'word' && (
-                                      <div className="mt-1 space-y-0.5 text-[12px] lg:text-[11px] text-gray-700">
-                                        {item.collocations && item.collocations.length > 0 && (
-                                          <div>
-                                            <span className="mr-1 text-violet-700">搭配：</span>
-                                            <span>{item.collocations.join(' · ')}</span>
-                                          </div>
-                                        )}
-                                        {item.synonyms && item.synonyms.length > 0 && (
-                                          <div>
-                                            <span className="mr-1 text-violet-700">近义：</span>
-                                            <span>{item.synonyms.join(' · ')}</span>
-                                          </div>
-                                        )}
-                                        {item.antonyms && item.antonyms.length > 0 && (
-                                          <div>
-                                            <span className="mr-1 text-violet-700">反义：</span>
-                                            <span>{item.antonyms.join(' · ')}</span>
-                                          </div>
-                                        )}
-                                        {item.derivedForm && (
-                                          <div>
-                                            <span className="mr-1 text-violet-700">词形：</span>
-                                            <span>{item.derivedForm}</span>
-                                          </div>
-                                        )}
-                                        {item.note && (
-                                          <div>
-                                            <span className="mr-1 text-violet-700">用法：</span>
-                                            <span>{item.note}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                    {item.kind === 'phrase' && (
-                                      <div className="mt-1 space-y-0.5 text-[12px] lg:text-[11px] text-gray-700">
-                                        {item.structure && (
-                                          <div className="font-mono text-[11px] text-indigo-700">
-                                            <span className="mr-1 text-indigo-700">结构：</span>
-                                            <span>{item.structure}</span>
-                                          </div>
-                                        )}
-                                        {item.synonyms && item.synonyms.length > 0 && (
-                                          <div>
-                                            <span className="mr-1 text-indigo-700">同义：</span>
-                                            <span>{item.synonyms.join(' · ')}</span>
-                                          </div>
-                                        )}
-                                        {item.note && (
-                                          <div>
-                                            <span className="mr-1 text-indigo-700">用法：</span>
-                                            <span>{item.note}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                    {item.kind === 'expression' && (
-                                      <div className="mt-1 space-y-0.5 text-[12px] lg:text-[11px] text-gray-700">
-                                        {item.functionLabel && (
-                                          <div>
-                                            <span className="mr-1 text-amber-700">功能：</span>
-                                            <span>{item.functionLabel}</span>
-                                          </div>
-                                        )}
-                                        {item.scenario && (
-                                          <div className="text-gray-600">
-                                            <span className="mr-1 text-amber-700">场景：</span>
-                                            <span>{item.scenario}</span>
-                                          </div>
-                                        )}
-                                        {item.responseGuide && (
-                                          <div>
-                                            <span className="mr-1 text-amber-700">接话：</span>
-                                            <span>{item.responseGuide}</span>
-                                          </div>
-                                        )}
-                                        {item.note && (
-                                          <div>
-                                            <span className="mr-1 text-amber-700">用法：</span>
-                                            <span>{item.note}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {(item.source?.sentence_en ||
-                                      item.source?.sentence_cn) && (
-                                      <div className="mt-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-900">
-                                        <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                                          视频原句
-                                        </div>
-                                        {item.source?.sentence_en && (
-                                          <div className="italic text-[12px] text-slate-900">
-                                            {item.source.sentence_en}
-                                          </div>
-                                        )}
-                                        {item.source?.sentence_cn && (
-                                          <div className="mt-0.5 text-[11px] text-slate-600">
-                                            {item.source.sentence_cn}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {(item.exampleEn || item.exampleCn) && (
-                                      <div className="mt-2 rounded-xl bg-sky-50 px-3 py-2 text-[11px] text-sky-900">
-                                        <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-600">
-                                          例句
-                                        </div>
-                                        {item.exampleEn && (
-                                          <div className="italic text-[11px] text-sky-900">
-                                            {item.exampleEn}
-                                          </div>
-                                        )}
-                                        {item.exampleCn && (
-                                          <div className="mt-0.5 text-[10px] text-sky-700">
-                                            {item.exampleCn}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="ml-1 flex flex-col items-end gap-1">
-                                    {/* 类型标记 + 认识标记 排成一行，视觉更整洁 */}
-                                    <div className="flex items-center gap-1.5">
-                                      {(() => {
-                                        let label = '单词';
-                                        let chipClass =
-                                          'inline-flex rounded-full px-2 py-[2px] text-[11px] font-medium';
-                                        if (item.kind === 'word') {
-                                          label = '单词';
-                                          chipClass +=
-                                            ' bg-sky-100 text-sky-700';
-                                        } else if (item.kind === 'phrase') {
-                                          label = '短语';
-                                          chipClass +=
-                                            ' bg-emerald-100 text-emerald-700';
-                                        } else {
-                                          label = '表达';
-                                          chipClass +=
-                                            ' bg-amber-100 text-amber-800';
-                                        }
-                                        return (
-                                          <span className={chipClass}>
-                                            {label}
-                                          </span>
-                                        );
-                                      })()}
-
-                                      {isUnknown && (
-                                        <button
-                                          type="button"
-                                          className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-400 bg-white/95 text-[11px] font-bold text-emerald-500 shadow-sm shadow-emerald-200"
-                                          onClick={e => {
-                                            e.stopPropagation();
-                                            handleUpdateVocabStatus(
-                                              item.key,
-                                              'known'
-                                            );
-                                          }}
-                                          aria-label="标记为认识"
-                                        >
-                                          ✓
-                                        </button>
-                                      )}
-                                    </div>
-
-                                    {/* 例句片段播放按钮 */}
-                                    <button
-                                      type="button"
-                                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-400 hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                                      onClick={e => {
-                                        e.stopPropagation();
-                                        handlePlayVocabClip(item);
-                                      }}
-                                      title="播放例句片段"
-                                    >
-                                      <IconSound className="h-3.5 w-3.5" />
-                                    </button>
-                                  </div>
-
-                                </div>
-                                </div>
-                              );
-                            })}
-                      </div>
+                        </div>
 
                       {/* 底部已无额外操作，所有“全部标记为认识”操作移动到顶部工具栏 */}
                     </>
@@ -4114,101 +3887,138 @@ export default function WatchPage() {
                     </div>
                   </div>
 
-                  {/* 类型相关信息 & 搭配等分区展示，避免信息挤在一起 */}
-                  {(isWord || isPhrase) &&
-	                    (normalized.collocations ||
-	                      normalized.synonyms ||
-	                      normalized.antonyms ||
-	                      normalized.derivedForm) && (
-	                        <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-[12px] text-slate-900">
-	                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-	                            搭配 · 近义 · 反义
-	                          </div>
-                        {normalized.collocations && (
-	                          <div className="mb-0.5">
-	                            <span className="mr-1 text-slate-500">
-                              搭配：
-                            </span>
-                            <span>
-                              {normalized.collocations.join(' · ')}
-                            </span>
-                          </div>
-                        )}
-                        {normalized.synonyms && (
-	                          <div className="mb-0.5">
-	                            <span className="mr-1 text-slate-500">
-                              近义：
-                            </span>
-                            <span>
-                              {normalized.synonyms.join(' · ')}
-                            </span>
-                          </div>
-                        )}
-                        {normalized.antonyms && (
-	                          <div className="mb-0.5">
-	                            <span className="mr-1 text-slate-500">
-                              反义：
-                            </span>
-                            <span>
-                              {normalized.antonyms.join(' · ')}
-                            </span>
-                          </div>
-                        )}
-                        {normalized.derivedForm && (
-                          <div>
-                            <span className="mr-1 text-gray-500">
-                              词形：
-                            </span>
-                            <span>{normalized.derivedForm}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+	                  {/* 类型相关信息 & 搭配等分区展示，避免信息挤在一起 */}
+	                  {(isWord || isPhrase) &&
+		                    (normalized.collocations ||
+		                      normalized.synonyms ||
+		                      normalized.antonyms ||
+		                      normalized.derivedForm) && (
+		                        <div className="mt-2 rounded-2xl border border-neutral-100 bg-neutral-50 px-3 py-2 text-[12px] text-neutral-900">
+		                          <div className="mb-1 flex items-center justify-between">
+		                            <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+		                              要点
+		                            </span>
+		                            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-600">
+		                              {isWord ? '单词' : '短语'}
+		                            </span>
+		                          </div>
+		                          <div className="grid grid-cols-2 gap-2">
+		                            {normalized.collocations && (
+		                              <div className="col-span-2">
+		                                <div className="text-[10px] font-semibold text-neutral-500">
+		                                  搭配
+		                                </div>
+		                                <div className="mt-0.5 line-clamp-2 text-neutral-900">
+		                                  {normalized.collocations.join(' · ')}
+		                                </div>
+		                              </div>
+		                            )}
+		                            {normalized.synonyms && (
+		                              <div className="col-span-2">
+		                                <div className="text-[10px] font-semibold text-neutral-500">
+		                                  近义
+		                                </div>
+		                                <div className="mt-0.5 line-clamp-2 text-neutral-900">
+		                                  {normalized.synonyms.join(' · ')}
+		                                </div>
+		                              </div>
+		                            )}
+		                            {normalized.antonyms && (
+		                              <div className="col-span-2">
+		                                <div className="text-[10px] font-semibold text-neutral-500">
+		                                  反义
+		                                </div>
+		                                <div className="mt-0.5 line-clamp-2 text-neutral-900">
+		                                  {normalized.antonyms.join(' · ')}
+		                                </div>
+		                              </div>
+		                            )}
+		                            {normalized.derivedForm && (
+		                              <div className="col-span-2">
+		                                <div className="text-[10px] font-semibold text-neutral-500">
+		                                  词形
+		                                </div>
+		                                <div className="mt-0.5 font-mono text-[11px] text-neutral-900">
+		                                  {normalized.derivedForm}
+		                                </div>
+		                              </div>
+		                            )}
+		                          </div>
+		                        </div>
+	                    )}
 
-                  {isPhrase && normalized.structure && (
-                    <div className="mt-2 rounded-xl bg-indigo-50 px-3 py-2 text-[12px] text-indigo-800">
-                      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
-                        结构
-                      </div>
-                      <div className="font-mono">{normalized.structure}</div>
-                    </div>
-                  )}
+	                  {isPhrase && normalized.structure && (
+	                    <div className="mt-2 rounded-2xl border border-neutral-100 bg-white px-3 py-2 text-[12px] text-neutral-900">
+	                      <div className="mb-1 flex items-center justify-between">
+	                        <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+	                          结构
+	                        </span>
+	                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-600">
+	                          短语
+	                        </span>
+	                      </div>
+	                      <div className="rounded-xl bg-neutral-900/[0.03] px-2 py-1 font-mono text-[11px] text-neutral-900">
+	                        {normalized.structure}
+	                      </div>
+	                    </div>
+	                  )}
 
-                    {isExpression && (
-                      <div className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
-                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                        口语用法
-                      </div>
-                      {normalized.functionLabel && (
-                        <div className="mb-0.5">
-                          <span className="mr-1 text-gray-500">
-                            功能：
-                          </span>
-                          <span>{normalized.functionLabel}</span>
-                        </div>
-                      )}
-                      {(normalized.register || normalized.scenario) && (
-                        <div className="flex flex-wrap items-center gap-1">
-                          {normalized.register && (
-                            <span className="rounded-full border border-amber-100 bg-white px-1.5 py-[1px] text-[9px] uppercase tracking-wide text-amber-700">
-                              {normalized.register}
-                            </span>
-                          )}
-                          {normalized.scenario && (
-                            <span>{normalized.scenario}</span>
-                          )}
-                        </div>
-                      )}
-                      {normalized.responseGuide && (
-                        <div className="mt-1">
-                          <span className="mr-1 text-gray-500">
-                            接话：
-                          </span>
-                          <span>{normalized.responseGuide}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+	                    {isExpression && (
+	                      <div className="mt-2 rounded-2xl border border-neutral-100 bg-neutral-50 px-3 py-2 text-[12px] text-neutral-900">
+	                        <div className="mb-1 flex items-center justify-between">
+	                          <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+	                            要点
+	                          </span>
+	                          <span className="rounded-full bg-[#fff4e5] px-2 py-0.5 text-[10px] font-semibold text-[#c56a2d]">
+	                            表达
+	                          </span>
+	                        </div>
+	                        <div className="grid grid-cols-2 gap-2">
+	                          {normalized.functionLabel && (
+	                            <div className="col-span-2">
+	                              <div className="text-[10px] font-semibold text-neutral-500">
+	                                功能
+	                              </div>
+	                              <div className="mt-0.5 line-clamp-2 text-neutral-900">
+	                                {normalized.functionLabel}
+	                              </div>
+	                            </div>
+	                          )}
+	                          {normalized.scenario && (
+	                            <div className="col-span-2">
+	                              <div className="text-[10px] font-semibold text-neutral-500">
+	                                场景
+	                              </div>
+	                              <div className="mt-0.5 line-clamp-2 text-neutral-900">
+	                                {normalized.scenario}
+	                              </div>
+	                            </div>
+	                          )}
+	                          {normalized.register && (
+	                            <div className="col-span-2">
+	                              <div className="text-[10px] font-semibold text-neutral-500">
+	                                语域
+	                              </div>
+	                              <div className="mt-0.5">
+	                                <span className="inline-flex rounded-full border border-[#f2e0c7] bg-white px-2 py-0.5 text-[10px] font-semibold text-[#c56a2d]">
+	                                  {normalized.register}
+	                                </span>
+	                              </div>
+	                            </div>
+	                          )}
+	                          {normalized.responseGuide && (
+	                            <div className="col-span-2">
+	                              <div className="text-[10px] font-semibold text-neutral-500">
+	                                接话
+	                              </div>
+	                              <div className="mt-0.5 line-clamp-2 text-neutral-900">
+	                                {normalized.responseGuide}
+	                              </div>
+	                            </div>
+	                          )}
+	                        </div>
+	                      </div>
+	                  )}
 
                   {/* 额外例句（区别于原字幕句） */}
                     {(normalized.exampleEn || normalized.exampleCn) && (
@@ -4323,8 +4133,8 @@ export default function WatchPage() {
                 const isPhrase = normalized.kind === 'phrase';
                 const isExpression = normalized.kind === 'expression';
 
-                return (
-                  <>
+	              return (
+	                <>
                     <div className="mb-3">
                       {/* 顶部拖拽条，弱化“弹窗”感，强化 Bottom Sheet 观感 */}
                       <div className="mb-2 flex justify-center">
@@ -4377,105 +4187,139 @@ export default function WatchPage() {
                       </div>
                     </div>
 
-                    {/* 类型相关信息 & 搭配等分区展示，移动端使用中性浅灰色块，减少视觉噪音 */}
-                    {(isWord || isPhrase) &&
-                      (normalized.collocations ||
-                        normalized.synonyms ||
-                        normalized.antonyms ||
-                        normalized.derivedForm) && (
-                        <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-[12px] text-slate-900">
-                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                            搭配 · 近义 · 反义
-                          </div>
-                          {normalized.collocations && (
-                            <div className="mb-0.5">
-                              <span className="mr-1 text-slate-500">
-                                搭配：
-                              </span>
-                              <span>
-                                {normalized.collocations.join(' · ')}
-                              </span>
-                            </div>
-                          )}
-                          {normalized.synonyms && (
-                            <div className="mb-0.5">
-                              <span className="mr-1 text-slate-500">
-                                近义：
-                              </span>
-                              <span>
-                                {normalized.synonyms.join(' · ')}
-                              </span>
-                            </div>
-                          )}
-                          {normalized.antonyms && (
-                            <div className="mb-0.5">
-                              <span className="mr-1 text-slate-500">
-                                反义：
-                              </span>
-                              <span>
-                                {normalized.antonyms.join(' · ')}
-                              </span>
-                            </div>
-                          )}
-                          {normalized.derivedForm && (
-                            <div>
-                              <span className="mr-1 text-slate-500">
-                                词形：
-                              </span>
-                              <span>{normalized.derivedForm}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                    {isPhrase && normalized.structure && (
-                    <div className="mt-2 rounded-xl bg-indigo-50 px-3 py-2 text-[12px] text-indigo-800">
-                      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
-                          结构
-                        </div>
-                        <div className="font-mono">
-                          {normalized.structure}
-                        </div>
-                      </div>
-                    )}
-
-                    {isExpression && (
-                      <div className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
-                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                          口语用法
-                        </div>
-                        {normalized.functionLabel && (
-                          <div className="mb-0.5">
-                            <span className="mr-1 text-gray-500">
-                              功能：
-                            </span>
-                            <span>{normalized.functionLabel}</span>
-                          </div>
-                        )}
-	                    {(normalized.register ||
-	                          normalized.scenario) && (
-	                          <div className="flex flex-wrap items-center gap-1">
-	                            {normalized.register && (
-	                              <span className="rounded-full border border-amber-100 bg-white px-1.5 py-[1px] text-[9px] uppercase tracking-wide text-amber-700">
-	                                {normalized.register}
-	                              </span>
-	                            )}
-	                            {normalized.scenario && (
-	                              <span>{normalized.scenario}</span>
-	                            )}
-	                          </div>
-	                        )}
-	                        {normalized.responseGuide && (
-	                          <div className="mt-1">
-	                            <span className="mr-1 text-gray-500">
-	                              接话：
+	                    {/* 要点区：用统一的“块 + 小标题”去做层级，避免“满屏都是字” */}
+	                    {(isWord || isPhrase) &&
+	                      (normalized.collocations ||
+	                        normalized.synonyms ||
+	                        normalized.antonyms ||
+	                        normalized.derivedForm) && (
+	                        <div className="mt-2 rounded-2xl border border-neutral-100 bg-neutral-50 px-3 py-2 text-[12px] text-neutral-900">
+	                          <div className="mb-1 flex items-center justify-between">
+	                            <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+	                              要点
 	                            </span>
-	                            <span>{normalized.responseGuide}</span>
+	                            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-600">
+	                              {isWord ? '单词' : '短语'}
+	                            </span>
 	                          </div>
-	                        )}
+	                          <div className="grid grid-cols-2 gap-2">
+	                            {normalized.collocations && (
+	                              <div className="col-span-2">
+	                                <div className="text-[10px] font-semibold text-neutral-500">
+	                                  搭配
+	                                </div>
+	                                <div className="mt-0.5 line-clamp-2 text-neutral-900">
+	                                  {normalized.collocations.join(' · ')}
+	                                </div>
+	                              </div>
+	                            )}
+	                            {normalized.synonyms && (
+	                              <div className="col-span-2">
+	                                <div className="text-[10px] font-semibold text-neutral-500">
+	                                  近义
+	                                </div>
+	                                <div className="mt-0.5 line-clamp-2 text-neutral-900">
+	                                  {normalized.synonyms.join(' · ')}
+	                                </div>
+	                              </div>
+	                            )}
+	                            {normalized.antonyms && (
+	                              <div className="col-span-2">
+	                                <div className="text-[10px] font-semibold text-neutral-500">
+	                                  反义
+	                                </div>
+	                                <div className="mt-0.5 line-clamp-2 text-neutral-900">
+	                                  {normalized.antonyms.join(' · ')}
+	                                </div>
+	                              </div>
+	                            )}
+	                            {normalized.derivedForm && (
+	                              <div className="col-span-2">
+	                                <div className="text-[10px] font-semibold text-neutral-500">
+	                                  词形
+	                                </div>
+	                                <div className="mt-0.5 font-mono text-[11px] text-neutral-900">
+	                                  {normalized.derivedForm}
+	                                </div>
+	                              </div>
+	                            )}
+	                          </div>
+	                        </div>
+	                      )}
+
+	                    {isPhrase && normalized.structure && (
+	                      <div className="mt-2 rounded-2xl border border-neutral-100 bg-white px-3 py-2 text-[12px] text-neutral-900">
+	                        <div className="mb-1 flex items-center justify-between">
+	                          <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+	                            结构
+	                          </span>
+	                          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-600">
+	                            短语
+	                          </span>
+	                        </div>
+	                        <div className="rounded-xl bg-neutral-900/[0.03] px-2 py-1 font-mono text-[11px] text-neutral-900">
+	                          {normalized.structure}
+	                        </div>
 	                      </div>
 	                    )}
-	
+
+	                    {isExpression && (
+	                      <div className="mt-2 rounded-2xl border border-neutral-100 bg-neutral-50 px-3 py-2 text-[12px] text-neutral-900">
+	                        <div className="mb-1 flex items-center justify-between">
+	                          <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+	                            要点
+	                          </span>
+	                          <span className="rounded-full bg-[#fff4e5] px-2 py-0.5 text-[10px] font-semibold text-[#c56a2d]">
+	                            表达
+	                          </span>
+	                        </div>
+	                        <div className="grid grid-cols-2 gap-2">
+	                          {normalized.functionLabel && (
+	                            <div className="col-span-2">
+	                              <div className="text-[10px] font-semibold text-neutral-500">
+	                                功能
+	                              </div>
+	                              <div className="mt-0.5 line-clamp-2 text-neutral-900">
+	                                {normalized.functionLabel}
+	                              </div>
+	                            </div>
+	                          )}
+	                          {normalized.scenario && (
+	                            <div className="col-span-2">
+	                              <div className="text-[10px] font-semibold text-neutral-500">
+	                                场景
+	                              </div>
+	                              <div className="mt-0.5 line-clamp-2 text-neutral-900">
+	                                {normalized.scenario}
+	                              </div>
+	                            </div>
+	                          )}
+	                          {normalized.register && (
+	                            <div className="col-span-2">
+	                              <div className="text-[10px] font-semibold text-neutral-500">
+	                                语域
+	                              </div>
+	                              <div className="mt-0.5">
+	                                <span className="inline-flex rounded-full border border-[#f2e0c7] bg-white px-2 py-0.5 text-[10px] font-semibold text-[#c56a2d]">
+	                                  {normalized.register}
+	                                </span>
+	                              </div>
+	                            </div>
+	                          )}
+	                          {normalized.responseGuide && (
+	                            <div className="col-span-2">
+	                              <div className="text-[10px] font-semibold text-neutral-500">
+	                                接话
+	                              </div>
+	                              <div className="mt-0.5 line-clamp-2 text-neutral-900">
+	                                {normalized.responseGuide}
+	                              </div>
+	                            </div>
+	                          )}
+	                        </div>
+	                      </div>
+		                    )}
+
 	                    {(normalized.exampleEn || normalized.exampleCn) && (
 	                      <div className="mt-2 rounded-2xl border border-neutral-100 bg-neutral-50 px-3 py-2 text-[12px] text-neutral-900">
 	                        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
@@ -4493,7 +4337,7 @@ export default function WatchPage() {
 	                        )}
 	                      </div>
 	                    )}
-	
+
 	                    {normalized.note && (
 	                      <div className="mt-2 rounded-2xl border border-rose-100 bg-[var(--accent-soft)] px-3 py-2 text-[12px] text-neutral-900">
 	                        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--accent)]">
@@ -5195,3 +5039,316 @@ export default function WatchPage() {
     </div>
   );
 }
+
+
+// ==========================================================
+// 👇👇👇 第一步：把这段代码复制到文件的最末尾 👇👇👇
+// ==========================================================
+
+const RefinedVocabCard = ({
+                            item,
+                            isUnknown,
+                            onPlayAudio,
+                            onUpdateStatus,
+                            onPlaySentence
+                          }: {
+  item: VocabItem;
+  isUnknown: boolean;
+  onPlayAudio: () => void;
+  onUpdateStatus: (status: 'known' | 'unknown') => void;
+  onPlaySentence: () => void;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // 配色系统 (V5版配色保持不变)
+  const theme = useMemo(() => {
+    switch (item.kind) {
+      case 'phrase':
+        return {
+          wrapperBorder: 'border-rose-100/60',
+          bgSoft: 'bg-[#FFF0F3]',
+          textMain: 'text-[#9F1239]',
+          tagBg: 'bg-[#FFF1F2]',
+          tagText: 'text-[#BE123C]',
+          label: '短语',
+          quoteBg: 'bg-[#FFF1F2]/70',
+          quoteBorder: 'border-rose-100'
+        };
+      case 'expression':
+        return {
+          wrapperBorder: 'border-orange-100/60',
+          bgSoft: 'bg-[#FFF7ED]',
+          textMain: 'text-[#9A3412]',
+          tagBg: 'bg-[#FFEDD5]',
+          tagText: 'text-[#C2410C]',
+          label: '表达',
+          quoteBg: 'bg-[#FFF7ED]/70',
+          quoteBorder: 'border-orange-100'
+        };
+      case 'word':
+      default:
+        return {
+          wrapperBorder: 'border-slate-100',
+          bgSoft: 'bg-[#F1F5F9]',
+          textMain: 'text-[#334155]',
+          tagBg: 'bg-[#F8FAFC]',
+          tagText: 'text-[#475569]',
+          label: '单词',
+          quoteBg: 'bg-[#F8FAFC]/80',
+          quoteBorder: 'border-slate-100'
+        };
+    }
+  }, [item.kind]);
+
+  return (
+      <div
+          className={`group relative mb-4 flex flex-col overflow-hidden rounded-[20px] border ${theme.wrapperBorder} bg-white transition-all duration-300 hover:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.05)] ${
+              isExpanded ? 'shadow-md ring-1 ring-black/5' : 'shadow-sm'
+          }`}
+      >
+        <div className={`absolute top-0 left-0 right-0 h-[3px] ${theme.tagBg}`} />
+
+        {/* --- 卡片头部 (保持 V5 设计) --- */}
+        <div
+            className="relative flex cursor-pointer flex-col px-5 pt-5 pb-4 transition-colors active:bg-gray-50/50"
+            onClick={onPlaySentence}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-1 flex-col gap-1.5">
+              <h3 className={`font-serif text-[19px] font-semibold leading-tight tracking-normal break-words ${theme.textMain}`}>
+                {item.headword}
+              </h3>
+              <div className="flex flex-wrap items-center gap-2 text-[12px] text-gray-400 font-sans">
+                {item.ipa && <span>{item.ipa}</span>}
+                {item.pos && <span className="italic opacity-70">{item.pos}</span>}
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-2.5">
+              <div className={`rounded-full px-2 py-[3px] text-[10px] tracking-wide font-bold uppercase ${theme.tagBg} ${theme.tagText}`}>
+                {theme.label}
+              </div>
+              <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateStatus(isUnknown ? 'known' : 'unknown');
+                  }}
+                  className="active:scale-90 transition-transform hover:bg-gray-50 rounded-full p-1 -mr-1"
+              >
+                <svg
+                    viewBox="0 0 24 24"
+                    fill={isUnknown ? "#E11D48" : "none"}
+                    stroke={isUnknown ? "none" : "#CBD5E1"}
+                    strokeWidth="1.8"
+                    className="h-5 w-5"
+                >
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-2">
+          <span className={`inline-block rounded-[6px] px-2 py-0.5 text-[13px] font-medium tracking-wide ${theme.bgSoft} ${theme.textMain}`}>
+            {item.definition || item.paraphrase}
+          </span>
+          </div>
+
+          {(item.source?.sentence_en || item.source?.sentence_cn) && (
+              <div className={`relative mt-3 rounded-xl border ${theme.quoteBorder} px-4 py-3 ${theme.quoteBg}`}>
+                <div className="absolute -left-1 -top-2 font-serif text-4xl leading-none text-black/5 select-none">“</div>
+                <div className="relative z-10 flex flex-col gap-1">
+                  {item.source?.sentence_en && (
+                      <p className="font-serif text-[13px] leading-relaxed text-gray-800/90 italic">
+                        {item.source.sentence_en}
+                      </p>
+                  )}
+                  {item.source?.sentence_cn && (
+                      <p className="text-[11px] text-gray-500/80">
+                        {item.source.sentence_cn}
+                      </p>
+                  )}
+                </div>
+                <div className="absolute -right-2 -bottom-2 p-2">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 text-gray-400">
+                    <IconPlay className="h-2.5 w-2.5 ml-0.5" />
+                  </div>
+                </div>
+              </div>
+          )}
+        </div>
+
+        {/* --- 折叠详情区 --- */}
+        <div
+            className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+                isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+            }`}
+        >
+          <div className="overflow-hidden bg-[#FAFAF9]">
+            <div className="mx-5 border-t border-dashed border-gray-200" />
+
+            <div className="px-5 pb-5 pt-4 space-y-4 text-[12px]">
+
+              {/* ============================================================ */}
+              {/* 第一部分：独有字段 (按类型展示) */}
+              {/* ============================================================ */}
+
+              {/* 1. Word (单词) 独有字段 */}
+              {item.kind === 'word' && (
+                  <>
+                    {item.collocations && item.collocations.length > 0 && (
+                        <div className="rounded-lg bg-white border border-gray-100 px-3 py-2">
+                          <div className="mb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Collocations / 搭配</div>
+                          <div className="text-gray-600 leading-relaxed">{item.collocations.join(' · ')}</div>
+                        </div>
+                    )}
+
+                    {/* 同义词/反义词/变形 - 紧凑网格布局 */}
+                    {(item.synonyms?.length || item.antonyms?.length || item.derivedForm) && (
+                        <div className="grid grid-cols-1 gap-2 rounded-lg bg-white border border-gray-100 p-3">
+                          {item.derivedForm && (
+                              <div className="flex gap-2">
+                                <span className="shrink-0 text-gray-400 font-bold w-8">变形</span>
+                                <span className="font-mono text-gray-600">{item.derivedForm}</span>
+                              </div>
+                          )}
+                          {item.synonyms && item.synonyms.length > 0 && (
+                              <div className="flex gap-2">
+                                <span className="shrink-0 text-gray-400 font-bold w-8">近义</span>
+                                <span className="text-gray-600">{item.synonyms.join(', ')}</span>
+                              </div>
+                          )}
+                          {item.antonyms && item.antonyms.length > 0 && (
+                              <div className="flex gap-2">
+                                <span className="shrink-0 text-gray-400 font-bold w-8">反义</span>
+                                <span className="text-gray-600">{item.antonyms.join(', ')}</span>
+                              </div>
+                          )}
+                        </div>
+                    )}
+                  </>
+              )}
+
+              {/* 2. Phrase (短语) 独有字段 */}
+              {item.kind === 'phrase' && (
+                  <>
+                    {item.structure && (
+                        <div className="rounded-lg bg-white border border-gray-100 px-3 py-2">
+                          <div className="mb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Structure / 结构</div>
+                          <div className="font-mono text-gray-600 bg-gray-50 px-1.5 py-0.5 rounded inline-block">{item.structure}</div>
+                        </div>
+                    )}
+                    {item.synonyms && item.synonyms.length > 0 && (
+                        <div className="rounded-lg bg-white border border-gray-100 px-3 py-2">
+                          <div className="mb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Synonyms / 同义</div>
+                          <div className="text-gray-600">{item.synonyms.join(' · ')}</div>
+                        </div>
+                    )}
+                  </>
+              )}
+
+              {/* 3. Expression (表达) 独有字段 */}
+              {item.kind === 'expression' && (
+                  <>
+                    {/* 功能 & 场景 */}
+                    {(item.functionLabel || item.scenario) && (
+                        <div className="space-y-2 rounded-lg bg-white border border-gray-100 p-3">
+                          {item.functionLabel && (
+                              <div className="flex gap-2">
+                                <span className="shrink-0 text-[10px] font-bold text-white bg-gray-400 px-1.5 py-0.5 rounded h-fit">功能</span>
+                                <span className="text-gray-700">{item.functionLabel}</span>
+                              </div>
+                          )}
+                          {item.scenario && (
+                              <div className="flex gap-2">
+                                <span className="shrink-0 text-[10px] font-bold text-white bg-gray-400 px-1.5 py-0.5 rounded h-fit">场景</span>
+                                <span className="text-gray-700">{item.scenario}</span>
+                              </div>
+                          )}
+                        </div>
+                    )}
+
+                    {/* 语域 (Register) */}
+                    {item.register && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase">Register</span>
+                          <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+                           {item.register}
+                         </span>
+                        </div>
+                    )}
+
+                    {/* 接话指南 (Response Guide) */}
+                    {item.responseGuide && (
+                        <div className="rounded-lg bg-[#FFF7ED] p-3 border border-orange-100">
+                          <div className="mb-1 text-[10px] font-bold text-[#9A3412] opacity-70 flex items-center gap-1">
+                            <span>💬</span> 接话指南
+                          </div>
+                          <div className="text-[#9A3412] leading-relaxed">{item.responseGuide}</div>
+                        </div>
+                    )}
+                  </>
+              )}
+
+              {/* ============================================================ */}
+              {/* 第二部分：通用 Note (用法笔记) */}
+              {/* ============================================================ */}
+              {item.note && (
+                  <div className="rounded-lg bg-gray-100/50 p-3 border border-gray-100">
+                    <div className="mb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Note / 笔记</div>
+                    <div className="text-gray-600 leading-relaxed">{item.note}</div>
+                  </div>
+              )}
+
+              {/* ============================================================ */}
+              {/* 第三部分：词典例句 (Example) - 沉底展示 */}
+              {/* ============================================================ */}
+              {(item.exampleEn || item.exampleCn) && (
+                  <div className="relative rounded-lg bg-white border border-gray-100 p-3 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.04)]">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase">Example / 词典例句</span>
+                      <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPlayAudio();
+                          }}
+                          className="text-gray-400 hover:text-gray-600"
+                      >
+                        <IconSound className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div>
+                      {item.exampleEn && (
+                          <p className="font-serif text-gray-700 leading-relaxed">{item.exampleEn}</p>
+                      )}
+                      {item.exampleCn && (
+                          <p className="mt-1 text-gray-400 scale-95 origin-left">{item.exampleCn}</p>
+                      )}
+                    </div>
+                  </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+
+        <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
+            className="flex w-full items-center justify-center gap-1 border-t border-gray-50 bg-white py-2 text-[10px] font-medium text-gray-300 hover:text-gray-500 transition-colors"
+        >
+          <span>{isExpanded ? 'CLOSE' : 'MORE'}</span>
+          <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={`h-3 w-3 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+          >
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </button>
+      </div>
+  );
+};

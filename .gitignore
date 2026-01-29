@@ -24,6 +24,12 @@
 .DS_Store
 *.pem
 
+# IDE
+.idea/
+
+# python
+__pycache__/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
