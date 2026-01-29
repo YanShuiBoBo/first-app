@@ -1959,40 +1959,56 @@ export default function Home() {
 	        >
 	          {/* 顶部下拉面板本体：靠近导航，从上往下出现；PC 端限制最大宽度 */}
 	          <div
-	            className="mx-4 mt-16 flex w-full max-w-md max-h-[70vh] flex-col rounded-2xl bg-white px-4 pt-4 pb-5 shadow-lg"
+	            className="relative mx-4 mt-16 flex w-full max-w-md max-h-[72vh] flex-col overflow-hidden rounded-3xl border border-white/70 bg-white/85 px-4 pt-4 pb-5 shadow-[0_18px_60px_-22px_rgba(15,23,42,0.55)] backdrop-blur-xl"
 	            onClick={event => event.stopPropagation()}
 	          >
+	            {/* 顶部柔光：轻微“精致可爱”，但不抢内容 */}
+	            <div className="pointer-events-none absolute -top-24 left-1/2 h-44 w-[520px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(232,141,147,0.22),transparent_62%)]" />
+
 	            <div className="mb-3 flex flex-shrink-0 items-center justify-between">
 	              <div>
-	                <h2 className="text-sm font-semibold text-neutral-900">
+	                <div className="inline-flex items-center gap-2 rounded-full border border-rose-100 bg-[var(--accent-soft)] px-2.5 py-1 text-[10px] font-semibold text-[var(--accent)]">
+	                  {notificationMode === 'notices' ? 'Official' : 'Feedback'}
+	                </div>
+	                <h2 className="mt-1 text-sm font-semibold text-neutral-900">
 	                  {notificationMode === 'notices' ? '官方通知' : '意见与反馈'}
 	                </h2>
-	                <p className="mt-0.5 text-[11px] text-neutral-500">
-	                  {notificationMode === 'notices'
-	                    ? '了解最新内容和功能更新。'
-	                    : '用起来哪里不顺手，都可以直接告诉我们。'}
-	                </p>
+	                {/*<p className="mt-0.5 text-[11px] text-neutral-500">*/}
+	                {/*  {notificationMode === 'notices'*/}
+	                {/*    ? '了解最新内容和功能更新。'*/}
+	                {/*    : '用起来哪里不顺手，都可以直接告诉我们。'}*/}
+	                {/*</p>*/}
 	              </div>
 	              <div className="flex items-center gap-2">
+	                <div className="flex items-center rounded-full bg-neutral-100 p-1">
+	                  <button
+	                    type="button"
+	                    className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+	                      notificationMode === 'notices'
+	                        ? 'bg-white text-neutral-900 shadow-sm'
+	                        : 'text-neutral-600'
+	                    }`}
+	                    aria-label="查看官方通知"
+	                    onClick={() => setNotificationMode('notices')}
+	                  >
+	                    通知
+	                  </button>
+	                  <button
+	                    type="button"
+	                    className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+	                      notificationMode === 'feedback'
+	                        ? 'bg-white text-neutral-900 shadow-sm'
+	                        : 'text-neutral-600'
+	                    }`}
+	                    aria-label="进入意见与反馈"
+	                    onClick={() => setNotificationMode('feedback')}
+	                  >
+	                    反馈
+	                  </button>
+	                </div>
 	                <button
 	                  type="button"
-	                  className="rounded-full bg-neutral-100 px-3 py-1 text-[11px] font-medium text-neutral-700"
-	                  aria-label={
-	                    notificationMode === 'notices'
-	                      ? '进入反馈界面'
-	                      : '返回通知列表'
-	                  }
-	                  onClick={() =>
-	                    setNotificationMode(mode =>
-	                      mode === 'notices' ? 'feedback' : 'notices'
-	                    )
-	                  }
-	                >
-	                  {notificationMode === 'notices' ? '反馈' : '返回通知'}
-	                </button>
-	                <button
-	                  type="button"
-	                  className="rounded-full bg-neutral-900 px-3 py-1 text-[11px] font-medium text-white shadow-sm shadow-black/10 hover:bg-neutral-800"
+	                  className="rounded-full bg-neutral-900 px-3 py-1 text-[11px] font-semibold text-white shadow-sm shadow-black/10 hover:bg-neutral-800"
 	                  aria-label="打开使用指南"
 	                  onClick={() => {
 	                    setIsNotificationSheetOpen(false);
@@ -2044,87 +2060,151 @@ export default function Home() {
                     更多更新会在小红书置顶笔记同步。
                   </p>
 	                </div>
-	              ) : (
-	                <div className="space-y-4 text-[13px]">
-                  <p>
-                    用起来哪里不顺手、哪些地方想优化，或者你希望多哪些学习场景，都可以直接在这里告诉我们。
-                  </p>
-                  <div className="rounded-2xl bg-neutral-50 p-3">
-                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
-                      WeChat
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <div className="text-sm font-semibold text-neutral-900">
-                          WeiWeiLad
-                        </div>
-                        <div className="mt-0.5 text-[11px] text-neutral-500">
-                          打开微信扫一扫右侧二维码，备注「网站反馈」或「精读反馈」，我们会拉你进内测群。
-                        </div>
-                        <button
-                          type="button"
-                          className="mt-3 inline-flex items-center gap-1 rounded-full bg-[var(--accent)] px-3 py-1.5 text-[11px] font-medium text-white shadow-sm active:scale-95"
-                          onClick={() => {
-                            if (typeof navigator !== 'undefined') {
-                              const nav = navigator as Navigator & {
-                                clipboard?: {
-                                  writeText?: (text: string) => Promise<void>;
-                                };
-                              };
-                              if (nav.clipboard?.writeText) {
-                                void nav.clipboard
-                                  .writeText('WeiWeiLad')
-                                  .then(() => {
-                                    setWeChatCopyHint(
-                                      '已复制微信号，打开微信搜索添加即可（记得备注「网站反馈」）。'
-                                    );
-                                  })
-                                  .catch(() => {
-                                    setWeChatCopyHint(
-                                      '复制可能没有成功，可以长按微信号手动复制。'
-                                    );
-                                  });
-                              } else {
-                                setWeChatCopyHint(
-                                  '复制可能没有成功，可以长按微信号手动复制。'
-                                );
-                              }
-                            } else {
-                              setWeChatCopyHint(
-                                '复制可能没有成功，可以长按微信号手动复制。'
-                              );
-                            }
-                          }}
-                        >
-                          <span>复制微信号</span>
-                        </button>
-                        {wechatCopyHint && (
-                          <p className="mt-2 text-[11px] text-[var(--accent)]">
-                            {wechatCopyHint}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex-shrink-0">
-                        <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-1">
-                          <Image
-                            src="/images/hero-placeholder-960x540.png"
-                            alt="微信反馈二维码"
-                            width={128}
-                            height={168}
-                            className="h-40 w-28 rounded-xl object-contain bg-white"
-                          />
-                        </div>
-                        <p className="mt-1 text-center text-[10px] text-neutral-400">
-                          长按识别二维码添加
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-	                  <p className="px-1 text-[11px] text-neutral-500">
-	                    我们会认真看每一条反馈，重要更新会在「官方通知」里第一时间告诉你。
-	                  </p>
-	                </div>
-	              )}
+		              ) : (
+		                <div className="space-y-4 text-[13px]">
+		                  <div className="rounded-3xl border border-neutral-100 bg-white p-4 shadow-sm">
+		                    <div className="flex items-start justify-between gap-3">
+		                      <div>
+		                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+		                          Feedback
+		                        </div>
+		                        <div className="mt-1 text-sm font-semibold text-neutral-900">
+		                          直接告诉我哪里不好用
+		                        </div>
+		                        <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
+		                          你的一句话，会直接影响我们下一次更新。也欢迎你提“想要的学习场景”。
+		                        </p>
+		                      </div>
+		                      <span className="inline-flex items-center rounded-full border border-rose-100 bg-[var(--accent-soft)] px-2.5 py-1 text-[10px] font-semibold text-[var(--accent)]">
+		                        优化中
+		                      </span>
+		                    </div>
+		                    <div className="mt-3 flex flex-wrap gap-2">
+		                      {['跟读更顺手', '字幕更清晰', '更多生活口语', '更少打扰'].map(
+		                        (label) => (
+		                          <span
+		                            key={label}
+		                            className="inline-flex items-center rounded-full bg-neutral-50 px-2.5 py-1 text-[10px] font-semibold text-neutral-600"
+		                          >
+		                            {label}
+		                          </span>
+		                        )
+		                      )}
+		                    </div>
+		                  </div>
+
+		                  <div className="rounded-3xl border border-rose-100 bg-[linear-gradient(180deg,rgba(252,238,239,0.95),rgba(255,255,255,0.98))] p-4 shadow-sm">
+		                    <div className="mb-2 flex items-center justify-between">
+		                      <div className="text-[12px] font-semibold text-neutral-900">
+		                        微信联系
+		                      </div>
+		                      <span className="text-[10px] font-medium text-neutral-500">
+		                        备注「网站反馈」
+		                      </span>
+		                    </div>
+
+		                    <div className="flex items-center gap-3">
+		                      <div className="flex-1">
+		                        <div className="flex items-center gap-2">
+		                          <div className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-white text-[var(--accent)] shadow-sm shadow-black/5">
+		                            <svg
+		                              viewBox="0 0 24 24"
+		                              className="h-5 w-5"
+		                              fill="none"
+		                              stroke="currentColor"
+		                              strokeWidth={1.7}
+		                              strokeLinecap="round"
+		                              strokeLinejoin="round"
+		                              aria-hidden="true"
+		                            >
+		                              <path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+		                            </svg>
+		                          </div>
+		                          <div>
+		                            <div className="text-base font-semibold text-neutral-900">
+		                              WeiWeiLad
+		                            </div>
+		                            <div className="mt-0.5 text-[11px] text-neutral-500">
+		                              扫右侧二维码添加，我会亲自回复。
+		                            </div>
+		                          </div>
+		                        </div>
+
+		                        <div className="mt-3 flex items-center gap-2">
+		                          <button
+		                            type="button"
+		                            className="inline-flex items-center justify-center rounded-full bg-neutral-900 px-3 py-2 text-[11px] font-semibold text-white shadow-sm shadow-black/15 active:scale-95"
+		                            onClick={() => {
+		                              if (typeof navigator !== 'undefined') {
+		                                const nav = navigator as Navigator & {
+		                                  clipboard?: {
+		                                    writeText?: (text: string) => Promise<void>;
+		                                  };
+		                                };
+		                                if (nav.clipboard?.writeText) {
+		                                  void nav.clipboard
+		                                    .writeText('WeiWeiLad')
+		                                    .then(() => {
+		                                      setWeChatCopyHint(
+		                                        '已复制微信号：WeiWeiLad（打开微信搜索添加即可）'
+		                                      );
+		                                    })
+		                                    .catch(() => {
+		                                      setWeChatCopyHint(
+		                                        '复制可能没有成功，可以长按微信号手动复制。'
+		                                      );
+		                                    });
+		                                } else {
+		                                  setWeChatCopyHint(
+		                                    '复制可能没有成功，可以长按微信号手动复制。'
+		                                  );
+		                                }
+		                              } else {
+		                                setWeChatCopyHint(
+		                                  '复制可能没有成功，可以长按微信号手动复制。'
+		                                );
+		                              }
+		                            }}
+		                          >
+		                            复制微信号
+		                          </button>
+		                          <button
+		                            type="button"
+		                            className="inline-flex items-center justify-center rounded-full border border-neutral-200 bg-white px-3 py-2 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 active:scale-95"
+		                            onClick={() => setWeChatCopyHint('')}
+		                          >
+		                            清除提示
+		                          </button>
+		                        </div>
+		                        {wechatCopyHint && (
+		                          <p className="mt-2 text-[11px] text-[var(--accent)]">
+		                            {wechatCopyHint}
+		                          </p>
+		                        )}
+		                      </div>
+
+		                      <div className="flex-shrink-0">
+		                        <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-white p-1 shadow-sm">
+		                          <Image
+		                            src="/images/hero-placeholder-960x540.png"
+		                            alt="微信反馈二维码"
+		                            width={128}
+		                            height={168}
+		                            className="h-40 w-28 rounded-2xl object-contain bg-white"
+		                          />
+		                        </div>
+		                        <p className="mt-1 text-center text-[10px] text-neutral-400">
+		                          长按识别二维码
+		                        </p>
+		                      </div>
+		                    </div>
+		                  </div>
+
+		                  <p className="px-1 text-[11px] text-neutral-500">
+		                    我们会认真看每一条反馈，重要更新会在「官方通知」里第一时间告诉你。
+		                  </p>
+		                </div>
+		              )}
 	            </div>
 	          </div>
 	        </div>
