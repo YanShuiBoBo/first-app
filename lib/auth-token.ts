@@ -13,10 +13,18 @@ export interface AuthTokenPayload {
 
 export function verifyAuthToken(token: string): AuthTokenPayload | null {
   try {
+    const decodeBase64 = (value: string) => {
+      if (typeof atob === 'function') {
+        return atob(value);
+      }
+      // Node.js runtime fallback (API routes / server actions)
+      return Buffer.from(value, 'base64').toString('binary');
+    };
+
     // 与 lib/auth.ts 中 verifyToken 的逻辑保持一致，处理中文字符
     const decodedData = JSON.parse(
       decodeURIComponent(
-        atob(token)
+        decodeBase64(token)
           .split('')
           .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
           .join('')
@@ -35,7 +43,11 @@ export function verifyAuthToken(token: string): AuthTokenPayload | null {
   } catch {
     try {
       // 兼容旧的简单解码方式
-      const decoded = JSON.parse(atob(token)) as AuthTokenPayload;
+      const decoded = JSON.parse(
+        typeof atob === 'function'
+          ? atob(token)
+          : Buffer.from(token, 'base64').toString('utf8')
+      ) as AuthTokenPayload;
       if (typeof decoded.exp !== 'number') {
         return null;
       }

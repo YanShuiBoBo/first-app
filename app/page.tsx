@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
 import Header from '@/components/layout/Header';
 import { createBrowserClient } from '@/lib/supabase/client';
@@ -165,12 +166,19 @@ export default function Home() {
 
   // 登录状态
   const { initialize, user } = useAuthStore();
+  const router = useRouter();
 
   // 学习统计是否已加载（避免重复请求）
   const [hasLoadedStats, setHasLoadedStats] = useState(false);
 
   // 复制微信号后的提示文案（用于移动端反馈面板）
   const [wechatCopyHint, setWeChatCopyHint] = useState('');
+
+  // 首次欢迎引导：仅对已登录用户展示一次，状态存入 app_users.onboarding_flags（服务端接口写入，避免 RLS 干扰）
+  const [hasLoadedOnboardingFlags, setHasLoadedOnboardingFlags] =
+    useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const onboardingEmailRef = useRef<string | null>(null);
 
   // 当任意首页面板（筛选 / 学习数据 / 通知）打开时，锁定页面滚动，避免误滚动到素材列表
   useEffect(() => {
@@ -193,6 +201,69 @@ export default function Home() {
     const client = createBrowserClient();
     setSupabase(client);
   }, []);
+
+  // 切换账号时重置 onboarding 加载状态（避免 A 用户的缓存影响 B 用户）
+  useEffect(() => {
+    const nextEmail = user?.email || null;
+    if (onboardingEmailRef.current !== nextEmail) {
+      onboardingEmailRef.current = nextEmail;
+      setHasLoadedOnboardingFlags(false);
+      setShowWelcomeModal(false);
+    }
+  }, [user?.email]);
+
+  // 加载用户引导状态（onboarding_flags），决定是否展示首次欢迎弹窗
+  useEffect(() => {
+    const loadOnboardingFlags = async () => {
+      if (!user?.email || hasLoadedOnboardingFlags) return;
+
+      try {
+        // localStorage 兜底：避免接口异常导致同一次会话反复弹窗（真正的“永久只弹一次”仍以数据库为准）
+        const localKey = `immersive:onboarding:first_welcome_shown:${user.email}`;
+        if (
+          typeof window !== 'undefined' &&
+          window.localStorage.getItem(localKey) === '1'
+        ) {
+          setHasLoadedOnboardingFlags(true);
+          return;
+        }
+
+        const res = await fetch('/api/onboarding/flags', {
+          method: 'GET',
+          cache: 'no-store',
+        });
+
+        if (!res.ok) {
+          console.error('加载用户引导状态失败:', await res.text());
+          setHasLoadedOnboardingFlags(true);
+          return;
+        }
+
+        const payload = (await res.json()) as {
+          flags?: Record<string, unknown>;
+        };
+        const flags = payload.flags || {};
+        const firstWelcomeShown = flags.first_welcome_shown === true;
+
+        if (!firstWelcomeShown) {
+          const localKey = `immersive:onboarding:first_welcome_shown:${user.email}`;
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem(localKey, '1');
+          }
+          // 只要弹出过一次就算“已引导”，避免用户刷新/跳转导致反复弹窗
+          void fetch('/api/onboarding/welcome-seen', { method: 'POST' });
+          setShowWelcomeModal(true);
+        }
+
+        setHasLoadedOnboardingFlags(true);
+      } catch (err) {
+        console.error('加载用户引导状态异常:', err);
+        setHasLoadedOnboardingFlags(true);
+      }
+    };
+
+    void loadOnboardingFlags();
+  }, [user?.email, hasLoadedOnboardingFlags]);
 
   // 获取视频数据
   const fetchVideos = useCallback(async () => {
@@ -454,6 +525,32 @@ export default function Home() {
     (_, index) => index + 1
   );
 
+  // 将 welcome 弹窗标记为已读：关闭弹窗并写入 app_users.onboarding_flags
+  const markWelcomeSeen = useCallback(async () => {
+    setShowWelcomeModal(false);
+
+    if (!user?.email) {
+      return;
+    }
+
+    try {
+      const localKey = `immersive:onboarding:first_welcome_shown:${user.email}`;
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(localKey, '1');
+      }
+
+      const res = await fetch('/api/onboarding/welcome-seen', {
+        method: 'POST',
+      });
+
+      if (!res.ok) {
+        console.error('更新用户引导状态失败:', await res.text());
+      }
+    } catch (err) {
+      console.error('更新用户引导状态异常:', err);
+    }
+  }, [user?.email]);
+
   // 全局“第几期”编号：按 created_at 降序返回的视频列表，最新为第 N 期，最早为第 1 期
   const episodeNoById = useMemo(() => {
     const map = new Map<string, number>();
@@ -620,6 +717,12 @@ export default function Home() {
   // 首页推荐视频：直接使用最新发布的一条（接口已按 created_at 降序返回）
   const heroVideo = videos.length > 0 ? videos[0] : null;
 
+  // 欢迎弹窗中点击“查看详细指南”：标记已读并跳转到完整版指南页
+  const openGuideFromWelcome = useCallback(() => {
+    void markWelcomeSeen();
+    router.push('/guide');
+  }, [markWelcomeSeen, router]);
+
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-neutral-900">
       {/* 桌面端导航栏 */}
@@ -697,7 +800,7 @@ export default function Home() {
                       ...(
                         primaryTags.length > 0
                           ? primaryTags
-                          : ['Vlog', 'Business', 'Travel', 'Movie']
+                          : []
                       ).map((tag) => ({
                         value: tag as CategoryValue,
                         label: tag
@@ -1685,7 +1788,7 @@ export default function Home() {
           </button>
         )}
 
-      {/* 移动端学习数据 Bottom Sheet：样式对齐 PC 端 My progress 卡片 */}
+	      {/* 移动端学习数据 Bottom Sheet：样式对齐 PC 端 My progress 卡片 */}
       {isStatsSheetOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-black/40 md:hidden">
           <button
@@ -1791,49 +1894,62 @@ export default function Home() {
         </div>
       )}
 
-      {/* 官方通知 / 反馈面板：从顶部下拉，贴近导航区域（移动端 + PC 复用） */}
-      {isNotificationSheetOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/20"
-          onClick={() => setIsNotificationSheetOpen(false)}
-        >
-          {/* 顶部下拉面板本体：靠近导航，从上往下出现；PC 端限制最大宽度 */}
-          <div
-            className="mx-4 mt-16 flex w-full max-w-md max-h-[70vh] flex-col rounded-2xl bg-white px-4 pt-4 pb-5 shadow-lg"
-            onClick={event => event.stopPropagation()}
-          >
-            <div className="mb-3 flex flex-shrink-0 items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-neutral-900">
-                  {notificationMode === 'notices' ? '官方通知' : '意见与反馈'}
-                </h2>
-                <p className="mt-0.5 text-[11px] text-neutral-500">
-                  {notificationMode === 'notices'
-                    ? '了解最新内容和功能更新。'
-                    : '用起来哪里不顺手，都可以直接告诉我们。'}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="rounded-full bg-neutral-100 px-3 py-1 text-[11px] font-medium text-neutral-700"
-                aria-label={
-                  notificationMode === 'notices'
-                    ? '进入反馈界面'
-                    : '返回通知列表'
-                }
-                onClick={() =>
-                  setNotificationMode(mode =>
-                    mode === 'notices' ? 'feedback' : 'notices'
-                  )
-                }
-              >
-                {notificationMode === 'notices' ? '反馈' : '返回通知'}
-              </button>
-            </div>
-            <div className="flex-1 space-y-4 overflow-y-auto text-xs text-neutral-700">
-              {notificationMode === 'notices' ? (
-                <div className="space-y-3">
-                  <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 p-3 shadow-sm">
+	      {/* 官方通知 / 反馈 / 使用指南面板：从顶部下拉，贴近导航区域（移动端 + PC 复用） */}
+	      {isNotificationSheetOpen && (
+	        <div
+	          className="fixed inset-0 z-50 flex items-start justify-center bg-black/20"
+	          onClick={() => setIsNotificationSheetOpen(false)}
+	        >
+	          {/* 顶部下拉面板本体：靠近导航，从上往下出现；PC 端限制最大宽度 */}
+	          <div
+	            className="mx-4 mt-16 flex w-full max-w-md max-h-[70vh] flex-col rounded-2xl bg-white px-4 pt-4 pb-5 shadow-lg"
+	            onClick={event => event.stopPropagation()}
+	          >
+	            <div className="mb-3 flex flex-shrink-0 items-center justify-between">
+	              <div>
+	                <h2 className="text-sm font-semibold text-neutral-900">
+	                  {notificationMode === 'notices' ? '官方通知' : '意见与反馈'}
+	                </h2>
+	                <p className="mt-0.5 text-[11px] text-neutral-500">
+	                  {notificationMode === 'notices'
+	                    ? '了解最新内容和功能更新。'
+	                    : '用起来哪里不顺手，都可以直接告诉我们。'}
+	                </p>
+	              </div>
+	              <div className="flex items-center gap-2">
+	                <button
+	                  type="button"
+	                  className="rounded-full bg-neutral-100 px-3 py-1 text-[11px] font-medium text-neutral-700"
+	                  aria-label={
+	                    notificationMode === 'notices'
+	                      ? '进入反馈界面'
+	                      : '返回通知列表'
+	                  }
+	                  onClick={() =>
+	                    setNotificationMode(mode =>
+	                      mode === 'notices' ? 'feedback' : 'notices'
+	                    )
+	                  }
+	                >
+	                  {notificationMode === 'notices' ? '反馈' : '返回通知'}
+	                </button>
+	                <button
+	                  type="button"
+	                  className="rounded-full bg-neutral-900 px-3 py-1 text-[11px] font-medium text-white shadow-sm shadow-black/10 hover:bg-neutral-800"
+	                  aria-label="打开使用指南"
+	                  onClick={() => {
+	                    setIsNotificationSheetOpen(false);
+	                    router.push('/guide');
+	                  }}
+	                >
+	                  使用指南
+	                </button>
+	              </div>
+	            </div>
+	            <div className="flex-1 space-y-4 overflow-y-auto text-xs text-neutral-700">
+	              {notificationMode === 'notices' ? (
+	                <div className="space-y-3">
+	                  <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 p-3 shadow-sm">
                     <div className="mb-1 flex items-center justify-between">
                       <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
                         新内容
@@ -1870,9 +1986,9 @@ export default function Home() {
                   <p className="px-1 text-[11px] text-neutral-500">
                     更多更新会在小红书置顶笔记同步。
                   </p>
-                </div>
-              ) : (
-                <div className="space-y-4 text-[13px]">
+	                </div>
+	              ) : (
+	                <div className="space-y-4 text-[13px]">
                   <p>
                     用起来哪里不顺手、哪些地方想优化，或者你希望多哪些学习场景，都可以直接在这里告诉我们。
                   </p>
@@ -1947,15 +2063,150 @@ export default function Home() {
                       </div>
                     </div>
                   </div>
-                  <p className="px-1 text-[11px] text-neutral-500">
-                    我们会认真看每一条反馈，重要更新会在「官方通知」里第一时间告诉你。
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+	                  <p className="px-1 text-[11px] text-neutral-500">
+	                    我们会认真看每一条反馈，重要更新会在「官方通知」里第一时间告诉你。
+	                  </p>
+	                </div>
+	              )}
+	            </div>
+	          </div>
+	        </div>
+	      )}
+
+	      {/* 首次登录 / 注册欢迎弹窗：柔和色系，与首页整体风格统一 */}
+	      {showWelcomeModal && user?.email && (
+	        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4">
+	          <div
+	            className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/70 bg-[var(--bg-shell)] px-5 py-5 shadow-[0_18px_50px_rgba(15,23,42,0.35)]"
+	            onClick={event => event.stopPropagation()}
+	          >
+	            {/* 顶部柔光：保持奶油风，不抢主体文字 */}
+	            <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[520px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(232,141,147,0.25),transparent_60%)]" />
+	            <button
+	              type="button"
+	              className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-[11px] text-neutral-500"
+	              aria-label="关闭欢迎引导"
+	              onClick={() => {
+	                void markWelcomeSeen();
+	              }}
+	            >
+	              <svg
+	                viewBox="0 0 24 24"
+	                className="h-3.5 w-3.5"
+	                fill="none"
+	                stroke="currentColor"
+	                strokeWidth={1.7}
+	                strokeLinecap="round"
+	                strokeLinejoin="round"
+	              >
+	                <path d="M6 6l12 12M18 6L6 18" />
+	              </svg>
+	            </button>
+	            <div className="relative">
+	              <div className="inline-flex items-center gap-2 rounded-full border border-rose-100 bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold text-[var(--accent)]">
+	                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] shadow-sm">
+	                  1
+	                </span>
+	                新手引导
+	              </div>
+
+	              <h2 className="mt-3 text-[20px] font-semibold leading-tight text-neutral-900">
+	                第一次来？3 分钟上手精读
+	              </h2>
+	              <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+	                这不是网课，是「素材 + 工具」。建议先打开使用指南，把「跟读怎么用」看一遍，马上就能练起来。
+	              </p>
+
+	              <div className="mt-4 space-y-2">
+	                <div className="rounded-2xl border border-neutral-100 bg-neutral-50/80 p-3">
+	                  <div className="flex items-start justify-between gap-3">
+	                    <div className="flex items-start gap-2.5">
+	                      <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-2xl bg-white text-neutral-900 shadow-sm shadow-black/5">
+	                        <svg
+	                          viewBox="0 0 24 24"
+	                          className="h-4 w-4"
+	                          fill="none"
+	                          stroke="currentColor"
+	                          strokeWidth={1.8}
+	                          strokeLinecap="round"
+	                          strokeLinejoin="round"
+	                        >
+	                          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+	                          <path d="M6.5 2H20v15H6.5A2.5 2.5 0 0 0 4 19.5V4A2.5 2.5 0 0 1 6.5 2z" />
+	                        </svg>
+	                      </div>
+	                      <div>
+	                        <div className="text-[12px] font-semibold text-neutral-900">
+	                          使用指南入口
+	                        </div>
+	                        <p className="mt-1 text-[11px] leading-relaxed text-neutral-600">
+	                          首页右上角点「通知」→ 右上角点「使用指南」；
+	                        </p>
+	                      </div>
+	                    </div>
+	                  </div>
+	                </div>
+
+	                <div className="rounded-2xl border border-rose-100 bg-[var(--accent-soft)]/90 p-3">
+	                  <div className="flex items-start gap-2.5">
+	                    <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-2xl bg-white text-[var(--accent)] shadow-sm shadow-black/5">
+	                      <svg
+	                        viewBox="0 0 24 24"
+	                        className="h-4 w-4"
+	                        fill="none"
+	                        stroke="currentColor"
+	                        strokeWidth={1.8}
+	                        strokeLinecap="round"
+	                        strokeLinejoin="round"
+	                      >
+	                        <path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+	                      </svg>
+	                    </div>
+	                    <div>
+	                      <div className="text-[12px] font-semibold text-neutral-900">
+	                        反馈通道（我们会持续优化）
+	                      </div>
+	                      <p className="mt-1 text-[11px] leading-relaxed text-neutral-700">
+	                        在「通知」面板切到「意见与反馈」，复制微信号就能直接联系我：<span className="font-semibold">WeiWeiLad</span>
+	                      </p>
+	                    </div>
+	                  </div>
+	                </div>
+
+	                <div className="rounded-2xl border border-neutral-100 bg-white p-3">
+	                  <div className="text-[12px] font-semibold text-neutral-900">
+	                    今日最稳练法（照做就行）
+	                  </div>
+	                  <ol className="mt-2 list-decimal space-y-1 pl-4 text-[11px] text-neutral-600">
+	                    <li>选一条短视频，先全屏听一遍找感觉。</li>
+	                    <li>点字幕跳回原句，开「单句循环」听顺。</li>
+	                    <li>点「麦克风」跟读：点一次录音，再点一次停止，出现回放就听自己。</li>
+	                  </ol>
+	                </div>
+	              </div>
+	            </div>
+
+	            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+	              <button
+	                type="button"
+	                className="inline-flex items-center justify-center rounded-full bg-neutral-900 px-4 py-2 text-[12px] font-medium text-white shadow-sm shadow-black/20 hover:bg-neutral-800"
+	                onClick={openGuideFromWelcome}
+	              >
+	                打开使用指南
+	              </button>
+	              <button
+	                type="button"
+	                className="inline-flex items-center justify-center rounded-full border border-neutral-200 bg-white px-4 py-2 text-[12px] font-medium text-neutral-800 hover:bg-neutral-50"
+	                onClick={() => {
+	                  void markWelcomeSeen();
+	                }}
+	              >
+	                我先开始精读
+	              </button>
+	            </div>
+	          </div>
+	        </div>
+	      )}
+	    </div>
+	  );
+	}
