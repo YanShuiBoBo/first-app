@@ -85,23 +85,6 @@ function IconFilter() {
   );
 }
 
-function IconHeart() {
-  return (
-    <svg
-      className="h-3 w-3"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M12 19s-4.5-2.8-6.7-5A3.8 3.8 0 0 1 5 8c1.7-2 4.3-1.4 5.5.2C11.7 6.6 14.3 6 16 8a3.8 3.8 0 0 1-.3 6c-2.2 2.2-6.7 5-6.7 5Z" />
-    </svg>
-  );
-}
-
 // 定义视频卡片类型
 interface VideoCard {
   id: string;
@@ -437,32 +420,6 @@ export default function Home() {
     return 'easy';
   };
 
-  const getDifficultyStyle = (
-    difficulty?: number | null,
-    variant: 'banner' | 'card' = 'card'
-  ) => {
-    const level = getDifficultyLevel(difficulty);
-
-    if (variant === 'banner') {
-      if (level === 'easy') {
-        return 'border border-emerald-300/40 bg-emerald-400/20 text-emerald-100';
-      }
-      if (level === 'medium') {
-        return 'border border-amber-300/40 bg-amber-400/20 text-amber-100';
-      }
-      return 'border border-rose-300/40 bg-rose-400/20 text-rose-100';
-    }
-
-    // 卡片难度标签：更柔和的“马卡龙 + 毛玻璃”效果
-    if (level === 'easy') {
-      return 'bg-emerald-50/90 text-emerald-600 border border-emerald-100/70 backdrop-blur';
-    }
-    if (level === 'medium') {
-      return 'bg-amber-50/90 text-amber-700 border border-amber-100/70 backdrop-blur';
-    }
-    return 'bg-rose-50/90 text-rose-700 border border-rose-100/70 backdrop-blur';
-  };
-
   const completedSet = new Set(completedVideoIds);
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -508,6 +465,7 @@ export default function Home() {
   const today = new Date();
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth(); // 0-based
+  const todayDayNumber = today.getDate();
   const daysInMonth = new Date(currentMonth === 11 ? currentYear + 1 : currentYear, (currentMonth + 1) % 12, 0).getDate();
 
   const activeDayNumbers = new Set(
@@ -524,6 +482,35 @@ export default function Home() {
     { length: daysInMonth },
     (_, index) => index + 1
   );
+
+  const formatLocalDateKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const studyDateSet = useMemo(() => new Set(studyDates), [studyDates]);
+  const todayKey = formatLocalDateKey(new Date());
+  const hasStudyToday = studyDateSet.has(todayKey);
+
+  // 连续打卡：若今天未打卡，则从昨天开始计算“最近连续 X 天”，避免用户被 0 直接劝退
+  const currentStreak = useMemo(() => {
+    if (studyDates.length === 0) return 0;
+
+    const anchorOffset = hasStudyToday ? 0 : 1;
+    let streak = 0;
+    for (let offset = anchorOffset; offset < 366; offset += 1) {
+      const d = new Date();
+      d.setDate(d.getDate() - offset);
+      if (studyDateSet.has(formatLocalDateKey(d))) {
+        streak += 1;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }, [studyDates.length, hasStudyToday, studyDateSet]);
 
   // 将 welcome 弹窗标记为已读：关闭弹窗并写入 app_users.onboarding_flags
   const markWelcomeSeen = useCallback(async () => {
@@ -1302,15 +1289,15 @@ export default function Home() {
           {/* 移动端：排序 + 筛选按钮（已整合到顶部 Header 胶囊栏，仅保留 Bottom Sheet 逻辑） */}
         </section>
 
-        {/* 视频卡片：移动端与 PC 统一栅格布局（固定卡片尺寸，便于截图与浏览） */}
+        {/* 视频卡片：移动端保持两列，但把信息“分层”：海报负责吸引，文字放到白底信息区，避免叠在图上造成拥挤 */}
         <section className="mt-4">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-5 md:grid-cols-4 md:gap-6 xl:grid-cols-5">
             {isLoading ? (
               <>
-                <div className="h-48 animate-pulse rounded-xl bg-neutral-200" />
-                <div className="h-48 animate-pulse rounded-xl bg-neutral-200" />
-                <div className="h-48 animate-pulse rounded-xl bg-neutral-200" />
-                <div className="h-48 animate-pulse rounded-xl bg-neutral-200" />
+                <div className="h-52 animate-pulse rounded-3xl bg-neutral-200" />
+                <div className="h-52 animate-pulse rounded-3xl bg-neutral-200" />
+                <div className="h-52 animate-pulse rounded-3xl bg-neutral-200" />
+                <div className="h-52 animate-pulse rounded-3xl bg-neutral-200" />
               </>
             ) : filteredVideos.length === 0 ? (
               <div className="col-span-full rounded-xl border border-dashed border-neutral-200 bg-white p-6 text-center text-sm text-neutral-500">
@@ -1322,7 +1309,7 @@ export default function Home() {
                   <Link
                     key={video.id}
                     href={`/watch/${video.cf_video_id}`}
-                    className="group flex flex-col overflow-hidden rounded-xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    className="group flex flex-col overflow-hidden rounded-3xl border border-neutral-100 bg-white shadow-[0_12px_34px_-20px_rgba(15,23,42,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_44px_-22px_rgba(15,23,42,0.45)]"
                   >
                     <div className="relative aspect-[16/9] w-full overflow-hidden">
                       <Image
@@ -1333,65 +1320,67 @@ export default function Home() {
                         )}
                         alt={video.title}
                         fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                        className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                       />
-                      {/* 左上角难度 Badge */}
-                      {video.difficulty && (
-                        <span
-                          className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${getDifficultyStyle(
-                            video.difficulty,
-                            'card'
-                          )}`}
-                        >
-                          {renderDifficultyLabel(video.difficulty)}
-                        </span>
-                      )}
-                      {/* 右上角已学习角标 */}
+                      {/* 海报遮罩：只为角标提供对比度，不在海报上堆文字 */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+
+                      {/* 已学完角标：保留在海报上，信息明确且不占位置 */}
                       {completedSet.has(video.id) && (
-                        <span className="absolute right-2 top-2 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
-                          已学完
+                        <span className="absolute right-3 top-3 inline-flex items-center rounded-full bg-black/35 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur">
+                          ✓ 已学完
                         </span>
                       )}
-                      {/* 右下角时长 Badge */}
-                      <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+
+                      {/* 时长：海报右下角 */}
+                      <span className="absolute bottom-3 right-3 rounded-full bg-black/35 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur">
                         {formatDuration(video.duration)}
                       </span>
                     </div>
-                    <div className="flex flex-1 flex-col justify-between gap-2 p-3">
-	                      <div className="space-y-1.5">
-	                        <h3 className="line-clamp-2 text-sm font-bold leading-tight text-slate-800">
-	                          {episodeNoById.get(video.id)
-	                            ? `第${episodeNoById.get(video.id)}期：${video.title}`
-	                            : video.title}
-	                        </h3>
-	                        {video.tags && video.tags.length > 0 && (
-	                          <div className="flex flex-wrap gap-1.5">
-	                            {video.tags.map(tag => (
-	                              <span
-	                                key={tag}
-	                                className="inline-flex max-w-full items-center rounded-md bg-[var(--color-brand-pink-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-brand-pink-text)]"
-	                              >
-	                                #{tag}
-	                              </span>
-	                            ))}
-	                          </div>
-	                        )}
-                        {video.author && (
-                          <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500">
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-600">
-                                {(video.author || '英')
-                                  .charAt(0)
-                                  .toUpperCase()}
-                              </div>
-                              <span>{video.author}</span>
+                    <div className="flex flex-1 flex-col gap-2 px-3 pb-3 pt-3">
+                      <h3 className="line-clamp-2 text-[13px] font-semibold leading-snug text-neutral-900">
+                        {episodeNoById.get(video.id)
+                          ? `第${episodeNoById.get(video.id)}期：${video.title}`
+                          : video.title}
+                      </h3>
+
+                      {video.tags && video.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {video.tags.slice(0, 2).map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex max-w-full items-center truncate rounded-full bg-neutral-50 px-2 py-1 text-[10px] font-semibold text-neutral-600"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                          {video.tags.length > 2 && (
+                            <span className="inline-flex items-center rounded-full bg-neutral-50 px-2 py-1 text-[10px] font-semibold text-neutral-500">
+                              +{video.tags.length - 2}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-neutral-500">
+                        {video.author ? (
+                          <div className="flex min-w-0 items-center gap-2">
+                            <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-700">
+                              {(video.author || '英').charAt(0).toUpperCase()}
                             </div>
-                            {/* 右侧观看数 */}
-                            <div className="flex items-center gap-1.5">
-                              <IconHeart />
-                              <span>{video.view_count ?? 0}</span>
-                            </div>
+                            <span className="truncate">{video.author}</span>
                           </div>
+                        ) : (
+                          <span className="text-neutral-400">沉浸式精读</span>
+                        )}
+                        {video.difficulty ? (
+                          <span className="flex-shrink-0 rounded-full bg-[var(--accent-soft)] px-2 py-1 text-[10px] font-semibold text-[var(--accent)]">
+                            {renderDifficultyLabel(video.difficulty)}
+                          </span>
+                        ) : (
+                          <span className="flex-shrink-0 text-[10px] text-neutral-400">
+                            进入精读
+                          </span>
                         )}
                       </div>
                     </div>
@@ -1424,48 +1413,58 @@ export default function Home() {
           />
 
           {/* 抽屉面板：使用 flex 布局，让中间内容区域成为真正的滚动容器 */}
-          <div className="relative mt-auto flex max-h-[80vh] w-full flex-col rounded-t-3xl bg-white px-4 pt-4 pb-3 shadow-lg">
-            {/* 顶部把手 + 标题行 */}
-            <div className="mb-3">
+          <div className="relative mt-auto flex max-h-[82vh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-[0_-16px_50px_rgba(15,23,42,0.18)]">
+            {/* 顶部柔光：更“小红书”的奶油质感 */}
+            <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[560px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(232,141,147,0.22),transparent_60%)]" />
+
+            {/* 顶部把手 + 标题 */}
+            <div className="relative px-4 pt-4">
               <div className="mb-2 flex justify-center">
                 <div className="h-1 w-10 rounded-full bg-neutral-200" />
               </div>
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-neutral-900">
-                  精细筛选
-                </h2>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-3 py-1 text-[12px] text-neutral-700"
-                  onClick={() => {
-                    setDifficultyFilter('all');
-                    setAuthorFilter('all');
-                    setStatusFilter('all');
-                    setSortOrder('hottest');
-                  }}
+              <button
+                type="button"
+                className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500"
+                aria-label="关闭筛选面板"
+                onClick={() => setIsFilterSheetOpen(false)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.8}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  <span>重置</span>
-                </button>
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+              <div className="pt-2">
+                <div className="inline-flex items-center gap-2 rounded-full border border-rose-100 bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold text-[var(--accent)]">
+                  今天想练哪种感觉？
+                </div>
+                <h2 className="mt-2 text-[18px] font-semibold leading-tight text-neutral-900">
+                  选 1 个主题 + 1 个难度就够了
+                </h2>
+                <p className="mt-1 text-[12px] leading-relaxed text-neutral-600">
+                  想快速见效：建议「只看未学」+「入门/进阶」。
+                </p>
               </div>
             </div>
 
-            <div className="flex-1 space-y-4 overflow-y-auto pb-24 text-[13px] text-neutral-800">
-              {/* 块 1：学习状态（未学 / 已学完 / 已收藏） */}
-              <div className="rounded-2xl border border-neutral-100 bg-white px-3 py-3">
+            <div className="relative flex-1 space-y-3 overflow-y-auto px-4 pb-24 pt-3 text-[13px] text-neutral-800">
+              {/* 学习状态 */}
+              <div className="rounded-3xl border border-neutral-100 bg-neutral-50/80 p-3 shadow-sm">
                 <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-semibold text-neutral-700">
-                      ✓
-                    </span>
-                    <span className="text-[12px] font-semibold text-neutral-900">
-                      按学习状态
-                    </span>
+                  <div className="text-[12px] font-semibold text-neutral-900">
+                    学习状态
                   </div>
                   <span className="text-[11px] text-neutral-500">
-                    只看你现在想刷的那几集
+                    只看你现在想刷的
                   </span>
                 </div>
-                <div className="mt-1 flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   {[
                     { value: 'unlearned' as StatusFilter, label: '未学' },
                     { value: 'completed' as StatusFilter, label: '已学完' },
@@ -1478,12 +1477,12 @@ export default function Home() {
                       <button
                         key={option.value}
                         type="button"
-                        className={`flex-1 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                        className={`flex-1 rounded-full border px-3 py-2 text-[12px] font-semibold transition-colors ${
                           disabled
-                            ? 'border-neutral-100 bg-neutral-50 text-neutral-300 cursor-not-allowed'
+                            ? 'border-neutral-100 bg-white/70 text-neutral-300 cursor-not-allowed'
                             : active
                             ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm shadow-black/15'
-                            : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
+                            : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
                         }`}
                         onClick={() => {
                           if (disabled) {
@@ -1502,75 +1501,85 @@ export default function Home() {
                     );
                   })}
                 </div>
+                {statusFilter === 'favorited' && !user?.email && (
+                  <p className="mt-2 text-[11px] text-neutral-400">
+                    登录后可用：收藏筛选更适合反复练同一批句子。
+                  </p>
+                )}
               </div>
 
-              {/* 块 2：按难度 */}
-              <div className="rounded-2xl border border-neutral-100 bg-white px-3 py-3">
+              {/* 难度 */}
+              <div className="rounded-3xl border border-neutral-100 bg-white p-3 shadow-sm">
                 <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-semibold text-neutral-700">
-                      Lv
-                    </span>
-                    <span className="text-[12px] font-semibold text-neutral-900">
-                      按难度
-                    </span>
+                  <div className="text-[12px] font-semibold text-neutral-900">
+                    难度
                   </div>
                   <button
                     type="button"
-                    className="text-[11px] text-neutral-500 underline-offset-2 hover:text-neutral-800 hover:underline"
+                    className="text-[11px] font-medium text-neutral-500 underline-offset-2 hover:text-neutral-800 hover:underline"
                     onClick={() => setDifficultyFilter('all')}
                   >
-                    全部难度
+                    清除
                   </button>
                 </div>
-                <div className="mt-1 flex items-center gap-2">
-                  {(['easy', 'medium', 'hard'] as DifficultyFilter[]).map(
-                    level => {
-                      const labelMap: Record<DifficultyFilter, string> = {
-                        all: '全部',
-                        easy: '入门',
-                        medium: '进阶',
-                        hard: '大师'
-                      };
-                      const isActive = difficultyFilter === level;
+                <div className="rounded-full bg-neutral-100 p-1">
+                  <div className="grid grid-cols-3 gap-1">
+                    {(
+                      [
+                        { value: 'easy' as DifficultyFilter, label: '入门' },
+                        { value: 'medium' as DifficultyFilter, label: '进阶' },
+                        { value: 'hard' as DifficultyFilter, label: '大师' }
+                      ] satisfies { value: DifficultyFilter; label: string }[]
+                    ).map(opt => {
+                      const active = difficultyFilter === opt.value;
                       return (
                         <button
-                          key={level}
+                          key={opt.value}
                           type="button"
-                          className={`flex-1 rounded-full border px-3 py-1.5 text-[12px] transition-colors ${
-                            isActive
-                              ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm shadow-black/15'
-                              : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
+                          className={`rounded-full py-2 text-[12px] font-semibold transition-all ${
+                            active
+                              ? 'bg-white text-neutral-900 shadow-sm'
+                              : 'text-neutral-500'
                           }`}
-                          onClick={() => setDifficultyFilter(level)}
+                          onClick={() =>
+                            setDifficultyFilter(prev =>
+                              prev === opt.value ? 'all' : opt.value
+                            )
+                          }
                         >
-                          {labelMap[level]}
+                          {opt.label}
                         </button>
                       );
-                    }
-                  )}
+                    })}
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-neutral-500">
+                  <span className="rounded-full bg-neutral-50 px-2.5 py-1">
+                    入门：听得懂就能跟
+                  </span>
+                  <span className="rounded-full bg-neutral-50 px-2.5 py-1">
+                    进阶：更接近日常语速
+                  </span>
+                  <span className="rounded-full bg-neutral-50 px-2.5 py-1">
+                    大师：表达更密集更地道
+                  </span>
                 </div>
               </div>
 
-              {/* 块 3：按内容（作者） */}
-              <div className="rounded-2xl border border-neutral-100 bg-white px-3 py-3">
+              {/* 作者（可选） */}
+              <div className="rounded-3xl border border-neutral-100 bg-neutral-50/80 p-3 shadow-sm">
                 <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-semibold text-neutral-700">
-                      #
-                    </span>
-                    <span className="text-[12px] font-semibold text-neutral-900">
-                      按内容
-                    </span>
+                  <div className="text-[12px] font-semibold text-neutral-900">
+                    作者（可选）
                   </div>
                   {authorOptions.length > 6 && (
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 text-[11px] text-neutral-500 hover:text-neutral-800"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-neutral-500 hover:text-neutral-800"
                       onClick={() => setShowAllAuthors(v => !v)}
                     >
                       <span>
-                        {showAllAuthors ? '收起作者' : '更多作者'}
+                        {showAllAuthors ? '收起' : '更多'}
                       </span>
                       <svg
                         className={`h-3 w-3 transform transition-transform ${
@@ -1588,89 +1597,91 @@ export default function Home() {
                     </button>
                   )}
                 </div>
-                <div className="mb-2">
-                  <div className="mb-1 text-[11px] text-neutral-500">
-                    作者
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] ${
-                        authorFilter === 'all'
-                          ? 'border-neutral-900 bg-neutral-900 text-white'
-                          : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
-                      }`}
-                      onClick={() => setAuthorFilter('all')}
-                    >
-                      <span className="h-5 w-5 rounded-full bg-neutral-200" />
-                      <span>全部</span>
-                    </button>
-                    {(showAllAuthors
-                      ? authorOptions
-                      : authorOptions.slice(0, 6)
-                    ).map(name => {
+                <div className="no-scrollbar flex flex-wrap gap-2 overflow-x-auto pb-1">
+                  <button
+                    type="button"
+                    className={`flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-semibold ${
+                      authorFilter === 'all'
+                        ? 'border-neutral-900 bg-neutral-900 text-white'
+                        : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
+                    }`}
+                    onClick={() => setAuthorFilter('all')}
+                  >
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-[10px] font-semibold text-neutral-700">
+                      All
+                    </span>
+                    <span>全部</span>
+                  </button>
+                  {(showAllAuthors ? authorOptions : authorOptions.slice(0, 6)).map(
+                    name => {
                       const isActive = authorFilter === name;
                       return (
                         <button
                           key={name}
                           type="button"
-                          className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] ${
+                          className={`flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-semibold ${
                             isActive
                               ? 'border-neutral-900 bg-neutral-900 text-white'
-                              : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
+                              : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
                           }`}
                           onClick={() => setAuthorFilter(name)}
                         >
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-[10px]">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-[10px] font-semibold text-neutral-700">
                             {name.charAt(0).toUpperCase()}
                           </span>
                           <span>{name}</span>
                         </button>
                       );
-                    })}
+                    }
+                  )}
+                </div>
+              </div>
+
+              {/* 排序 */}
+              <div className="rounded-3xl border border-neutral-100 bg-white p-3 shadow-sm">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="text-[12px] font-semibold text-neutral-900">
+                    排序
+                  </div>
+                  <span className="text-[11px] text-neutral-500">
+                    默认最热更好刷
+                  </span>
+                </div>
+                <div className="rounded-full bg-neutral-100 p-1">
+                  <div className="grid grid-cols-2 gap-1">
+                    <button
+                      type="button"
+                      className={`rounded-full py-2 text-[12px] font-semibold transition-all ${
+                        sortOrder === 'hottest'
+                          ? 'bg-white text-neutral-900 shadow-sm'
+                          : 'text-neutral-500'
+                      }`}
+                      onClick={() => setSortOrder('hottest')}
+                    >
+                      最热
+                    </button>
+                    <button
+                      type="button"
+                      className={`rounded-full py-2 text-[12px] font-semibold transition-all ${
+                        sortOrder === 'latest'
+                          ? 'bg-white text-neutral-900 shadow-sm'
+                          : 'text-neutral-500'
+                      }`}
+                      onClick={() => setSortOrder('latest')}
+                    >
+                      最新
+                    </button>
                   </div>
                 </div>
               </div>
 
-              {/* 块 4：排序 */}
-              <div className="rounded-2xl border border-neutral-100 bg-white px-3 py-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-semibold text-neutral-700">
-                      ↕
-                    </span>
-                    <span className="text-[12px] font-semibold text-neutral-900">
-                      排序
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-neutral-500">
-                    默认按最热门
-                  </span>
+              <div className="rounded-3xl border border-rose-100 bg-[var(--accent-soft)]/80 p-3 text-[12px] text-neutral-700">
+                <div className="text-[11px] font-semibold text-[var(--accent)]">
+                  小提示
                 </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <button
-                    type="button"
-                    className={`flex-1 rounded-full border px-3 py-1.5 text-[12px] font-medium ${
-                      sortOrder === 'hottest'
-                        ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm shadow-black/15'
-                        : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
-                    }`}
-                    onClick={() => setSortOrder('hottest')}
-                  >
-                    最热优先
-                  </button>
-                  <button
-                    type="button"
-                    className={`flex-1 rounded-full border px-3 py-1.5 text-[12px] font-medium ${
-                      sortOrder === 'latest'
-                        ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm shadow-black/15'
-                        : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
-                    }`}
-                    onClick={() => setSortOrder('latest')}
-                  >
-                    最新优先
-                  </button>
-                </div>
+                <p className="mt-1 leading-relaxed">
+                  想更快提升口语：每次只练 3～5 句。先单句循环听顺，再点麦克风跟读 2 遍。
+                </p>
               </div>
             </div>
 
@@ -1679,7 +1690,7 @@ export default function Home() {
               <div className="flex items-center justify-between gap-3">
                 <button
                   type="button"
-                  className="pointer-events-auto rounded-full border border-neutral-200 bg-neutral-50 px-4 py-1.5 text-[12px] text-neutral-700"
+                  className="pointer-events-auto rounded-full border border-neutral-200 bg-white px-4 py-2 text-[12px] font-semibold text-neutral-700"
                   onClick={() => {
                     setDifficultyFilter('all');
                     setAuthorFilter('all');
@@ -1687,14 +1698,14 @@ export default function Home() {
                     setSortOrder('hottest');
                   }}
                 >
-                  重置全部
+                  重置
                 </button>
                 <button
                   type="button"
-                  className="pointer-events-auto flex-1 rounded-full bg-[var(--accent)] py-2.5 text-center text-[13px] font-semibold text-white shadow-[0_10px_30px_rgba(255,36,66,0.55)] active:scale-95"
+                  className="pointer-events-auto flex-1 rounded-full bg-neutral-900 py-2.5 text-center text-[13px] font-semibold text-white shadow-[0_14px_34px_-18px_rgba(15,23,42,0.6)] active:scale-95"
                   onClick={() => setIsFilterSheetOpen(false)}
                 >
-                  应用筛选 ({filteredVideos.length})
+                  查看结果（{filteredVideos.length}）
                 </button>
               </div>
             </div>
@@ -1760,47 +1771,49 @@ export default function Home() {
       {/*  </nav>*/}
       {/*)}*/}
 
-      {/* 移动端学习数据浮动按钮：仅在首页列表空闲时显示 */}
-      {!isFilterSheetOpen &&
-        !isStatsSheetOpen &&
-        !isNotificationSheetOpen && (
-          <button
-            type="button"
-            className="fixed bottom-5 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-white/80 bg-white/95 text-[var(--accent)] shadow-[0_10px_25px_rgba(15,23,42,0.18)] md:hidden"
-            aria-label="查看学习数据"
-            onClick={() => setIsStatsSheetOpen(true)}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.6}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3.5" y="4.5" width="17" height="14" rx="3" />
-              <path d="M7 14.5 10.5 11l3 2 3.5-4" />
-              <path d="M8 8.5h0.01" />
-              <path d="M11.5 8.5h0.01" />
-              <path d="M15 8.5h0.01" />
-            </svg>
-          </button>
-        )}
+	      {/* 移动端学习数据浮动按钮：仅在首页列表空闲时显示 */}
+	      {user?.email &&
+	        !isFilterSheetOpen &&
+	        !isStatsSheetOpen &&
+	        !isNotificationSheetOpen && (
+	          <button
+	            type="button"
+	            className="fixed bottom-5 right-4 z-40 flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-3 py-2 shadow-[0_14px_40px_-22px_rgba(15,23,42,0.6)] backdrop-blur md:hidden"
+	            aria-label="查看学习打卡"
+	            onClick={() => setIsStatsSheetOpen(true)}
+	          >
+	            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm">
+	              <span className="text-[14px] font-semibold leading-none">
+	                {studyDates.length}
+	              </span>
+	            </div>
+	            <div className="flex flex-col items-start leading-tight">
+	              <span className="text-[10px] text-neutral-500">
+	                {hasStudyToday ? '今天已打卡' : '今天还没打卡'}
+	              </span>
+	              <span className="text-[12px] font-semibold text-neutral-900">
+	                本月 {studyDates.length} 天
+	              </span>
+	            </div>
+	          </button>
+	        )}
 
 	      {/* 移动端学习数据 Bottom Sheet：样式对齐 PC 端 My progress 卡片 */}
-      {isStatsSheetOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-black/40 md:hidden">
-          <button
+	      {isStatsSheetOpen && (
+	        <div className="fixed inset-0 z-50 flex flex-col bg-black/40 md:hidden">
+	          <button
             type="button"
             className="flex-1"
             onClick={() => setIsStatsSheetOpen(false)}
           />
-          <div className="relative mt-auto max-h-[80vh] w-full rounded-t-3xl bg-white px-4 pb-4 pt-3 shadow-lg">
-            {/* 顶部增加常见 Bottom Sheet 把手 + 标题行，视觉更完整 */}
-            <div className="mb-2 flex justify-center">
-              <div className="h-1 w-10 rounded-full bg-neutral-200" />
-            </div>
+	          <div className="relative mt-auto max-h-[82vh] w-full overflow-hidden rounded-t-[28px] bg-white px-4 pb-4 pt-3 shadow-[0_-16px_50px_rgba(15,23,42,0.18)]">
+	            {/* 顶部柔光：温柔一点的“打卡氛围” */}
+	            <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[560px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(232,141,147,0.22),transparent_60%)]" />
+
+	            {/* 顶部增加常见 Bottom Sheet 把手 + 标题行，视觉更完整 */}
+	            <div className="mb-2 flex justify-center">
+	              <div className="h-1 w-10 rounded-full bg-neutral-200" />
+	            </div>
             <button
               type="button"
               className="absolute right-4 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-[11px] text-neutral-500"
@@ -1819,80 +1832,124 @@ export default function Home() {
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
             </button>
-            <div className="space-y-4 overflow-y-auto text-xs">
-              <div className="flex flex-col justify-between rounded-3xl border border-stone-100 bg-white p-5 text-[11px] text-neutral-700 shadow-sm">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
-                        My progress
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-neutral-900">
-                        {learnedCount > 0 ? '你已经在路上了' : '从这一集开始也不晚'}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end text-[10px] text-neutral-500">
-                      <span>本月已打卡</span>
-                      <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-neutral-800">
-                        <IconFlame />
-                        <span>{studyDates.length} 天</span>
-                      </span>
-                    </div>
-                  </div>
+	            <div className="relative space-y-3 overflow-y-auto pb-2 text-xs">
+	              {/* 1) 主成就卡：先给情绪奖励 */}
+	              <div className="rounded-3xl border border-rose-100 bg-[linear-gradient(180deg,rgba(252,238,239,0.95),rgba(255,255,255,0.96))] p-5 shadow-sm">
+	                <div className="flex items-start justify-between gap-3">
+	                  <div>
+	                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+	                      Check-in
+	                    </div>
+	                    <div className="mt-2 text-[13px] font-semibold text-neutral-900">
+	                      {hasStudyToday ? '今天已打卡，继续保持～' : '今天还没打卡，练 3 句就够'}
+	                    </div>
+	                  </div>
+	                  <div className="flex flex-col items-end">
+	                    <span className="text-[10px] text-neutral-500">本月</span>
+	                    <div className="mt-1 flex items-end gap-1 text-neutral-900">
+	                      <span className="text-3xl font-semibold leading-none">
+	                        {studyDates.length}
+	                      </span>
+	                      <span className="pb-[2px] text-[12px] font-semibold">
+	                        天
+	                      </span>
+	                    </div>
+	                  </div>
+	                </div>
+	                <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+	                  <span className="inline-flex items-center gap-1 rounded-full border border-white/70 bg-white/70 px-2.5 py-1 font-semibold text-neutral-700">
+	                    <IconFlame />
+	                    连续 {currentStreak} 天
+	                  </span>
+	                  <span className="inline-flex items-center rounded-full border border-white/70 bg-white/70 px-2.5 py-1 font-medium text-neutral-600">
+	                    {currentYear} 年 {currentMonth + 1} 月
+	                  </span>
+	                </div>
+	              </div>
 
-                  {/* 月度打卡热力图：7 列 x N 行的小圆点矩阵 */}
-                  <div className="mt-4">
-                    <div className="mb-1 text-[11px] text-neutral-500">
-                      {currentYear} 年 {currentMonth + 1} 月
-                    </div>
-                    <div className="grid grid-cols-7 gap-1.5">
-                      {calendarSlots.map(day => {
-                        const isActive = activeDayNumbers.has(day);
-                        return (
-                          <div
-                            key={day}
-                            className={`h-3 w-3 rounded-full ${
-                              isActive
-                                ? 'bg-[#FF2442] shadow-[0_0_8px_rgba(255,36,66,0.6)]'
-                                : 'bg-stone-200'
-                            }`}
-                          />
-                        );
-                      })}
-                    </div>
-                    <p className="mt-2 text-[11px] text-neutral-500">
-                      {studyDates.length >= 3
-                        ? '状态在线，别让打卡断掉～'
-                        : '从今天开始打卡一小集，也是一种进步。'}
-                    </p>
-                  </div>
-                </div>
+	              {/* 2) 今日建议：把“下一步”讲清楚 */}
+	              <div className="rounded-3xl border border-neutral-100 bg-white p-4 shadow-sm">
+	                <div className="flex items-center justify-between gap-3">
+	                  <div className="text-[12px] font-semibold text-neutral-900">
+	                    今日建议
+	                  </div>
+	                  <span className="rounded-full bg-neutral-50 px-2.5 py-1 text-[10px] font-semibold text-neutral-600">
+	                    3 分钟
+	                  </span>
+	                </div>
+	                <ol className="mt-2 list-decimal space-y-1 pl-4 text-[11px] leading-relaxed text-neutral-600">
+	                  <li>选一集你喜欢的素材，先听一遍找感觉。</li>
+	                  <li>点字幕跳回原句，开「单句循环」听顺。</li>
+	                  <li>点「麦克风」跟读：录音→停止→回放，重复 2 遍。</li>
+	                </ol>
+	                {heroVideo && (
+	                  <Link
+	                    href={`/watch/${heroVideo.cf_video_id}`}
+	                    className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-neutral-900 px-4 py-2 text-[12px] font-semibold text-white shadow-[0_14px_34px_-18px_rgba(15,23,42,0.6)] active:scale-95"
+	                    onClick={() => setIsStatsSheetOpen(false)}
+	                  >
+	                    去练一集（今日精选）
+	                  </Link>
+	                )}
+	              </div>
 
-                {/* 素材库进度条：已学 / 总库 */}
-                <div className="mt-5 border-t border-neutral-100 pt-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[11px] font-medium text-neutral-600">
-                      素材库进度
-                    </span>
-                    <span className="text-[11px] text-neutral-500">
-                      {progressPercent}%
-                    </span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-stone-100">
-                    <div
-                      className="h-2 rounded-full bg-neutral-900"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
-                  <p className="mt-2 text-[11px] text-neutral-500">
-                    已学 {learnedCount} / {totalVideosCount} 期
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+	              {/* 3) 月度打卡：保留热力图，但更温柔 */}
+	              <div className="rounded-3xl border border-neutral-100 bg-white p-4 shadow-sm">
+	                <div className="flex items-center justify-between">
+	                  <div className="text-[12px] font-semibold text-neutral-900">
+	                    本月打卡
+	                  </div>
+	                  <span className="text-[11px] text-neutral-500">
+	                    今天：{hasStudyToday ? '已打卡' : '未打卡'}
+	                  </span>
+	                </div>
+	                <div className="mt-3 grid grid-cols-7 gap-1.5">
+	                  {calendarSlots.map(day => {
+	                    const isActive = activeDayNumbers.has(day);
+	                    const isToday = day === todayDayNumber;
+	                    return (
+	                      <div
+	                        key={day}
+	                        className={`h-3 w-3 rounded-full ${
+	                          isActive
+	                            ? 'bg-[var(--accent)] shadow-[0_0_10px_rgba(232,141,147,0.55)]'
+	                            : 'bg-neutral-200'
+	                        } ${isToday ? 'ring-2 ring-black/10 ring-offset-2 ring-offset-white' : ''}`}
+	                      />
+	                    );
+	                  })}
+	                </div>
+	                <p className="mt-2 text-[11px] text-neutral-500">
+	                  {studyDates.length >= 3
+	                    ? '状态在线，别让打卡断掉～'
+	                    : '从今天开始打卡一小集，也是一种进步。'}
+	                </p>
+	              </div>
+
+	              {/* 4) 素材库进度：保留但更“生活方式”一点 */}
+	              <div className="rounded-3xl border border-neutral-100 bg-white p-4 shadow-sm">
+	                <div className="flex items-center justify-between">
+	                  <div className="text-[12px] font-semibold text-neutral-900">
+	                    素材库进度
+	                  </div>
+	                  <span className="text-[11px] text-neutral-500">
+	                    {progressPercent}%
+	                  </span>
+	                </div>
+	                <div className="mt-2 h-2.5 w-full rounded-full bg-neutral-100">
+	                  <div
+	                    className="h-2.5 rounded-full bg-neutral-900"
+	                    style={{ width: `${progressPercent}%` }}
+	                  />
+	                </div>
+	                <p className="mt-2 text-[11px] text-neutral-500">
+	                  已学 {learnedCount} / {totalVideosCount} 期
+	                </p>
+	              </div>
+	            </div>
+	          </div>
+	        </div>
+	      )}
 
 	      {/* 官方通知 / 反馈 / 使用指南面板：从顶部下拉，贴近导航区域（移动端 + PC 复用） */}
 	      {isNotificationSheetOpen && (
