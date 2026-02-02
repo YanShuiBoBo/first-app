@@ -84,7 +84,8 @@ class VideoUploader:
     @retry(tries=3, delay=2)
     def finalize_upload(self, cf_video_id: str, title: str,
                         duration: float, poster: str,
-                        subtitles: list, cards: list):
+                        subtitles: list, cards: list,
+                        description: str | None = None):
         """步骤 4: 提交元数据"""
         print("💾 正在保存元数据到数据库...")
 
@@ -93,7 +94,8 @@ class VideoUploader:
             'meta': {
                 'title': title,
                 'poster': poster,
-                'duration': duration
+                'duration': duration,
+                'description': description
             },
             'subtitles': subtitles,
             'cards': cards
@@ -384,6 +386,8 @@ def cut_clip(src: Path, start: float, end: float, out_path: Path):
     ]
     try:
         subprocess.run(cmd_fast, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if not out_path.is_file():
+            raise RuntimeError(f"切片失败，未生成文件: {out_path}")
         return
     except subprocess.CalledProcessError:
         pass
@@ -400,6 +404,8 @@ def cut_clip(src: Path, start: float, end: float, out_path: Path):
         str(out_path)
     ]
     subprocess.run(cmd_precise, check=True)
+    if not out_path.is_file():
+        raise RuntimeError(f"切片失败，未生成文件: {out_path}")
 
 
 def main():
@@ -468,6 +474,8 @@ def main():
                 subtitle_result = generate_translations_and_cards(sub_slice)
 
                 duration = seg_end - seg_start
+                reason_text = str(seg.get('reason') or '').strip()
+                desc = f"片段亮点：{reason_text}" if reason_text else None
 
                 # Step 6: 提交元数据
                 final_result = uploader.finalize_upload(
@@ -476,7 +484,8 @@ def main():
                     duration=duration,
                     poster=f"https://videodelivery.net/{upload_data['uid']}/thumbnails/thumbnail.jpg",
                     subtitles=subtitle_result['subtitles'],
-                    cards=subtitle_result['cards']
+                    cards=subtitle_result['cards'],
+                    description=desc
                 )
 
                 print(f"✅ 片段 {idx} 上传完成，视频 ID: {final_result['video_id']}")

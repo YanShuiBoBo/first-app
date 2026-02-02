@@ -270,7 +270,7 @@ def _call_deepseek_for_chunk(
     # 先做一层简单的字符串级清洗，修正部分字段（如 response_guide）缺少引号的问题
     raw_text = _sanitize_deepseek_response(raw_text)
 
-    print(f"{raw_text}")
+    # print(f"{raw_text}")
 
     try:
       # 先尝试直接解析

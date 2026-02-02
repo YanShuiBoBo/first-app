@@ -572,7 +572,7 @@ D. 可做精读：有清晰的小主题/小冲突/小结论（像一段完整的
     ],
   }
 
-  raw = call_deepseek_chat(system_prompt, user_payload, temperature=0.35)
+  raw = call_deepseek_chat(system_prompt, user_payload,model = "deepseek-reasoner",temperature=0.35)
 
   def _parse(raw_text: str) -> Dict[str, Any]:
     try:
@@ -901,6 +901,8 @@ def cut_clip(src: Path, start: float, end: float, out_path: Path) -> None:
   ]
   try:
     subprocess.run(cmd_fast, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if not out_path.is_file():
+      raise RuntimeError(f"切片失败，未生成文件: {out_path}")
     return
   except subprocess.CalledProcessError:
     pass
@@ -925,6 +927,9 @@ def cut_clip(src: Path, start: float, end: float, out_path: Path) -> None:
     str(out_path),
   ]
   subprocess.run(cmd_precise, check=True)
+
+  if not out_path.is_file():
+    raise RuntimeError(f"切片失败，未生成文件: {out_path}")
 
 
 def process_dir(
@@ -1012,6 +1017,8 @@ def process_dir(
   print(f"  -> 选中 {len(segments)} 个片段，将逐段处理上传")
 
   upload_records: List[Dict[str, str]] = []
+  clip_dir = dir_path / ".clips_tmp"
+  clip_dir.mkdir(parents=True, exist_ok=True)
 
   for idx, seg in enumerate(segments, 1):
     print("-" * 50)
@@ -1029,76 +1036,74 @@ def process_dir(
     )
 
     # Step 7: 先切片（画质不变），再对片段做 ASR，保证字幕与片段时间轴精准对齐
-    with tempfile.TemporaryDirectory() as td:
-      clip_path = Path(td) / f"clip_{idx}.mp4"
-      cut_clip(video_path, seg_start, seg_end, clip_path)
+    clip_path = clip_dir / f"{dir_path.name}_clip_{idx}.mp4"
+    cut_clip(video_path, seg_start, seg_end, clip_path)
+    if not clip_path.is_file():
+      raise RuntimeError(f"切片文件未生成: {clip_path}")
+    print(f"  -> 切片完成：{clip_path} ({clip_path.stat().st_size/1024/1024:.2f} MB)")
 
-      clip_title = (title or "无标题") + f" - 片段{idx}"
+    clip_title = (title or "无标题") + f" - 片段{idx}"
 
-      if clip_asr:
-        from asr_whisper import generate_subtitles_from_audio
+    if clip_asr:
+      from asr_whisper import generate_subtitles_from_audio
 
-        print("Step 7: 使用 Whisper (stable-ts) 对片段生成英文字幕骨架...")
-        clip_subtitles = generate_subtitles_from_audio(
-          clip_path,
-          model_size=asr_model,
-          language="en",
-        )
+    if clip_asr:
+      from asr_whisper import generate_subtitles_from_audio
+
+      print("Step 7: 使用 Whisper (stable-ts) 对片段生成英文字幕骨架...")
+      clip_subtitles = generate_subtitles_from_audio(
+        clip_path,
+        model_size=asr_model,
+        language="en",
+      )
+      print(f"  -> 片段 ASR 完成，字幕行数: {len(clip_subtitles)}")
+    else:
+      print("Step 7: 使用原视频字幕切片作为片段英文字幕骨架（可能存在时间偏移）...")
+      clip_subtitles = slice_subtitles_for_segment(skeleton_subtitles, seg_start, seg_end)
+
+    if not clip_subtitles:
+      print("  -> 片段字幕骨架为空，跳过")
+      continue
+
+    skeleton_clip = build_skeleton_json(title=clip_title, author=author, subtitles=clip_subtitles)
+
+    # Step 8: 调用 DeepSeek 生成片段翻译 + 知识卡片
+    print("Step 8: 调用 DeepSeek 生成片段翻译 + 知识卡片...")
+    llm_output = annotate_subtitles(skeleton_clip)
+
+    # Step 9: 校验与合并
+    print("Step 9: 校验并规整片段数据结构...")
+    merged = validate_and_merge(skeleton_clip, llm_output)
+    meta_clean = merged["meta"]
+    subtitles_clean = merged["subtitles"]
+    knowledge_clean = merged["knowledge"]
+
+    # 将选段理由写入简介，便于后续小红书笔记快速引用“话题+口语亮点”
+    reason_text = str(seg.get("reason") or "").strip()
+    if reason_text:
+      extra_note = f"片段亮点：{reason_text}"
+      if meta_clean.get("description"):
+        meta_clean["description"] = f"{meta_clean['description']}\n{extra_note}"
       else:
-        print("Step 7: 使用原视频字幕切片作为片段英文字幕骨架（可能存在时间偏移）...")
-        clip_subtitles = slice_subtitles_for_segment(skeleton_subtitles, seg_start, seg_end)
+        meta_clean["description"] = extra_note
 
-      if not clip_subtitles:
-        print("  -> 片段字幕骨架为空，跳过")
-        continue
+    print("  -> 片段摘要：")
+    print(f"     标题: {meta_clean['title']}")
+    print(f"     字幕行数: {len(subtitles_clean)}, 知识卡片数: {len(knowledge_clean)}")
 
-      skeleton_clip = build_skeleton_json(title=clip_title, author=author, subtitles=clip_subtitles)
+    # dry-run 模式：仅输出 payload，不真正导入
+    duration_guess = float(seg_end - seg_start)
+    cf_meta = {"duration": duration_guess, "poster": None}
 
-      # Step 8: 调用 DeepSeek 生成片段翻译 + 知识卡片
-      print("Step 8: 调用 DeepSeek 生成片段翻译 + 知识卡片...")
-      llm_output = annotate_subtitles(skeleton_clip)
-
-      # Step 9: 校验与合并
-      print("Step 9: 校验并规整片段数据结构...")
-      merged = validate_and_merge(skeleton_clip, llm_output)
-      meta_clean = merged["meta"]
-      subtitles_clean = merged["subtitles"]
-      knowledge_clean = merged["knowledge"]
-
-      print("  -> 片段摘要：")
-      print(f"     标题: {meta_clean['title']}")
-      print(f"     字幕行数: {len(subtitles_clean)}, 知识卡片数: {len(knowledge_clean)}")
-
-      # dry-run 模式：仅输出 payload，不真正导入
-      duration_guess = float(seg_end - seg_start)
-      cf_meta = {"duration": duration_guess, "poster": None}
-
-      # 片段封面策略：
-      # - 第一个片段：使用目录下上传的封面图（poster_url / cover_image_id）
-      # - 后续片段：不传封面图字段，走 Cloudflare 返回的 thumbnail/preview
-      seg_poster_url = poster_url if idx == 1 else None
-      seg_cover_image_id = cover_image_id if idx == 1 else None
-      if dry_run:
-        print("Step 10: dry-run 模式，仅构造 payload，不上传视频/不入库")
-        payload = build_finalize_payload(
-          cf_video_id=f"DRY_RUN_CF_ID_{idx}",
-          meta_from_llm={"meta": meta_clean},
-          subtitles=subtitles_clean,
-          knowledge=knowledge_clean,
-          cf_meta=cf_meta,
-          poster_url=seg_poster_url,
-          cover_image_id=seg_cover_image_id,
-        )
-        debug_pretty_print(payload)
-        continue
-
-      # Step 10: 上传片段到 Cloudflare，并用 Cloudflare 的元信息（duration/poster）覆盖
-      upload_info = init_upload()
-      upload_to_cloudflare(upload_info["uploadUrl"], clip_path)
-      cf_meta = fetch_cf_metadata(upload_info["uid"])
-
+    # 片段封面策略：
+    # - 第一个片段：使用目录下上传的封面图（poster_url / cover_image_id）
+    # - 后续片段：不传封面图字段，走 Cloudflare 返回的 thumbnail/preview
+    seg_poster_url = poster_url if idx == 1 else None
+    seg_cover_image_id = cover_image_id if idx == 1 else None
+    if dry_run:
+      print("Step 10: dry-run 模式，仅构造 payload，不上传视频/不入库")
       payload = build_finalize_payload(
-        cf_video_id=upload_info["uid"],
+        cf_video_id=f"DRY_RUN_CF_ID_{idx}",
         meta_from_llm={"meta": meta_clean},
         subtitles=subtitles_clean,
         knowledge=knowledge_clean,
@@ -1106,10 +1111,30 @@ def process_dir(
         poster_url=seg_poster_url,
         cover_image_id=seg_cover_image_id,
       )
+      debug_pretty_print(payload)
+      continue
 
-      result = finalize_upload(payload)
-      upload_records.append({"cf_video_id": upload_info["uid"], "video_id": result["video_id"]})
-      print(f"✅ 片段 {idx} 上传完成，video_id={result['video_id']}")
+    # Step 10: 上传片段到 Cloudflare，并用 Cloudflare 的元信息（duration/poster）覆盖
+    if not clip_path.is_file():
+      raise RuntimeError(f"切片文件在上传前不存在: {clip_path}")
+    print(f"Step 10: 准备上传片段，路径={clip_path}, 大小约 {clip_path.stat().st_size/1024/1024:.2f} MB")
+    upload_info = init_upload()
+    upload_to_cloudflare(upload_info["uploadUrl"], clip_path)
+    cf_meta = fetch_cf_metadata(upload_info["uid"])
+
+    payload = build_finalize_payload(
+      cf_video_id=upload_info["uid"],
+      meta_from_llm={"meta": meta_clean},
+      subtitles=subtitles_clean,
+      knowledge=knowledge_clean,
+      cf_meta=cf_meta,
+      poster_url=seg_poster_url,
+      cover_image_id=seg_cover_image_id,
+    )
+
+    result = finalize_upload(payload)
+    upload_records.append({"cf_video_id": upload_info["uid"], "video_id": result["video_id"]})
+    print(f"✅ 片段 {idx} 上传完成，video_id={result['video_id']}")
 
   if upload_records and not dry_run:
     mark_done(dir_path, upload_records)
