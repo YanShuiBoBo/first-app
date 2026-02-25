@@ -138,6 +138,8 @@ export default function Home() {
   const [notificationMode, setNotificationMode] = useState<
     'notices' | 'feedback'
   >('notices');
+  // 用于在客户端获取本地时间，避免 SSR 与客户端时区不一致引发 hydration 报错
+  const [clientNow, setClientNow] = useState<Date | null>(null);
 
   // PC 端筛选区：控制“更多筛选”抽屉的展开 / 收起
   const [isDesktopFilterExpanded, setIsDesktopFilterExpanded] =
@@ -207,6 +209,11 @@ export default function Home() {
   useEffect(() => {
     const client = createBrowserClient();
     setSupabase(client);
+  }, []);
+
+  // 首次挂载时获取客户端当前时间（时区以用户设备为准）
+  useEffect(() => {
+    setClientNow(new Date());
   }, []);
 
   // 切换账号时重置 onboarding 加载状态（避免 A 用户的缓存影响 B 用户）
@@ -486,11 +493,16 @@ export default function Home() {
       : 0;
 
   // 月度打卡视图所需数据：当前年月 + 当月天数 + 当月打卡日集合
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth(); // 0-based
-  const todayDayNumber = today.getDate();
-  const daysInMonth = new Date(currentMonth === 11 ? currentYear + 1 : currentYear, (currentMonth + 1) % 12, 0).getDate();
+  const currentYear = clientNow?.getFullYear() ?? 2024;
+  const currentMonth = clientNow?.getMonth() ?? 0; // 0-based
+  const todayDayNumber = clientNow?.getDate() ?? 0;
+  const daysInMonth = clientNow
+    ? new Date(
+        currentMonth === 11 ? currentYear + 1 : currentYear,
+        (currentMonth + 1) % 12,
+        0
+      ).getDate()
+    : 31;
 
   const activeDayNumbers = new Set(
     studyDates
@@ -515,17 +527,17 @@ export default function Home() {
   };
 
   const studyDateSet = useMemo(() => new Set(studyDates), [studyDates]);
-  const todayKey = formatLocalDateKey(new Date());
-  const hasStudyToday = studyDateSet.has(todayKey);
+  const todayKey = clientNow ? formatLocalDateKey(clientNow) : '';
+  const hasStudyToday = clientNow ? studyDateSet.has(todayKey) : false;
 
   // 连续打卡：若今天未打卡，则从昨天开始计算“最近连续 X 天”，避免用户被 0 直接劝退
   const currentStreak = useMemo(() => {
-    if (studyDates.length === 0) return 0;
+    if (!clientNow || studyDates.length === 0) return 0;
 
     const anchorOffset = hasStudyToday ? 0 : 1;
     let streak = 0;
     for (let offset = anchorOffset; offset < 366; offset += 1) {
-      const d = new Date();
+      const d = new Date(clientNow);
       d.setDate(d.getDate() - offset);
       if (studyDateSet.has(formatLocalDateKey(d))) {
         streak += 1;
@@ -534,7 +546,7 @@ export default function Home() {
       }
     }
     return streak;
-  }, [studyDates.length, hasStudyToday, studyDateSet]);
+  }, [clientNow, studyDates.length, hasStudyToday, studyDateSet]);
 
   // 将 welcome 弹窗标记为已读：关闭弹窗并写入 app_users.onboarding_flags
   const markWelcomeSeen = useCallback(async () => {
@@ -683,13 +695,13 @@ export default function Home() {
   const displayName =
     (user?.email && user.email.split('@')[0]) || '朋友';
 
-  const hour = new Date().getHours();
-  let greetingLabel = 'Good evening';
-  if (hour < 12) {
-    greetingLabel = 'Good morning';
-  } else if (hour < 18) {
-    greetingLabel = 'Good afternoon';
-  }
+  const greetingLabel = useMemo(() => {
+    if (!clientNow) return 'Good evening';
+    const hour = clientNow.getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  }, [clientNow]);
 
   // 格式化时长
   const formatDuration = (seconds: number): string => {
