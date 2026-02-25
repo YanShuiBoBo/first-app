@@ -18,7 +18,7 @@ This is a Next.js 16 project using React 19, built with TypeScript. The applicat
 - **State Management**: Zustand (`zustand`)
 - **Validation**: Zod (`zod`)
 - **Video Streaming**: Cloudflare Stream (`@cloudflare/stream-react`)
-- **Styling**: Tailwind CSS v4
+- **Styling**: Tailwind CSS v4 
 
 ### Directory Structure
 ```
