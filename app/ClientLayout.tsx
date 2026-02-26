@@ -9,7 +9,18 @@ if (typeof window !== 'undefined' && !(window as any).__HYDRATION_DEBUG_INSTALLE
   (window as any).__HYDRATION_DEBUG_INSTALLED = true;
   const captureHydrationError = (source: string, payload: unknown) => {
     try {
-      const htmlSample = document.documentElement.outerHTML.slice(0, 1200);
+      const htmlSample = document.documentElement.outerHTML.slice(0, 3000);
+      const headSample = document.head.innerHTML.slice(0, 2000);
+      const bodyStart = document.body.innerHTML.slice(0, 2000);
+      const bodyEnd = document.body.innerHTML.slice(-2000);
+      const nextData =
+        typeof (window as any).__NEXT_DATA__ !== 'undefined'
+          ? (window as any).__NEXT_DATA__
+          : null;
+      const nextF =
+        typeof (window as any).__next_f !== 'undefined'
+          ? (window as any).__next_f
+          : null;
       // 控制台输出足够信息便于对比 SSR/CSR
       console.error('[HydrationDebug/Global]', {
         source,
@@ -17,7 +28,12 @@ if (typeof window !== 'undefined' && !(window as any).__HYDRATION_DEBUG_INSTALLE
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
         payload,
-        htmlSample
+        htmlSample,
+        headSample,
+        bodyStart,
+        bodyEnd,
+        nextData,
+        nextF
       });
     } catch (err) {
       console.error('[HydrationDebug/Global] capture failed', err);
