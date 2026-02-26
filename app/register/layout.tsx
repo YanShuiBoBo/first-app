@@ -11,15 +11,6 @@ export default function RegisterLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="zh-CN">
-      <body
-        className="antialiased"
-        suppressHydrationWarning={true}
-      >
-        {/* 不显示Header */}
-        {children}
-      </body>
-    </html>
-  );
+  // 仅返回子树，避免在路由段内重复声明 <html>/<body> 导致 hydration mismatch
+  return children;
 }
