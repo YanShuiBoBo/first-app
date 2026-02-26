@@ -4,6 +4,50 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store/auth-store';
 
+// 提前安装全局监听，确保在 React 开始 hydrate 之前就能捕获 418 / Hydration 相关异常
+if (typeof window !== 'undefined' && !(window as any).__HYDRATION_DEBUG_INSTALLED) {
+  (window as any).__HYDRATION_DEBUG_INSTALLED = true;
+  const captureHydrationError = (source: string, payload: unknown) => {
+    try {
+      const htmlSample = document.documentElement.outerHTML.slice(0, 1200);
+      // 控制台输出足够信息便于对比 SSR/CSR
+      console.error('[HydrationDebug/Global]', {
+        source,
+        url: window.location.href,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        payload,
+        htmlSample
+      });
+    } catch (err) {
+      console.error('[HydrationDebug/Global] capture failed', err);
+    }
+  };
+
+  window.addEventListener('error', event => {
+    const msg = event.message || '';
+    if (
+      typeof msg === 'string' &&
+      (msg.includes('Minified React error #418') ||
+        msg.includes('Hydration failed'))
+    ) {
+      captureHydrationError('window.error', { message: msg, error: event.error });
+    }
+  });
+
+  window.addEventListener('unhandledrejection', event => {
+    const msg = String(event.reason || '');
+    if (
+      msg.includes('Minified React error #418') ||
+      msg.includes('Hydration failed')
+    ) {
+      captureHydrationError('unhandledrejection', { reason: event.reason });
+    }
+  });
+
+  console.info('[HydrationDebug/Global] installed');
+}
+
 interface ClientLayoutProps {
   children: React.ReactNode;
 }
